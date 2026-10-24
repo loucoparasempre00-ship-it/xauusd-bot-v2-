@@ -156,69 +156,115 @@ def detectar_consolidacao(candles, periodo=20, limite_percentual=0.002):
 
     return amplitude_percentual <= limite_percentual
 
+def detectar_cruzamento(ema6, ema20, macd_histograma, preco, vwap,
+                        ema6_anterior, ema20_anterior,
+                        consolidacao=False):
+    """
+    Detecta cruzamento confirmado pelas condições atuais.
+    Os valores devem vir de candles fechados.
+    """
+    if consolidacao:
+        return None
 
-def calcular_niveis_risco(
-    direcao,
-    preco_entrada,
-    atr,
-    stop_estrutura=None,
-    multiplo_atr=1.5,
-):
-    if (
-        not all(
-            isfinite(float(v))
-            for v in (preco_entrada, atr, multiplo_atr)
-        )
-        or preco_entrada <= 0
-        or atr <= 0
-        or multiplo_atr <= 0
-    ):
-        raise ValueError("Entrada, ATR ou multiplicador inválido.")
+    valores = [
+        ema6, ema20, macd_histograma, preco, vwap,
+        ema6_anterior, ema20_anterior
+    ]
 
-    direcao = direcao.upper()
-    distancia_atr = atr * multiplo_atr
+    if not all(isfinite(float(v)) for v in valores):
+        return None
 
-    if direcao == "COMPRA":
-        stop_atr = preco_entrada - distancia_atr
+    cruzou_alta = (
+        ema6_anterior <= ema20_anterior
+        and ema6 > ema20
+        and macd_histograma > 0
+        and preco > vwap
+    )
 
-        if stop_estrutura is not None:
-            stop_estrutura = float(stop_estrutura)
-            if not isfinite(stop_estrutura) or stop_estrutura >= preco_entrada:
-                raise ValueError("Stop estrutural inválido para compra.")
-            stop = min(stop_atr, stop_estrutura)
-        else:
-            stop = stop_atr
+    cruzou_baixa = (
+        ema6_anterior >= ema20_anterior
+        and ema6 < ema20
+        and macd_histograma < 0
+        and preco < vwap
+    )
 
-        risco = preco_entrada - stop
-        alvo_1_5r = preco_entrada + risco * 1.5
-        alvo_2r = preco_entrada + risco * 2.0
+    if cruzou_alta:
+        return "COMPRA"
 
-    elif direcao == "VENDA":
-        stop_atr = preco_entrada + distancia_atr
+    if cruzou_baixa:
+        return "VENDA"
 
-        if stop_estrutura is not None:
-            stop_estrutura = float(stop_estrutura)
-            if not isfinite(stop_estrutura) or stop_estrutura <= preco_entrada:
-                raise ValueError("Stop estrutural inválido para venda.")
-            stop = max(stop_atr, stop_estrutura)
-        else:
-            stop = stop_atr
-
-        risco = stop - preco_entrada
-        alvo_1_5r = preco_entrada - risco * 1.5
-        alvo_2r = preco_entrada - risco * 2.0
-
-    else:
-        raise ValueError("Direção deve ser COMPRA ou VENDA.")
-
-    return {
-        "stop": round(stop, 5),
-        "risco": round(risco, 5),
-        "alvo_1_5R": round(alvo_1_5r, 5),
-        "alvo_2R": round(alvo_2r, 5),
-    }
+    return None
 
 
-if __name__ == "__main__":
-    print("Motor matemático V2 carregado.")
-    print("Sem conexão com corretora e sem execução de ordens.")
+def detectar_pullback(candles, ema6, ema20, macd_histograma, vwap,
+                      consolidacao=False, tolerancia_atr=0.25,
+                      atr=None):
+    """
+    Procura toque próximo da EMA 6/20 e retomada direcional.
+    O último candle deve estar fechado.
+    """
+    if consolidacao or len(candles) < 3 or atr is None:
+        return None
+
+    if not isfinite(float(atr)) or atr <= 0:
+        return None
+
+    try:
+        anterior = candles[-2]
+        ultimo = candles[-1]
+
+        o_anterior = float(anterior["open"])
+        c_anterior = float(anterior["close"])
+        o_ultimo = float(ultimo["open"])
+        h_ultimo = float(ultimo["high"])
+        l_ultimo = float(ultimo["low"])
+        c_ultimo = float(ultimo["close"])
+
+        valores = [
+            ema6, ema20, macd_histograma, vwap,
+            o_anterior, c_anterior, o_ultimo,
+            h_ultimo, l_ultimo, c_ultimo
+        ]
+
+        if not all(isfinite(float(v)) for v in valores):
+            return None
+
+        if h_ultimo < l_ultimo:
+            return None
+
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    tolerancia = float(atr) * tolerancia_atr
+    tocou_media = (
+        l_ultimo <= max(ema6, ema20) + tolerancia
+        and h_ultimo >= min(ema6, ema20) - tolerancia
+    )
+
+    tendencia_alta = ema6 > ema20
+    tendencia_baixa = ema6 < ema20
+
+    retomada_alta = (
+        c_ultimo > o_ultimo
+        and c_ultimo > c_anterior
+        and c_ultimo > ema6
+        and macd_histograma > 0
+        and c_ultimo > vwap
+    )
+
+    retomada_baixa = (
+        c_ultimo < o_ultimo
+        and c_ultimo < c_anterior
+        and c_ultimo < ema6
+        and macd_histograma < 0
+        and c_ultimo < vwap
+    )
+
+    if tocou_media and tendencia_alta and retomada_alta:
+        return "COMPRA"
+
+    if tocou_media and tendencia_baixa and retomada_baixa:
+        return "VENDA"
+
+    return None
