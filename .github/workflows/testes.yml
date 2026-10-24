@@ -1,0 +1,22 @@
+
+name: Testes do Validador V2
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Executar testes
+        run: python -m unittest -v testar_validador.py
