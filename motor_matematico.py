@@ -5,12 +5,11 @@ from math import isfinite
 
 def calcular_ema(valores, periodo):
     if periodo < 1 or len(valores) < periodo:
-        raise ValueError("Valores insuficientes para calcular a EMA.")
+        raise ValueError("Valores insuficientes para EMA.")
 
     valores = [float(v) for v in valores]
-
     if not all(isfinite(v) for v in valores):
-        raise ValueError("Existem valores inválidos.")
+        raise ValueError("Valor inválido para EMA.")
 
     alpha = 2 / (periodo + 1)
     ema = valores[0]
@@ -21,91 +20,73 @@ def calcular_ema(valores, periodo):
     return ema
 
 
-def calcular_macd(
-    valores,
-    periodo_rapido=12,
-    periodo_lento=26,
-    periodo_sinal=9,
-):
+def calcular_macd(valores, periodo_rapido=12,
+                  periodo_lento=26, periodo_sinal=9):
     if len(valores) < periodo_lento + periodo_sinal:
-        raise ValueError("Valores insuficientes para o MACD.")
-
-    valores = [float(v) for v in valores]
+        raise ValueError("Valores insuficientes para MACD.")
 
     def serie_ema(lista, periodo):
         alpha = 2 / (periodo + 1)
         resultado = [lista[0]]
-
         for valor in lista[1:]:
             resultado.append(
                 alpha * valor + (1 - alpha) * resultado[-1]
             )
-
         return resultado
 
-    ema_rapida = serie_ema(valores, periodo_rapido)
-    ema_lenta = serie_ema(valores, periodo_lento)
+    valores = [float(v) for v in valores]
+    if not all(isfinite(v) for v in valores):
+        raise ValueError("Valor inválido para MACD.")
 
-    linha_macd = [
-        rapida - lenta
-        for rapida, lenta in zip(ema_rapida, ema_lenta)
-    ]
-
-    linha_sinal = serie_ema(linha_macd, periodo_sinal)
+    rapida = serie_ema(valores, periodo_rapido)
+    lenta = serie_ema(valores, periodo_lento)
+    linha = [a - b for a, b in zip(rapida, lenta)]
+    sinal = serie_ema(linha, periodo_sinal)
 
     return {
-        "linha": linha_macd[-1],
-        "sinal": linha_sinal[-1],
-        "histograma": linha_macd[-1] - linha_sinal[-1],
+        "linha": linha[-1],
+        "sinal": sinal[-1],
+        "histograma": linha[-1] - sinal[-1],
     }
 
 
-def calcular_vwap_ancorada(
-    candles,
-    abertura_nova_york="09:30",
-):
-    fuso_ny = ZoneInfo("America/New_York")
-
+def calcular_vwap_ancorada(candles, abertura_nova_york="09:30"):
     if not candles:
         raise ValueError("Nenhum candle recebido.")
 
-    if "T" in abertura_nova_york:
-        abertura = datetime.fromisoformat(abertura_nova_york)
+    fuso = ZoneInfo("America/New_York")
 
-        if abertura.tzinfo is None:
-            abertura = abertura.replace(tzinfo=fuso_ny)
+    if "T" in abertura_nova_york:
+        inicio = datetime.fromisoformat(abertura_nova_york)
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=fuso)
         else:
-            abertura = abertura.astimezone(fuso_ny)
+            inicio = inicio.astimezone(fuso)
     else:
         hora, minuto = map(int, abertura_nova_york.split(":"))
-        abertura = None
+        inicio = None
 
-    soma_preco_volume = 0.0
+    soma_pv = 0.0
     soma_volume = 0.0
 
     for candle in candles:
         instante = datetime.fromisoformat(
             candle["timestamp"].replace("Z", "+00:00")
         )
-
         if instante.tzinfo is None:
-            raise ValueError("Timestamp precisa conter fuso horário.")
+            raise ValueError("Timestamp sem fuso horário.")
 
-        instante_ny = instante.astimezone(fuso_ny)
+        instante = instante.astimezone(fuso)
 
-        if abertura is None:
-            inicio = datetime(
-                instante_ny.year,
-                instante_ny.month,
-                instante_ny.day,
-                hora,
-                minuto,
-                tzinfo=fuso_ny,
+        if inicio is None:
+            ancora = datetime(
+                instante.year, instante.month, instante.day,
+                hora, minuto, tzinfo=fuso
             )
         else:
-            inicio = abertura
+            ancora = inicio
 
-        if instante_ny < inicio:
+        if instante < ancora:
             continue
 
         high = float(candle["high"])
@@ -114,25 +95,25 @@ def calcular_vwap_ancorada(
         volume = float(candle["volume"])
 
         if (
-            not all(isfinite(v) for v in (high, low, close, volume))
+            not all(isfinite(v) for v in
+                    (high, low, close, volume))
             or high < low
             or volume <= 0
         ):
             raise ValueError("Preço ou volume inválido.")
 
-        preco_tipico = (high + low + close) / 3
-        soma_preco_volume += preco_tipico * volume
+        tipico = (high + low + close) / 3
+        soma_pv += tipico * volume
         soma_volume += volume
 
-    if soma_volume <= 0:
-        raise ValueError(
-            "Não existem candles válidos desde a abertura ancorada."
-        )
+    if soma_volume == 0:
+        raise ValueError("Sem volume desde a ancoragem.")
 
-    return soma_preco_volume / soma_volume
+    return soma_pv / soma_volume
 
 
-def detectar_consolidacao(candles, periodo=20, limite_percentual=0.002):
+def detectar_consolidacao(candles, periodo=20,
+                          limite_percentual=0.002):
     if len(candles) < periodo:
         return False
 
@@ -146,23 +127,67 @@ def detectar_consolidacao(candles, periodo=20, limite_percentual=0.002):
         return False
 
     if (
-        not all(isfinite(v) for v in (maximo, minimo, fechamento))
+        not all(isfinite(v) for v in
+                (maximo, minimo, fechamento))
         or fechamento <= 0
         or maximo < minimo
     ):
         return False
 
-    amplitude_percentual = (maximo - minimo) / fechamento
+    return (maximo - minimo) / fechamento <= limite_percentual
 
-    return amplitude_percentual <= limite_percentual
+
+def calcular_niveis_risco(direcao, preco_entrada, atr,
+                          stop_estrutura=None, multiplo_atr=1.5):
+    valores = [preco_entrada, atr, multiplo_atr]
+    if not all(isfinite(float(v)) for v in valores):
+        raise ValueError("Valores de risco inválidos.")
+
+    preco_entrada = float(preco_entrada)
+    atr = float(atr)
+    multiplo_atr = float(multiplo_atr)
+
+    if preco_entrada <= 0 or atr <= 0 or multiplo_atr <= 0:
+        raise ValueError("Entrada, ATR e multiplicador devem ser positivos.")
+
+    direcao = direcao.upper()
+
+    if direcao == "COMPRA":
+        stop = preco_entrada - atr * multiplo_atr
+        if stop_estrutura is not None:
+            stop_estrutura = float(stop_estrutura)
+            if not isfinite(stop_estrutura) or stop_estrutura >= preco_entrada:
+                raise ValueError("Stop estrutural inválido para compra.")
+            stop = min(stop, stop_estrutura)
+        risco = preco_entrada - stop
+        alvo_15 = preco_entrada + risco * 1.5
+        alvo_2 = preco_entrada + risco * 2
+
+    elif direcao == "VENDA":
+        stop = preco_entrada + atr * multiplo_atr
+        if stop_estrutura is not None:
+            stop_estrutura = float(stop_estrutura)
+            if not isfinite(stop_estrutura) or stop_estrutura <= preco_entrada:
+                raise ValueError("Stop estrutural inválido para venda.")
+            stop = max(stop, stop_estrutura)
+        risco = stop - preco_entrada
+        alvo_15 = preco_entrada - risco * 1.5
+        alvo_2 = preco_entrada - risco * 2
+
+    else:
+        raise ValueError("Direção deve ser COMPRA ou VENDA.")
+
+    return {
+        "stop": round(stop, 5),
+        "risco": round(risco, 5),
+        "alvo_1_5R": round(alvo_15, 5),
+        "alvo_2R": round(alvo_2, 5),
+    }
+
 
 def detectar_cruzamento(ema6, ema20, macd_histograma, preco, vwap,
                         ema6_anterior, ema20_anterior,
                         consolidacao=False):
-    """
-    Detecta cruzamento confirmado pelas condições atuais.
-    Os valores devem vir de candles fechados.
-    """
     if consolidacao:
         return None
 
@@ -170,101 +195,92 @@ def detectar_cruzamento(ema6, ema20, macd_histograma, preco, vwap,
         ema6, ema20, macd_histograma, preco, vwap,
         ema6_anterior, ema20_anterior
     ]
-
     if not all(isfinite(float(v)) for v in valores):
         return None
 
-    cruzou_alta = (
+    if (
         ema6_anterior <= ema20_anterior
         and ema6 > ema20
         and macd_histograma > 0
         and preco > vwap
-    )
+    ):
+        return "COMPRA"
 
-    cruzou_baixa = (
+    if (
         ema6_anterior >= ema20_anterior
         and ema6 < ema20
         and macd_histograma < 0
         and preco < vwap
-    )
-
-    if cruzou_alta:
-        return "COMPRA"
-
-    if cruzou_baixa:
+    ):
         return "VENDA"
 
     return None
 
 
-def detectar_pullback(candles, ema6, ema20, macd_histograma, vwap,
-                      consolidacao=False, tolerancia_atr=0.25,
-                      atr=None):
-    """
-    Procura toque próximo da EMA 6/20 e retomada direcional.
-    O último candle deve estar fechado.
-    """
+def detectar_pullback(candles, ema6, ema20, macd_histograma,
+                      vwap, consolidacao=False,
+                      tolerancia_atr=0.25, atr=None):
     if consolidacao or len(candles) < 3 or atr is None:
         return None
 
-    if not isfinite(float(atr)) or atr <= 0:
-        return None
-
     try:
+        atr = float(atr)
+        if not isfinite(atr) or atr <= 0:
+            return None
+
         anterior = candles[-2]
         ultimo = candles[-1]
 
-        o_anterior = float(anterior["open"])
-        c_anterior = float(anterior["close"])
-        o_ultimo = float(ultimo["open"])
-        h_ultimo = float(ultimo["high"])
-        l_ultimo = float(ultimo["low"])
-        c_ultimo = float(ultimo["close"])
+        o_ant = float(anterior["open"])
+        c_ant = float(anterior["close"])
+        abertura = float(ultimo["open"])
+        maxima = float(ultimo["high"])
+        minima = float(ultimo["low"])
+        fechamento = float(ultimo["close"])
 
         valores = [
             ema6, ema20, macd_histograma, vwap,
-            o_anterior, c_anterior, o_ultimo,
-            h_ultimo, l_ultimo, c_ultimo
+            o_ant, c_ant, abertura, maxima, minima, fechamento
         ]
-
         if not all(isfinite(float(v)) for v in valores):
             return None
-
-        if h_ultimo < l_ultimo:
+        if maxima < minima:
             return None
 
     except (KeyError, TypeError, ValueError):
         return None
 
-    tolerancia = float(atr) * tolerancia_atr
+    tolerancia = atr * tolerancia_atr
     tocou_media = (
-        l_ultimo <= max(ema6, ema20) + tolerancia
-        and h_ultimo >= min(ema6, ema20) - tolerancia
+        minima <= max(ema6, ema20) + tolerancia
+        and maxima >= min(ema6, ema20) - tolerancia
     )
 
-    tendencia_alta = ema6 > ema20
-    tendencia_baixa = ema6 < ema20
-
-    retomada_alta = (
-        c_ultimo > o_ultimo
-        and c_ultimo > c_anterior
-        and c_ultimo > ema6
+    if (
+        tocou_media
+        and ema6 > ema20
+        and fechamento > abertura
+        and fechamento > c_ant
+        and fechamento > ema6
         and macd_histograma > 0
-        and c_ultimo > vwap
-    )
-
-    retomada_baixa = (
-        c_ultimo < o_ultimo
-        and c_ultimo < c_anterior
-        and c_ultimo < ema6
-        and macd_histograma < 0
-        and c_ultimo < vwap
-    )
-
-    if tocou_media and tendencia_alta and retomada_alta:
+        and fechamento > vwap
+    ):
         return "COMPRA"
 
-    if tocou_media and tendencia_baixa and retomada_baixa:
+    if (
+        tocou_media
+        and ema6 < ema20
+        and fechamento < abertura
+        and fechamento < c_ant
+        and fechamento < ema6
+        and macd_histograma < 0
+        and fechamento < vwap
+    ):
         return "VENDA"
 
     return None
+
+
+if __name__ == "__main__":
+    print("Motor matemático V2 carregado.")
+    print("Sem conexão com corretora e sem execução de ordens.")
