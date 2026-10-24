@@ -15,3 +15,5 @@ jobs:
 
       - run: python -m unittest -v testar_validador.py
       - run: python -m unittest -v testar_estado.py
+      - run: python -m unittest -v testar_motor_matematico.py
+
