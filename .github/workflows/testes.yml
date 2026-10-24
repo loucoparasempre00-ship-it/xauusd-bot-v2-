@@ -1,5 +1,5 @@
 
-name: Testes dos Modulos V2
+name: Testes V2
 
 on: [push, workflow_dispatch]
 
@@ -7,22 +7,11 @@ jobs:
   testar:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar codigo do repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Preparar Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Conferir arquivos
-        run: |
-          pwd
-          ls -la
-          python --version
-
-      - name: Executar todos os testes
-        run: |
-  python -m unittest discover -v
-  echo "===== ARQUIVOS DISPONIVEIS ====="
-  ls -la
+      - run: python -m unittest -v testar_validador.py
+      - run: python -m unittest -v testar_estado.py
