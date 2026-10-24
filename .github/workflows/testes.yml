@@ -22,4 +22,7 @@ jobs:
           python --version
 
       - name: Executar todos os testes
-        run: python -m unittest discover -v
+        run: |
+  python -m unittest discover -v
+  echo "===== ARQUIVOS DISPONIVEIS ====="
+  ls -la
