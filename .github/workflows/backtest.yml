@@ -1,55 +1,66 @@
-
 name: Backtest XAUUSD M5
 
 on:
-  workflow_dispatch:
-    inputs:
-      quantidade:
-        description: "Candles historicos (maximo 5000)"
-        required: true
-        default: "5000"
-        type: string
+workflow_dispatch:
+inputs:
+quantidade:
+description: "Candles historicos (maximo 5000)"
+required: true
+default: "5000"
+type: string
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  backtest:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+backtest:
+runs-on: ubuntu-latest
+timeout-minutes: 10
 
-    steps:
-      - name: Baixar codigo
-        uses: actions/checkout@v4
+steps:
+  - name: Baixar codigo
+    uses: actions/checkout@v4
 
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+  - name: Preparar Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.12"
 
-      - name: Validar quantidade
-        env:
-          QUANTIDADE: ${{ inputs.quantidade }}
-        run: |
-          python -c "import os; n=int(os.environ['QUANTIDADE']); assert 100 <= n <= 5000, 'Use de 100 a 5000 candles'"
+  - name: Validar quantidade
+    env:
+      QUANTIDADE: ${{ inputs.quantidade }}
+    run: |
+      python -c "import os; n=int(os.environ['QUANTIDADE']); assert 100 <= n <= 5000, 'Use de 100 a 5000 candles'"
 
-      - name: Coletar candles
-        env:
-          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
-          QUANTIDADE: ${{ inputs.quantidade }}
-        run: |
-          python -c "from pathlib import Path; p=Path('coletar_candles.py'); s=p.read_text(encoding='utf-8').replace('MAX_CANDLES = 5000', 'MAX_CANDLES = int(__import__(\"os\").environ[\"QUANTIDADE\"])'); p.write_text(s, encoding='utf-8')"
-          python coletar_candles.py
+  - name: Coletar candles
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      QUANTIDADE: ${{ inputs.quantidade }}
+    run: |
+      python -c "from pathlib import Path; p=Path('coletar_candles.py'); s=p.read_text(encoding='utf-8').replace('MAX_CANDLES = 5000', 'MAX_CANDLES = int(__import__(\"os\").environ[\"QUANTIDADE\"])'); p.write_text(s, encoding='utf-8')"
+      python coletar_candles.py
 
-      - name: Executar backtest
-        run: python backtest_xauusd.py
+  - name: Executar backtest
+    run: python backtest_xauusd.py
 
-      - name: Publicar resultados
-        uses: actions/upload-artifact@v4
-        with:
-          name: resultados-backtest-xauusd
-          path: |
-            resultados/relatorio_backtest.txt
-            resultados/operacoes_backtest.csv
-          if-no-files-found: error
-          retention-days: 7
+  - name: Mostrar relatorio na tela
+    if: always()
+    run: |
+      echo "===== RELATORIO DO BACKTEST ====="
+      if [ -f resultados/relatorio_backtest.txt ]; then
+        cat resultados/relatorio_backtest.txt
+      else
+        echo "Relatorio nao encontrado."
+      fi
+      echo "===== FIM DO RELATORIO ====="
+
+  - name: Publicar resultados
+    if: success()
+    uses: actions/upload-artifact@v4
+    with:
+      name: resultados-backtest-xauusd
+      path: |
+        resultados/relatorio_backtest.txt
+        resultados/operacoes_backtest.csv
+      if-no-files-found: error
+      retention-days: 7
