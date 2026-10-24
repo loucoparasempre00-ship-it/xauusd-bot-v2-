@@ -1,0 +1,49 @@
+name: Coletar historico XAUUSD M5
+
+on:
+  workflow_dispatch:
+    inputs:
+      quantidade:
+        description: "Quantidade de candles (maximo 5000)"
+        required: true
+        default: "5000"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar quantidade solicitada
+        env:
+          QUANTIDADE: ${{ inputs.quantidade }}
+        run: |
+          python -c "import os; n=int(os.environ['QUANTIDADE']); assert 1 <= n <= 5000, 'Use um valor entre 1 e 5000'"
+
+      - name: Coletar e validar candles
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          QUANTIDADE: ${{ inputs.quantidade }}
+        run: |
+          python -c "from pathlib import Path; p=Path('coletar_candles.py'); s=p.read_text(encoding='utf-8').replace('MAX_CANDLES = 5000', 'MAX_CANDLES = int(__import__(\"os\").environ[\"QUANTIDADE\"])'); p.write_text(s, encoding='utf-8')"
+          python coletar_candles.py
+
+      - name: Disponibilizar CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m5-historico
+          path: data/xauusd_m5.csv
+          if-no-files-found: error
+          retention-days: 7
