@@ -1,5 +1,4 @@
-
-name: Testes do Validador V2
+name: Testes do Validador e Estado V2
 
 on:
   push:
@@ -18,5 +17,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Executar testes
+      - name: Testar validador de mercado
         run: python -m unittest -v testar_validador.py
+
+      - name: Testar estado persistente
+        run: python -m unittest -v testar_estado.py
