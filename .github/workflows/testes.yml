@@ -1,24 +1,27 @@
 name: Testes dos Modulos V2
 
 on:
-  push:
-  workflow_dispatch:
+push:
+workflow_dispatch:
 
 jobs:
-  testar:
-    runs-on: ubuntu-latest
+testar:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Baixar codigo do repositorio
-        uses: actions/checkout@v4
+steps:
+  - name: Baixar codigo do repositorio
+    uses: actions/checkout@v4
 
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+  - name: Preparar Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.12"
 
-      - name: Testar validador de mercado
-        run: python -m unittest -v testar_validador.py
+  - name: Conferir arquivos
+    run: |
+      pwd
+      ls -la
+      python --version
 
-      - name: Testar estado persistente
-        run: python -m unittest -v testar_estado.py
+  - name: Executar todos os testes
+    run: python -m unittest discover -v
