@@ -1,66 +1,33 @@
-name: Testar modulos do XAUUSD Bot V2
+name: Backtest XAUUSD
 
 on:
 workflow_dispatch:
+inputs:
+quantidade:
+description: "Quantidade de candles para testar"
+required: true
+default: "500"
+type: string
 
 permissions:
 contents: read
 
 jobs:
-testar-modulos:
+backtest:
 runs-on: ubuntu-latest
-timeout-minutes: 10
-
 steps:
-  - name: Baixar repositorio
-    uses: actions/checkout@v4
+- name: Baixar repositorio
+uses: actions/checkout@v4
 
   - name: Configurar Python
     uses: actions/setup-python@v5
     with:
       python-version: "3.12"
 
-  - name: Instalar dependencias
+  - name: Mostrar configuracao do teste
+    env:
+      QUANTIDADE: ${{ inputs.quantidade }}
     run: |
-      python -m pip install --upgrade pip
-      pip install requests
-
-  - name: Mostrar arquivos Python encontrados
-    run: |
-      echo "Arquivos Python no repositorio:"
-      find . -type f -name "*.py" \
-        -not -path "./.git/*" | sort
-
-  - name: Verificar sintaxe dos arquivos
-    run: |
-      python - <<'PY'
-      import ast
-      from pathlib import Path
-
-      arquivos = sorted(
-          p for p in Path(".").rglob("*.py")
-          if ".git" not in p.parts
-          and ".venv" not in p.parts
-      )
-
-      if not arquivos:
-          print("ERRO: nenhum arquivo Python encontrado.")
-          raise SystemExit(1)
-
-      erros = 0
-      for arquivo in arquivos:
-          try:
-              ast.parse(
-                  arquivo.read_text(encoding="utf-8"),
-                  filename=str(arquivo)
-              )
-              print(f"OK - {arquivo}: sintaxe valida")
-          except Exception as erro:
-              erros += 1
-              print(f"ERRO - {arquivo}: {erro}")
-
-      print(f"\nArquivos verificados: {len(arquivos)}")
-      print(f"Erros de sintaxe: {erros}")
-      if erros:
-          raise SystemExit(1)
-      PY
+      echo "Backtest solicitado."
+      echo "Quantidade de candles: $QUANTIDADE"
+      echo "Este workflow ainda precisa ser conectado ao script de backtest existente."
