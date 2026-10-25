@@ -1,10 +1,9 @@
-
 name: Analise Tecnica Contexto
 
 on:
-  workflow_dispatch:
   workflow_run:
-    workflows: ["Integrador"]
+    workflows:
+      - "Integracao XAUUSD Bot V2"
     types:
       - completed
 
@@ -14,17 +13,14 @@ permissions:
 
 jobs:
   analise:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
-
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
       - name: Baixar repositorio
         uses: actions/checkout@v4
 
-      - name: Preparar Python
+      - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -34,8 +30,18 @@ jobs:
         with:
           name: candles-xauusd-m5
           path: data
-          run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Conferir arquivo de candles
+        run: |
+          if [ ! -f data/xauusd_m5_fechados.csv ]; then
+            echo "::error::O CSV de candles fechados nao foi encontrado."
+            exit 1
+          fi
+          echo "Arquivo recebido corretamente."
+          wc -l data/xauusd_m5_fechados.csv
 
       - name: Executar analise tecnica
         run: python -u analise_tecnica_contexto.py
