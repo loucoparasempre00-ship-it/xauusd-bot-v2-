@@ -77,3 +77,12 @@ jobs:
         run: |
           echo "Execucao finalizada."
           echo "Confira acima a primeira etapa que apresentou X vermelho."
+
+      - name: Publicar candles fechados
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data/xauusd_m5_fechados.csv
+          if-no-files-found: error
+          retention-days: 2
