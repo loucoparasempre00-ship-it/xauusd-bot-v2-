@@ -1,0 +1,58 @@
+name: Analise Tecnica e Contexto XAUUSD
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analise-tecnica-xauusd
+  cancel-in-progress: true
+
+jobs:
+  analisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install pandas requests
+          fi
+
+      - name: Gerar candles fechados
+        run: python -u filtro_candles_fechados.py
+
+      - name: Validar mercado
+        run: python -u validador_mercado.py
+
+      - name: Gerar analise tecnica e contexto
+        run: python -u analise_tecnica_contexto.py
+
+      - name: Guardar relatorio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-tecnica-xauusd
+          path: |
+            data/analise_tecnica_contexto.json
+            data/xauusd_m5_fechados.csv
+          if-no-files-found: warn
+          retention-days: 7
