@@ -1,33 +1,81 @@
-name: Backtest XAUUSD
+name: Testar modulos XAUUSD V2
 
 on:
 workflow_dispatch:
-inputs:
-quantidade:
-description: "Quantidade de candles para testar"
-required: true
-default: "500"
-type: string
 
 permissions:
 contents: read
 
 jobs:
-backtest:
+testar:
 runs-on: ubuntu-latest
+
 steps:
-- name: Baixar repositorio
-uses: actions/checkout@v4
+  - name: Baixar repositorio
+    uses: actions/checkout@v4
 
   - name: Configurar Python
     uses: actions/setup-python@v5
     with:
       python-version: "3.12"
 
-  - name: Mostrar configuracao do teste
-    env:
-      QUANTIDADE: ${{ inputs.quantidade }}
+  - name: Instalar dependencias
     run: |
-      echo "Backtest solicitado."
-      echo "Quantidade de candles: $QUANTIDADE"
-      echo "Este workflow ainda precisa ser conectado ao script de backtest existente."
+      python -m pip install --upgrade pip
+      pip install requests
+
+  - name: Testar cada modulo
+    shell: bash
+    run: |
+      arquivos=(
+        "coletar_candles.py"
+        "filtro_candles_fechados.py"
+        "validador_mercado.py"
+        "motor_matematico.py"
+        "leitura_mercado.py"
+        "gerador_candidatos.py"
+        "validador_sinais_ia.py"
+        "decisor_final.py"
+      )
+
+      falhas=0
+
+      for arquivo in "${arquivos[@]}"; do
+        echo ""
+        echo "===================================="
+        echo "MODULO: $arquivo"
+        echo "===================================="
+
+        if [ ! -f "$arquivo" ]; then
+          echo "RESULTADO: ARQUIVO NAO ENCONTRADO"
+          falhas=$((falhas + 1))
+          continue
+        fi
+
+        if python -m py_compile "$arquivo"; then
+          echo "SINTAXE: OK"
+
+          if timeout 30s python "$arquivo"; then
+            echo "EXECUCAO: OK"
+          else
+            codigo=$?
+            echo "EXECUCAO: FALHOU (codigo $codigo)"
+            echo "O modulo pode precisar de entradas ou de uma funcao principal."
+            falhas=$((falhas + 1))
+          fi
+        else
+          echo "SINTAXE: FALHOU"
+          falhas=$((falhas + 1))
+        fi
+      done
+
+      echo ""
+      echo "===================================="
+      echo "TOTAL DE FALHAS: $falhas"
+      echo "===================================="
+
+      if [ "$falhas" -gt 0 ]; then
+        echo "Alguns modulos precisam de correcao ou de testes proprios."
+      else
+        echo "Todos os modulos passaram na verificacao inicial."
+      fi
