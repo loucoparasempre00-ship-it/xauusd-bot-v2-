@@ -1,271 +1,466 @@
-
 import csv
 import json
-import math
-from pathlib import Path
+import os
 from datetime import datetime, timezone
+from collections import defaultdict
 
-ENTRADA = Path("data/xauusd_m5_fechados.csv")
-SAIDA = Path("data/analise_tecnica_contexto.json")
+ARQUIVO_ENTRADA = "data/xauusd_m5_fechados.csv"
+ARQUIVO_SAIDA = "data/analise_tecnica_contexto.json"
 
+ATR_PERIODO = 14
+EMA_CURTA = 9
+EMA_LONGA = 21
+RSI_PERIODO = 14
 
-def localizar_coluna(campos, alternativas):
-    mapa = {c.lower().strip(): c for c in campos}
-    for nome in alternativas:
-        if nome in mapa:
-            return mapa[nome]
-    return None
+# Critérios equilibrados: não gera sinal só porque uma média cruzou.
+PONTUACAO_MINIMA = 4
+DIFERENCA_MINIMA = 2
 
 
 def numero(valor):
+    return float(str(valor).strip().replace(",", "."))
+
+
+def ler_data(valor):
+    valor = valor.strip()
+
+    formatos = (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M",
+    )
+
     try:
-        resultado = float(valor)
-        return resultado if math.isfinite(resultado) else None
-    except (TypeError, ValueError):
-        return None
+        data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+    except ValueError:
+        data = None
+        for formato in formatos:
+            try:
+                data = datetime.strptime(valor, formato)
+                break
+            except ValueError:
+                continue
+
+    if data is None:
+        raise ValueError(f"Data não reconhecida: {valor}")
+
+    if data.tzinfo is None:
+        data = data.replace(tzinfo=timezone.utc)
+
+    return data.astimezone(timezone.utc)
 
 
-def media_exponencial(valores, periodo):
-    if len(valores) < periodo:
-        return None
-    alfa = 2 / (periodo + 1)
-    resultado = sum(valores[:periodo]) / periodo
-    for valor in valores[periodo:]:
-        resultado = alfa * valor + (1 - alfa) * resultado
-    return resultado
+def localizar_coluna(cabecalhos, alternativas):
+    mapa = {
+        nome.strip().lower(): nome
+        for nome in cabecalhos
+    }
 
+    for alternativa in alternativas:
+        if alternativa in mapa:
+            return mapa[alternativa]
 
-def calcular_atr(candles, periodo=14):
-    if len(candles) < periodo + 1:
-        return None
-
-    ranges = []
-    for i in range(1, len(candles)):
-        atual = candles[i]
-        anterior = candles[i - 1]
-        ranges.append(max(
-            atual["high"] - atual["low"],
-            abs(atual["high"] - anterior["close"]),
-            abs(atual["low"] - anterior["close"])
-        ))
-
-    return sum(ranges[-periodo:]) / periodo
-
-
-def tendencia(candles):
-    fechamentos = [c["close"] for c in candles]
-    curta = media_exponencial(fechamentos, 9)
-    longa = media_exponencial(fechamentos, 21)
-
-    if curta is None or longa is None:
-        return "DADOS_INSUFICIENTES"
-
-    if curta > longa and fechamentos[-1] > curta:
-        return "ALTA"
-    if curta < longa and fechamentos[-1] < curta:
-        return "BAIXA"
-    return "LATERAL"
+    raise ValueError(
+        "Coluna não encontrada. Procuradas: "
+        + ", ".join(alternativas)
+        + ". Encontradas: "
+        + ", ".join(cabecalhos)
+    )
 
 
 def carregar_candles():
-    if not ENTRADA.exists():
-        raise FileNotFoundError(f"Arquivo não encontrado: {ENTRADA}")
-
-    with ENTRADA.open("r", newline="", encoding="utf-8-sig") as arquivo:
-        leitor = csv.DictReader(arquivo)
-        if not leitor.fieldnames:
-            raise ValueError("CSV sem cabeçalhos.")
-
-        campos = leitor.fieldnames
-        col = {
-            "time": localizar_coluna(campos, [
-                "datetime", "timestamp", "time", "date"
-            ]),
-            "open": localizar_coluna(campos, ["open", "o"]),
-            "high": localizar_coluna(campos, ["high", "h"]),
-            "low": localizar_coluna(campos, ["low", "l"]),
-            "close": localizar_coluna(campos, ["close", "c"]),
-        }
-
-        ausentes = [k for k, v in col.items() if v is None]
-        if ausentes:
-            raise ValueError(
-                "Colunas não reconhecidas no CSV: " + ", ".join(ausentes)
-            )
-
-        candles = []
-        for linha in leitor:
-            valores = {
-                k: numero(linha.get(col[k]))
-                for k in ("open", "high", "low", "close")
-            }
-            if any(v is None for v in valores.values()):
-                continue
-
-            valores["time"] = linha.get(col["time"], "").strip()
-            candles.append(valores)
-
-    candles.sort(key=lambda c: c["time"])
-    if len(candles) < 30:
-        raise ValueError(
-            f"Poucos candles para análise: {len(candles)}. Mínimo: 30."
+    if not os.path.exists(ARQUIVO_ENTRADA):
+        raise FileNotFoundError(
+            f"Arquivo não encontrado: {ARQUIVO_ENTRADA}. "
+            "Execute primeiro o filtro de candles fechados."
         )
 
-    # Evita analisar duas vezes o mesmo horário.
+    with open(
+        ARQUIVO_ENTRADA,
+        "r",
+        encoding="utf-8-sig",
+        newline=""
+    ) as arquivo:
+        leitor = csv.DictReader(arquivo)
+
+        if not leitor.fieldnames:
+            raise ValueError("CSV sem cabeçalho.")
+
+        cabecalhos = leitor.fieldnames
+
+        coluna_data = localizar_coluna(
+            cabecalhos,
+            ["datetime", "timestamp", "time", "date", "data", "hora"]
+        )
+        coluna_abertura = localizar_coluna(
+            cabecalhos, ["open", "abertura"]
+        )
+        coluna_maxima = localizar_coluna(
+            cabecalhos, ["high", "maxima", "máxima"]
+        )
+        coluna_minima = localizar_coluna(
+            cabecalhos, ["low", "minima", "mínima"]
+        )
+        coluna_fechamento = localizar_coluna(
+            cabecalhos, ["close", "fechamento", "preco_fechamento"]
+        )
+
+        candles = []
+
+        for linha in leitor:
+            try:
+                candle = {
+                    "tempo": ler_data(linha[coluna_data]),
+                    "open": numero(linha[coluna_abertura]),
+                    "high": numero(linha[coluna_maxima]),
+                    "low": numero(linha[coluna_minima]),
+                    "close": numero(linha[coluna_fechamento]),
+                }
+
+                if (
+                    candle["high"] < candle["low"]
+                    or candle["high"] < max(
+                        candle["open"], candle["close"]
+                    )
+                    or candle["low"] > min(
+                        candle["open"], candle["close"]
+                    )
+                ):
+                    continue
+
+                candles.append(candle)
+
+            except (ValueError, TypeError, KeyError):
+                continue
+
+    candles.sort(key=lambda c: c["tempo"])
+
+    # Remove registros repetidos pelo horário.
     unicos = {}
     for candle in candles:
-        unicos[candle["time"]] = candle
+        unicos[candle["tempo"]] = candle
 
-    return list(unicos.values())
+    candles = list(unicos.values())
+
+    if len(candles) < 100:
+        raise ValueError(
+            f"Poucos candles válidos: {len(candles)}. "
+            "São necessários pelo menos 100."
+        )
+
+    return candles
 
 
-def agregar(candles, quantidade):
-    resultado = []
-    for inicio in range(0, len(candles) - quantidade + 1, quantidade):
-        grupo = candles[inicio:inicio + quantidade]
-        resultado.append({
-            "time": grupo[-1]["time"],
+def ema(valores, periodo):
+    if len(valores) < periodo:
+        return None
+
+    multiplicador = 2 / (periodo + 1)
+    resultado = sum(valores[:periodo]) / periodo
+
+    for valor in valores[periodo:]:
+        resultado = (
+            valor * multiplicador
+            + resultado * (1 - multiplicador)
+        )
+
+    return resultado
+
+
+def calcular_rsi(fechamentos, periodo=RSI_PERIODO):
+    if len(fechamentos) <= periodo:
+        return None
+
+    ganhos = []
+    perdas = []
+
+    for i in range(1, len(fechamentos)):
+        diferenca = fechamentos[i] - fechamentos[i - 1]
+        ganhos.append(max(diferenca, 0))
+        perdas.append(max(-diferenca, 0))
+
+    ganho_medio = sum(ganhos[:periodo]) / periodo
+    perda_media = sum(perdas[:periodo]) / periodo
+
+    for i in range(periodo, len(ganhos)):
+        ganho_medio = (
+            ganho_medio * (periodo - 1) + ganhos[i]
+        ) / periodo
+
+        perda_media = (
+            perda_media * (periodo - 1) + perdas[i]
+        ) / periodo
+
+    if perda_media == 0:
+        return 100.0
+
+    return 100 - (100 / (1 + ganho_medio / perda_media))
+
+
+def calcular_atr(candles, periodo=ATR_PERIODO):
+    if len(candles) <= periodo:
+        return None
+
+    amplitudes = []
+
+    for i in range(1, len(candles)):
+        atual = candles[i]
+        anterior = candles[i - 1]
+
+        amplitude = max(
+            atual["high"] - atual["low"],
+            abs(atual["high"] - anterior["close"]),
+            abs(atual["low"] - anterior["close"]),
+        )
+
+        amplitudes.append(amplitude)
+
+    atr = sum(amplitudes[:periodo]) / periodo
+
+    for amplitude in amplitudes[periodo:]:
+        atr = (
+            atr * (periodo - 1) + amplitude
+        ) / periodo
+
+    return atr
+
+
+def agregar_candles(candles, minutos):
+    grupos = defaultdict(list)
+
+    for candle in candles:
+        timestamp = int(candle["tempo"].timestamp())
+        tamanho = minutos * 60
+        inicio = (timestamp // tamanho) * tamanho
+        grupos[inicio].append(candle)
+
+    agregados = []
+
+    for inicio in sorted(grupos):
+        grupo = sorted(
+            grupos[inicio],
+            key=lambda c: c["tempo"]
+        )
+
+        # Só aceita candles agregados com todos os M5 esperados.
+        if len(grupo) != minutos // 5:
+            continue
+
+        agregados.append({
+            "tempo": datetime.fromtimestamp(
+                inicio, tz=timezone.utc
+            ),
             "open": grupo[0]["open"],
             "high": max(c["high"] for c in grupo),
             "low": min(c["low"] for c in grupo),
             "close": grupo[-1]["close"],
         })
-    return resultado
+
+    return agregados
 
 
-def analisar():
-    candles = carregar_candles()
-    ultimo = candles[-1]
-    anteriores = candles[:-1]
+def avaliar_tendencia(candles):
+    if len(candles) < 30:
+        return {
+            "tendencia": "INDEFINIDA",
+            "ema_curta": None,
+            "ema_longa": None,
+        }
 
-    # O último registro pode ser uma vela ainda aberta.
-    # O filtro de candles fechados deve garantir que isso não ocorra.
-    fechamento = [c["close"] for c in candles]
-    ema9 = media_exponencial(fechamento, 9)
-    ema21 = media_exponencial(fechamento, 21)
+    fechamentos = [c["close"] for c in candles]
+    curta = ema(fechamentos, EMA_CURTA)
+    longa = ema(fechamentos, EMA_LONGA)
+
+    if curta is None or longa is None:
+        tendencia = "INDEFINIDA"
+    elif curta > longa:
+        tendencia = "ALTA"
+    elif curta < longa:
+        tendencia = "BAIXA"
+    else:
+        tendencia = "LATERAL"
+
+    return {
+        "tendencia": tendencia,
+        "ema_curta": curta,
+        "ema_longa": longa,
+    }
+
+
+def analisar(candles):
+    fechamentos = [c["close"] for c in candles]
+    atual = candles[-1]
+    anterior = candles[-2]
+
+    tendencia_m5 = avaliar_tendencia(candles)
+
+    candles_m15 = agregar_candles(candles, 15)
+    candles_h1 = agregar_candles(candles, 60)
+
+    tendencia_m15 = avaliar_tendencia(candles_m15)
+    tendencia_h1 = avaliar_tendencia(candles_h1)
+
+    rsi = calcular_rsi(fechamentos)
     atr = calcular_atr(candles)
 
-    contexto_m15 = tendencia(agregar(candles, 3))
-    contexto_h1 = tendencia(agregar(candles, 12))
-    direcao_m5 = tendencia(candles)
+    if atr is None or atr <= 0 or rsi is None:
+        raise ValueError("Não foi possível calcular ATR ou RSI.")
 
-    janela = candles[-20:]
-    topo = max(c["high"] for c in janela[:-1])
-    fundo = min(c["low"] for c in janela[:-1])
+    corpo = abs(atual["close"] - atual["open"])
+    amplitude = atual["high"] - atual["low"]
 
-    amplitude = ultimo["high"] - ultimo["low"]
-    corpo = abs(ultimo["close"] - ultimo["open"])
-    corpo_relativo = corpo / amplitude if amplitude > 0 else 0
-
-    impulso = (
-        "FORTE" if amplitude > 0 and corpo_relativo >= 0.65
-        else "MODERADO" if corpo_relativo >= 0.35
-        else "FRACO"
+    impulso_alta = (
+        atual["close"] > atual["open"]
+        and corpo >= atr * 0.45
     )
 
-    rompimento_alta = ultimo["close"] > topo
-    rompimento_baixa = ultimo["close"] < fundo
+    impulso_baixa = (
+        atual["close"] < atual["open"]
+        and corpo >= atr * 0.45
+    )
+
+    rompeu_maxima = atual["close"] > max(
+        c["high"] for c in candles[-6:-1]
+    )
+
+    rompeu_minima = atual["close"] < min(
+        c["low"] for c in candles[-6:-1]
+    )
 
     compra = 0
     venda = 0
-    motivos = []
+    motivos_compra = []
+    motivos_venda = []
 
-    if direcao_m5 == "ALTA":
-        compra += 2
-        motivos.append("Tendência M5 de alta")
-    elif direcao_m5 == "BAIXA":
-        venda += 2
-        motivos.append("Tendência M5 de baixa")
-
-    if contexto_m15 == "ALTA":
+    # Tendência principal.
+    if tendencia_m5["tendencia"] == "ALTA":
         compra += 1
-    elif contexto_m15 == "BAIXA":
-        venda += 1
+        motivos_compra.append("EMA9 acima da EMA21 no M5")
 
-    if contexto_h1 == "ALTA":
+    if tendencia_m5["tendencia"] == "BAIXA":
+        venda += 1
+        motivos_venda.append("EMA9 abaixo da EMA21 no M5")
+
+    # Contexto de timeframes superiores.
+    if tendencia_m15["tendencia"] == "ALTA":
         compra += 1
-    elif contexto_h1 == "BAIXA":
+        motivos_compra.append("Contexto M15 de alta")
+
+    if tendencia_m15["tendencia"] == "BAIXA":
         venda += 1
+        motivos_venda.append("Contexto M15 de baixa")
 
-    if rompimento_alta:
-        compra += 2
-        motivos.append("Rompimento da máxima recente")
-    if rompimento_baixa:
-        venda += 2
-        motivos.append("Rompimento da mínima recente")
-
-    if ultimo["close"] > ultimo["open"] and impulso == "FORTE":
+    if tendencia_h1["tendencia"] == "ALTA":
         compra += 1
-        motivos.append("Candle comprador com corpo forte")
-    elif ultimo["close"] < ultimo["open"] and impulso == "FORTE":
-        venda += 1
-        motivos.append("Candle vendedor com corpo forte")
+        motivos_compra.append("Contexto H1 de alta")
 
-    # Exige pontuação mínima e vantagem clara entre as direções.
+    if tendencia_h1["tendencia"] == "BAIXA":
+        venda += 1
+        motivos_venda.append("Contexto H1 de baixa")
+
+    # Força do candle atual.
+    if impulso_alta:
+        compra += 1
+        motivos_compra.append("Impulso comprador")
+
+    if impulso_baixa:
+        venda += 1
+        motivos_venda.append("Impulso vendedor")
+
+    # Rompimento de estrutura recente.
+    if rompeu_maxima:
+        compra += 1
+        motivos_compra.append("Rompimento da máxima recente")
+
+    if rompeu_minima:
+        venda += 1
+        motivos_venda.append("Rompimento da mínima recente")
+
+    # RSI é usado como filtro, não como sinal isolado.
+    if 50 <= rsi <= 70:
+        compra += 1
+        motivos_compra.append("RSI favorável à compra")
+
+    if 30 <= rsi <= 50:
+        venda += 1
+        motivos_venda.append("RSI favorável à venda")
+
     direcao = "SEM_SINAL"
-    if compra >= 4 and compra >= venda + 2:
-        direcao = "COMPRA"
-    elif venda >= 4 and venda >= compra + 2:
-        direcao = "VENDA"
-
-    # Stop e alvo são apenas estimativas iniciais.
-    # A decisão final deve validar spread, risco e regras do robô.
+    motivos = []
+    entrada = atual["close"]
     stop = None
     alvo = None
-    preco = ultimo["close"]
 
-    if atr is not None and direcao == "COMPRA":
-        stop = preco - 1.0 * atr
-        alvo = preco + 1.5 * atr
-    elif atr is not None and direcao == "VENDA":
-        stop = preco + 1.0 * atr
-        alvo = preco - 1.5 * atr
+    if (
+        compra >= PONTUACAO_MINIMA
+        and compra - venda >= DIFERENCA_MINIMA
+    ):
+        direcao = "COMPRA"
+        motivos = motivos_compra
+        stop = entrada - atr
+        alvo = entrada + (atr * 1.5)
 
-    resultado = {
+    elif (
+        venda >= PONTUACAO_MINIMA
+        and venda - compra >= DIFERENCA_MINIMA
+    ):
+        direcao = "VENDA"
+        motivos = motivos_venda
+        stop = entrada + atr
+        alvo = entrada - (atr * 1.5)
+
+    return {
         "ativo": "XAUUSD",
-        "timeframe_entrada": "M5",
-        "horario_ultimo_candle": ultimo["time"],
-        "gerado_em_utc": datetime.now(timezone.utc).isoformat(),
-        "quantidade_candles": len(candles),
-        "preco_referencia": preco,
-        "tendencia_m5": direcao_m5,
-        "contexto_m15": contexto_m15,
-        "contexto_h1": contexto_h1,
-        "ema9": ema9,
-        "ema21": ema21,
-        "atr14": atr,
-        "impulso": impulso,
-        "topo_recente": topo,
-        "fundo_recente": fundo,
-        "rompimento_alta": rompimento_alta,
-        "rompimento_baixa": rompimento_baixa,
+        "timeframe": "M5",
+        "candle_utc": atual["tempo"].isoformat(),
+        "preco": round(entrada, 3),
+        "decisao": direcao,
         "pontuacao_compra": compra,
         "pontuacao_venda": venda,
-        "direcao_candidata": direcao,
-        "stop_estimado": stop,
-        "alvo_estimado": alvo,
+        "tendencia_m5": tendencia_m5["tendencia"],
+        "tendencia_m15": tendencia_m15["tendencia"],
+        "tendencia_h1": tendencia_h1["tendencia"],
+        "rsi_14": round(rsi, 2),
+        "atr_14": round(atr, 3),
+        "stop": round(stop, 3) if stop is not None else None,
+        "alvo": round(alvo, 3) if alvo is not None else None,
+        "relacao_risco_retorno": "1:1.5",
         "motivos": motivos,
-        "probabilidade_validada": None,
-        "observacao": (
-            "Pontuação experimental, não é probabilidade de acerto. "
-            "Contexto macroeconômico e spread ainda não foram validados."
-        ),
         "envio_telegram": False,
         "execucao_ordens": False,
+        "probabilidade_validada": None,
+        "aviso": (
+            "Análise técnica experimental. "
+            "Não representa probabilidade comprovada de lucro."
+        ),
     }
 
-    SAIDA.parent.mkdir(parents=True, exist_ok=True)
-    SAIDA.write_text(
-        json.dumps(resultado, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
 
-    print("Análise técnica concluída.")
-    print(f"M5: {direcao_m5} | M15: {contexto_m15} | H1: {contexto_h1}")
-    print(f"Compra: {compra} | Venda: {venda}")
-    print(f"Candidato: {direcao}")
-    print(f"Relatório: {SAIDA}")
+def main():
+    candles = carregar_candles()
+    resultado = analisar(candles)
+
+    os.makedirs(os.path.dirname(ARQUIVO_SAIDA), exist_ok=True)
+
+    with open(ARQUIVO_SAIDA, "w", encoding="utf-8") as arquivo:
+        json.dump(
+            resultado,
+            arquivo,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    print(f"Candles analisados: {len(candles)}")
+    print(f"Último candle UTC: {candles[-1]['tempo'].isoformat()}")
+    print(f"Tendência M5: {resultado['tendencia_m5']}")
+    print(f"Tendência M15: {resultado['tendencia_m15']}")
+    print(f"Tendência H1: {resultado['tendencia_h1']}")
+    print(f"RSI: {resultado['rsi_14']}")
+    print(f"ATR: {resultado['atr_14']}")
+    print(f"Decisão: {resultado['decisao']}")
+    print(f"Arquivo gerado: {ARQUIVO_SAIDA}")
 
 
 if __name__ == "__main__":
-    analisar()
+    main()
