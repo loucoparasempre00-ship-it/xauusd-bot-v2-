@@ -1,14 +1,23 @@
-name: Backtest XAUUSD
+name: Testes do Bot XAUUSD
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-backtest:
-runs-on: ubuntu-latest
-steps:
-- name: Testar workflow
-run: echo "Workflow executado com sucesso"
+  testar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Executar testes
+        run: |
+          python -m unittest -v testar_validador.py testar_estado.py testar_motor_matematico.py testar_entradas.py
