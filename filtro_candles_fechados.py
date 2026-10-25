@@ -1,59 +1,83 @@
-from datetime import datetime, timezone
+import csv
+import os
+from datetime import datetime, timezone, timedelta
+
+ENTRADA = "data/xauusd_m5.csv"
+SAIDA = "data/xauusd_m5_fechados.csv"
+INTERVALO_MINUTOS = 5
 
 
 def filtrar_candles_fechados(candles, intervalo_minutos=5, agora=None):
-    """
-    Mantém apenas candles cujo intervalo já terminou.
-    Espera timestamps ISO 8601 com fuso horário.
-    Não altera a lista original.
-    """
-
-    if not isinstance(candles, list):
-        raise ValueError("Candles devem ser fornecidos em uma lista.")
-
-    if not isinstance(intervalo_minutos, int) or intervalo_minutos <= 0:
-        raise ValueError("O intervalo deve ser um inteiro positivo.")
-
+    """Mantém apenas candles cujo período de 5 minutos já terminou."""
     if agora is None:
         agora = datetime.now(timezone.utc)
+    elif agora.tzinfo is None:
+        agora = agora.replace(tzinfo=timezone.utc)
 
-    if agora.tzinfo is None:
-        raise ValueError("O horário atual precisa ter fuso horário.")
+    limite = agora.astimezone(timezone.utc)
+    intervalo = timedelta(minutes=intervalo_minutos)
+    fechados = []
 
-    resultado = []
-
-    for i, candle in enumerate(candles):
-        if not isinstance(candle, dict):
-            raise ValueError(f"Candle {i} inválido.")
-
+    for candle in candles:
         timestamp = candle.get("timestamp")
-
-        if not isinstance(timestamp, str):
-            raise ValueError(
-                f"Candle {i} sem timestamp ISO 8601 válido."
-            )
+        if not timestamp:
+            timestamp = candle.get("timestamp_utc")
+        if not timestamp:
+            continue
 
         try:
-            inicio = datetime.fromisoformat(
-                timestamp.replace("Z", "+00:00")
+            instante = datetime.fromisoformat(
+                str(timestamp).replace("Z", "+00:00")
             )
-        except ValueError:
-            raise ValueError(f"Timestamp inválido no candle {i}.")
+            if instante.tzinfo is None:
+                instante = instante.replace(tzinfo=timezone.utc)
+            instante = instante.astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            continue
 
-        if inicio.tzinfo is None:
-            raise ValueError(
-                f"Timestamp do candle {i} sem informação de fuso."
-            )
+        if instante + intervalo <= limite:
+            item = dict(candle)
+            item["timestamp"] = instante.isoformat()
+            fechados.append(item)
 
-        fim = inicio.astimezone(timezone.utc).timestamp()
-        fim += intervalo_minutos * 60
+    fechados.sort(key=lambda item: item["timestamp"])
+    return fechados
 
-        if fim <= agora.astimezone(timezone.utc).timestamp():
-            resultado.append(candle.copy())
 
-    return resultado
+def executar():
+    if not os.path.exists(ENTRADA):
+        raise FileNotFoundError(f"Arquivo não encontrado: {ENTRADA}")
+
+    with open(ENTRADA, "r", newline="", encoding="utf-8") as arquivo:
+        leitor = csv.DictReader(arquivo)
+        campos = leitor.fieldnames or []
+        candles = list(leitor)
+
+    if not candles:
+        raise ValueError("O CSV de entrada não contém candles.")
+
+    fechados = filtrar_candles_fechados(candles, INTERVALO_MINUTOS)
+
+    if not fechados:
+        raise ValueError("Nenhum candle fechado válido foi encontrado.")
+
+    os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
+
+    with open(SAIDA, "w", newline="", encoding="utf-8") as arquivo:
+        escritor = csv.DictWriter(
+            arquivo,
+            fieldnames=campos,
+            extrasaction="ignore"
+        )
+        escritor.writeheader()
+
+        for candle in fechados:
+            escritor.writerow(candle)
+
+    print(f"Candles recebidos: {len(candles)}")
+    print(f"Candles fechados: {len(fechados)}")
+    print(f"Arquivo gerado: {SAIDA}")
 
 
 if __name__ == "__main__":
-    print("Filtro de candles fechados carregado.")
-    print("Nenhum candle foi coletado ou alterado.")
+    executar()
