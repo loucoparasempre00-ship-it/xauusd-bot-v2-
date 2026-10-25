@@ -1,0 +1,271 @@
+
+import csv
+import json
+import math
+from pathlib import Path
+from datetime import datetime, timezone
+
+ENTRADA = Path("data/xauusd_m5_fechados.csv")
+SAIDA = Path("data/analise_tecnica_contexto.json")
+
+
+def localizar_coluna(campos, alternativas):
+    mapa = {c.lower().strip(): c for c in campos}
+    for nome in alternativas:
+        if nome in mapa:
+            return mapa[nome]
+    return None
+
+
+def numero(valor):
+    try:
+        resultado = float(valor)
+        return resultado if math.isfinite(resultado) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def media_exponencial(valores, periodo):
+    if len(valores) < periodo:
+        return None
+    alfa = 2 / (periodo + 1)
+    resultado = sum(valores[:periodo]) / periodo
+    for valor in valores[periodo:]:
+        resultado = alfa * valor + (1 - alfa) * resultado
+    return resultado
+
+
+def calcular_atr(candles, periodo=14):
+    if len(candles) < periodo + 1:
+        return None
+
+    ranges = []
+    for i in range(1, len(candles)):
+        atual = candles[i]
+        anterior = candles[i - 1]
+        ranges.append(max(
+            atual["high"] - atual["low"],
+            abs(atual["high"] - anterior["close"]),
+            abs(atual["low"] - anterior["close"])
+        ))
+
+    return sum(ranges[-periodo:]) / periodo
+
+
+def tendencia(candles):
+    fechamentos = [c["close"] for c in candles]
+    curta = media_exponencial(fechamentos, 9)
+    longa = media_exponencial(fechamentos, 21)
+
+    if curta is None or longa is None:
+        return "DADOS_INSUFICIENTES"
+
+    if curta > longa and fechamentos[-1] > curta:
+        return "ALTA"
+    if curta < longa and fechamentos[-1] < curta:
+        return "BAIXA"
+    return "LATERAL"
+
+
+def carregar_candles():
+    if not ENTRADA.exists():
+        raise FileNotFoundError(f"Arquivo não encontrado: {ENTRADA}")
+
+    with ENTRADA.open("r", newline="", encoding="utf-8-sig") as arquivo:
+        leitor = csv.DictReader(arquivo)
+        if not leitor.fieldnames:
+            raise ValueError("CSV sem cabeçalhos.")
+
+        campos = leitor.fieldnames
+        col = {
+            "time": localizar_coluna(campos, [
+                "datetime", "timestamp", "time", "date"
+            ]),
+            "open": localizar_coluna(campos, ["open", "o"]),
+            "high": localizar_coluna(campos, ["high", "h"]),
+            "low": localizar_coluna(campos, ["low", "l"]),
+            "close": localizar_coluna(campos, ["close", "c"]),
+        }
+
+        ausentes = [k for k, v in col.items() if v is None]
+        if ausentes:
+            raise ValueError(
+                "Colunas não reconhecidas no CSV: " + ", ".join(ausentes)
+            )
+
+        candles = []
+        for linha in leitor:
+            valores = {
+                k: numero(linha.get(col[k]))
+                for k in ("open", "high", "low", "close")
+            }
+            if any(v is None for v in valores.values()):
+                continue
+
+            valores["time"] = linha.get(col["time"], "").strip()
+            candles.append(valores)
+
+    candles.sort(key=lambda c: c["time"])
+    if len(candles) < 30:
+        raise ValueError(
+            f"Poucos candles para análise: {len(candles)}. Mínimo: 30."
+        )
+
+    # Evita analisar duas vezes o mesmo horário.
+    unicos = {}
+    for candle in candles:
+        unicos[candle["time"]] = candle
+
+    return list(unicos.values())
+
+
+def agregar(candles, quantidade):
+    resultado = []
+    for inicio in range(0, len(candles) - quantidade + 1, quantidade):
+        grupo = candles[inicio:inicio + quantidade]
+        resultado.append({
+            "time": grupo[-1]["time"],
+            "open": grupo[0]["open"],
+            "high": max(c["high"] for c in grupo),
+            "low": min(c["low"] for c in grupo),
+            "close": grupo[-1]["close"],
+        })
+    return resultado
+
+
+def analisar():
+    candles = carregar_candles()
+    ultimo = candles[-1]
+    anteriores = candles[:-1]
+
+    # O último registro pode ser uma vela ainda aberta.
+    # O filtro de candles fechados deve garantir que isso não ocorra.
+    fechamento = [c["close"] for c in candles]
+    ema9 = media_exponencial(fechamento, 9)
+    ema21 = media_exponencial(fechamento, 21)
+    atr = calcular_atr(candles)
+
+    contexto_m15 = tendencia(agregar(candles, 3))
+    contexto_h1 = tendencia(agregar(candles, 12))
+    direcao_m5 = tendencia(candles)
+
+    janela = candles[-20:]
+    topo = max(c["high"] for c in janela[:-1])
+    fundo = min(c["low"] for c in janela[:-1])
+
+    amplitude = ultimo["high"] - ultimo["low"]
+    corpo = abs(ultimo["close"] - ultimo["open"])
+    corpo_relativo = corpo / amplitude if amplitude > 0 else 0
+
+    impulso = (
+        "FORTE" if amplitude > 0 and corpo_relativo >= 0.65
+        else "MODERADO" if corpo_relativo >= 0.35
+        else "FRACO"
+    )
+
+    rompimento_alta = ultimo["close"] > topo
+    rompimento_baixa = ultimo["close"] < fundo
+
+    compra = 0
+    venda = 0
+    motivos = []
+
+    if direcao_m5 == "ALTA":
+        compra += 2
+        motivos.append("Tendência M5 de alta")
+    elif direcao_m5 == "BAIXA":
+        venda += 2
+        motivos.append("Tendência M5 de baixa")
+
+    if contexto_m15 == "ALTA":
+        compra += 1
+    elif contexto_m15 == "BAIXA":
+        venda += 1
+
+    if contexto_h1 == "ALTA":
+        compra += 1
+    elif contexto_h1 == "BAIXA":
+        venda += 1
+
+    if rompimento_alta:
+        compra += 2
+        motivos.append("Rompimento da máxima recente")
+    if rompimento_baixa:
+        venda += 2
+        motivos.append("Rompimento da mínima recente")
+
+    if ultimo["close"] > ultimo["open"] and impulso == "FORTE":
+        compra += 1
+        motivos.append("Candle comprador com corpo forte")
+    elif ultimo["close"] < ultimo["open"] and impulso == "FORTE":
+        venda += 1
+        motivos.append("Candle vendedor com corpo forte")
+
+    # Exige pontuação mínima e vantagem clara entre as direções.
+    direcao = "SEM_SINAL"
+    if compra >= 4 and compra >= venda + 2:
+        direcao = "COMPRA"
+    elif venda >= 4 and venda >= compra + 2:
+        direcao = "VENDA"
+
+    # Stop e alvo são apenas estimativas iniciais.
+    # A decisão final deve validar spread, risco e regras do robô.
+    stop = None
+    alvo = None
+    preco = ultimo["close"]
+
+    if atr is not None and direcao == "COMPRA":
+        stop = preco - 1.0 * atr
+        alvo = preco + 1.5 * atr
+    elif atr is not None and direcao == "VENDA":
+        stop = preco + 1.0 * atr
+        alvo = preco - 1.5 * atr
+
+    resultado = {
+        "ativo": "XAUUSD",
+        "timeframe_entrada": "M5",
+        "horario_ultimo_candle": ultimo["time"],
+        "gerado_em_utc": datetime.now(timezone.utc).isoformat(),
+        "quantidade_candles": len(candles),
+        "preco_referencia": preco,
+        "tendencia_m5": direcao_m5,
+        "contexto_m15": contexto_m15,
+        "contexto_h1": contexto_h1,
+        "ema9": ema9,
+        "ema21": ema21,
+        "atr14": atr,
+        "impulso": impulso,
+        "topo_recente": topo,
+        "fundo_recente": fundo,
+        "rompimento_alta": rompimento_alta,
+        "rompimento_baixa": rompimento_baixa,
+        "pontuacao_compra": compra,
+        "pontuacao_venda": venda,
+        "direcao_candidata": direcao,
+        "stop_estimado": stop,
+        "alvo_estimado": alvo,
+        "motivos": motivos,
+        "probabilidade_validada": None,
+        "observacao": (
+            "Pontuação experimental, não é probabilidade de acerto. "
+            "Contexto macroeconômico e spread ainda não foram validados."
+        ),
+        "envio_telegram": False,
+        "execucao_ordens": False,
+    }
+
+    SAIDA.parent.mkdir(parents=True, exist_ok=True)
+    SAIDA.write_text(
+        json.dumps(resultado, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+    print("Análise técnica concluída.")
+    print(f"M5: {direcao_m5} | M15: {contexto_m15} | H1: {contexto_h1}")
+    print(f"Compra: {compra} | Venda: {venda}")
+    print(f"Candidato: {direcao}")
+    print(f"Relatório: {SAIDA}")
+
+
+if __name__ == "__main__":
+    analisar()
