@@ -2,12 +2,6 @@ name: Backtest XAUUSD
 
 on:
 workflow_dispatch:
-inputs:
-quantidade:
-description: "Quantidade de candles para testar"
-required: true
-default: "500"
-type: string
 
 permissions:
 contents: read
@@ -16,17 +10,5 @@ jobs:
 backtest:
 runs-on: ubuntu-latest
 steps:
-- name: Baixar repositorio
-uses: actions/checkout@v4
-
-  - name: Configurar Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: "3.12"
-
-  - name: Conferir entrada
-    env:
-      QUANTIDADE: ${{ inputs.quantidade }}
-    run: |
-      echo "Workflow iniciado."
-      echo "Candles solicitados: $QUANTIDADE"
+- name: Testar workflow
+run: echo "Workflow executado com sucesso"
