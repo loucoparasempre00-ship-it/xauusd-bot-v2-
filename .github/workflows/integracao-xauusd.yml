@@ -1,10 +1,79 @@
-      - name: 8 - Decisor final
-        id: decisor
-        continue-on-error: true
-        run: python decisor_final.py
+name: Integracao XAUUSD Bot V2
 
-      - name: Diagnostico da integracao
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integracao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Verificar segredos
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          test -n "$TWELVE_DATA_API_KEY" || {
+            echo "::error::Falta TWELVE_DATA_API_KEY"
+            exit 1
+          }
+          test -n "$TELEGRAM_BOT_TOKEN" || {
+            echo "::error::Falta TELEGRAM_BOT_TOKEN"
+            exit 1
+          }
+          test -n "$TELEGRAM_CHAT_ID" || {
+            echo "::error::Falta TELEGRAM_CHAT_ID"
+            exit 1
+          }
+          echo "Segredos obrigatorios encontrados."
+
+      - name: 1 - Coletar candles
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: python -u coletar_candles.py
+
+      - name: 2 - Filtrar candles fechados
+        run: python -u filtro_candles_fechados.py
+
+      - name: 3 - Validar mercado
+        run: python -u validador_mercado.py
+
+      - name: 4 - Motor matematico
+        run: python -u motor_matematico.py
+
+      - name: 5 - Leitura do mercado
+        run: python -u leitura_mercado.py
+
+      - name: 6 - Gerar candidato
+        run: python -u gerador_candidatos.py
+
+      - name: 7 - Validar sinal
+        run: python -u validador_sinais_ia.py
+
+      - name: 8 - Decisor final
+        continue-on-error: true
+        run: python -u decisor_final.py
+
+      - name: Diagnostico final
         if: always()
         run: |
-          echo "Diagnostico: etapas anteriores executadas."
-          echo "Verifique acima a primeira etapa com X vermelho."
+          echo "Execucao finalizada."
+          echo "Confira acima a primeira etapa que apresentou X vermelho."
