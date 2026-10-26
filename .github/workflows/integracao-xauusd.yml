@@ -86,3 +86,13 @@ jobs:
           path: data/xauusd_m5_fechados.csv
           if-no-files-found: error
           retention-days: 2
+
+          
+      - name: Acionar seletor de modelo e agente de IA
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run testador-gemini.yml \
+            --ref "${GITHUB_REF_NAME}"
+
