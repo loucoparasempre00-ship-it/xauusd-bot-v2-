@@ -54,3 +54,11 @@ jobs:
           echo "=== ARQUIVOS PYTHON DO REPOSITORIO ==="
           find . -type f -name "*.py" -not -path "./.git/*"
           echo "=== FIM DO DIAGNOSTICO ==="
+
+      - name: Disponibilizar analise para o agente
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-tecnica-xau
+          path: data/analise_tecnica_contexto.json
+          if-no-files-found: error
+          retention-days: 2
