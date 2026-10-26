@@ -1,0 +1,75 @@
+
+name: Teste Telegram XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testar-telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Testar envio ao Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import sys
+          import urllib.request
+          import urllib.parse
+
+          token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+          if not token or not chat_id:
+              sys.exit(
+                  "ERRO: configure TELEGRAM_BOT_TOKEN e "
+                  "TELEGRAM_CHAT_ID nos Secrets do GitHub."
+              )
+
+          mensagem = (
+              "🧪 <b>TESTE DO BOT XAUUSD</b>\n\n"
+              "✅ O GitHub Actions conseguiu enviar esta mensagem.\n"
+              "✅ A conexão com o Telegram está funcionando.\n\n"
+              "Este é apenas um teste técnico.\n"
+              "Não é sinal de COMPRA ou VENDA.\n"
+              "Nenhuma ordem foi executada."
+          )
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+          dados = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": mensagem,
+              "parse_mode": "HTML"
+          }).encode("utf-8")
+
+          pedido = urllib.request.Request(
+              url,
+              data=dados,
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(
+                  pedido, timeout=20
+              ) as resposta:
+                  resultado = json.loads(
+                      resposta.read().decode("utf-8")
+                  )
+
+              if not resultado.get("ok"):
+                  sys.exit("O Telegram não confirmou o envio.")
+
+              print("SUCESSO: mensagem de teste enviada.")
+
+          except Exception as erro:
+              sys.exit(f"Falha no teste do Telegram: {erro}")
+          PY
