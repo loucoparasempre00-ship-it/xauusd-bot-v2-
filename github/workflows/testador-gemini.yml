@@ -1,0 +1,265 @@
+
+name: Testador e Seletor Gemini
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 10 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testador-gemini
+  cancel-in-progress: false
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar chave e selecionar modelo
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p data
+
+          python - <<'PY'
+          import os
+          import sys
+          import json
+          import time
+          import urllib.request
+          import urllib.error
+          from datetime import datetime, timezone
+
+          BASE = "https://generativelanguage.googleapis.com/v1beta"
+          KEY = os.getenv("GEMINI_API_KEY", "").strip()
+          OUTPUT = "data/modelo_gemini.json"
+
+          resultado = {
+              "status": "iniciado",
+              "modelo_escolhido": None,
+              "modelos_testados": [],
+              "motivo": "",
+              "atualizado_utc": datetime.now(timezone.utc).isoformat()
+          }
+
+          def salvar():
+              resultado["atualizado_utc"] = (
+                  datetime.now(timezone.utc).isoformat()
+              )
+              with open(OUTPUT, "w", encoding="utf-8") as f:
+                  json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+          def requisicao(url, body=None):
+              headers = {"x-goog-api-key": KEY}
+              data = None
+
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+                  data = json.dumps(body).encode("utf-8")
+
+              req = urllib.request.Request(
+                  url, data=data, headers=headers, method=(
+                      "POST" if body is not None else "GET"
+                  )
+              )
+
+              inicio = time.monotonic()
+
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as resp:
+                      conteudo = json.loads(
+                          resp.read().decode("utf-8")
+                      )
+                  return conteudo, time.monotonic() - inicio, None
+
+              except urllib.error.HTTPError as e:
+                  texto = e.read().decode("utf-8", "replace")
+                  try:
+                      detalhe = json.loads(texto)
+                  except Exception:
+                      detalhe = {"error": {"message": texto[:500]}}
+
+                  return None, time.monotonic() - inicio, {
+                      "code": e.code,
+                      "detail": detalhe
+                  }
+
+              except Exception as e:
+                  return None, time.monotonic() - inicio, {
+                      "code": 0,
+                      "detail": {"message": str(e)[:300]}
+                  }
+
+          if not KEY:
+              resultado["status"] = "erro"
+              resultado["motivo"] = (
+                  "Secret GEMINI_API_KEY ausente ou vazio."
+              )
+              salvar()
+              sys.exit(1)
+
+          print("1/3 - Verificando a chave e consultando os modelos...")
+
+          dados, _, erro = requisicao(BASE + "/models?pageSize=100")
+
+          if erro:
+              codigo = erro["code"]
+              resultado["status"] = "erro_autenticacao" if codigo in (400, 401, 403) else "erro_api"
+              resultado["motivo"] = (
+                  "A consulta de modelos falhou. HTTP "
+                  + str(codigo) + ". "
+                  + json.dumps(
+                      erro["detail"], ensure_ascii=False
+                  )[:700]
+              )
+              salvar()
+              print(resultado["motivo"])
+              sys.exit(1)
+
+          modelos = dados.get("models", [])
+
+          elegiveis = []
+          for modelo in modelos:
+              nome = modelo.get("name", "")
+              metodos = modelo.get("supportedGenerationMethods", [])
+
+              if (
+                  nome.startswith("models/gemini-")
+                  and "generateContent" in metodos
+                  and "embedding" not in nome.lower()
+              ):
+                  elegiveis.append(nome)
+
+          # Prioriza Flash Lite e Flash. Limita a tres testes.
+          def prioridade(nome):
+              n = nome.lower()
+              if "flash-lite" in n:
+                  return (0, n)
+              if "flash" in n:
+                  return (1, n)
+              return (2, n)
+
+          elegiveis = sorted(set(elegiveis), key=prioridade)[:3]
+
+          print("Modelos compatíveis encontrados:", len(elegiveis))
+
+          if not elegiveis:
+              resultado["status"] = "sem_modelos_compativeis"
+              resultado["motivo"] = (
+                  "A chave foi aceita, mas nenhum modelo compatível "
+                  "com generateContent foi encontrado."
+              )
+              salvar()
+              sys.exit(1)
+
+          print("2/3 - Testando no máximo tres modelos...")
+          sucessos = []
+
+          for nome in elegiveis:
+              print("Testando:", nome)
+
+              corpo = {
+                  "contents": [{
+                      "parts": [{
+                          "text": "Responda somente: OK"
+                      }]
+                  }],
+                  "generationConfig": {
+                      "temperature": 0,
+                      "maxOutputTokens": 5
+                  }
+              }
+
+              resposta, segundos, erro = requisicao(
+                  BASE + "/" + nome + ":generateContent",
+                  corpo
+              )
+
+              item = {
+                  "modelo": nome,
+                  "segundos": round(segundos, 2),
+                  "resultado": "sucesso" if not erro else "falha"
+              }
+
+              if erro:
+                  codigo = erro["code"]
+                  item["http"] = codigo
+                  item["detalhe"] = json.dumps(
+                      erro["detail"], ensure_ascii=False
+                  )[:400]
+
+                  resultado["modelos_testados"].append(item)
+                  print("Falha HTTP:", codigo)
+
+                  # Interrompe para evitar tentativas extras
+                  # quando a chave e invalida ou a cota acabou.
+                  if codigo in (400, 401, 403, 429):
+                      resultado["motivo"] = (
+                          "Teste interrompido após HTTP "
+                          + str(codigo)
+                          + ". Consulte o detalhe do modelo testado."
+                      )
+                      break
+                  continue
+
+              partes = (
+                  resposta.get("candidates", [{}])[0]
+                  .get("content", {})
+                  .get("parts", [])
+              )
+              texto = "".join(
+                  p.get("text", "") for p in partes
+              ).strip()
+
+              if texto:
+                  item["resultado"] = "sucesso"
+                  sucessos.append((segundos, nome))
+              else:
+                  item["resultado"] = "resposta_vazia"
+
+              resultado["modelos_testados"].append(item)
+
+          print("3/3 - Gravando a selecao...")
+
+          if sucessos:
+              sucessos.sort(key=lambda x: x[0])
+              _, escolhido = sucessos[0]
+              resultado["status"] = "pronto"
+              resultado["modelo_escolhido"] = escolhido
+              resultado["motivo"] = (
+                  "Modelo com menor tempo medido entre os testes "
+                  "bem-sucedidos. Isso nao mede a fila interna "
+                  "do Google nem garante disponibilidade futura."
+              )
+              print("Modelo escolhido:", escolhido)
+          else:
+              resultado["status"] = "nenhum_modelo_testado_com_sucesso"
+              if not resultado["motivo"]:
+                  resultado["motivo"] = (
+                      "Nenhum modelo respondeu corretamente."
+                  )
+              salvar()
+              print(resultado["motivo"])
+              sys.exit(1)
+
+          salvar()
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Publicar resultado do testador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selecao-modelo-gemini
+          path: data/modelo_gemini.json
+          if-no-files-found: ignore
+          retention-days: 7
