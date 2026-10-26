@@ -252,11 +252,70 @@ jobs:
           ) as f:
               json.dump(resultado, f, ensure_ascii=False, indent=2)
 
-          print(json.dumps(resultado, ensure_ascii=False, indent=2))
-          print("Teste concluido. Telegram e ordens continuam desativados.")
+          
+      - name: Enviar sinal para o Telegram
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import sys
+          import urllib.request
+          import urllib.parse
+          from pathlib import Path
+
+          arquivo = Path("data/decisao_gemini.json")
+          decisao = json.loads(arquivo.read_text(encoding="utf-8"))
+
+          lado = decisao.get("decisao_gemini", "SEM_SINAL")
+          if lado not in ("COMPRA", "VENDA"):
+              print("SEM_SINAL: nenhuma mensagem enviada.")
+              sys.exit(0)
+
+          token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+          if not token or not chat_id:
+              sys.exit("Configure TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID nos Secrets.")
+
+          confianca = decisao.get("confianca_declarada", "Não informada")
+          justificativa = str(decisao.get("justificativa", "Sem justificativa."))[:1000]
+          candle = decisao.get("candle_utc") or decisao.get("gerado_utc", "Não informado")
+
+          emoji = "🟢" if lado == "COMPRA" else "🔴"
+
+          mensagem = (
+              f"🥇 <b>XAUUSD · OURO</b>\n"
+              f"⏱ Timeframe: M5\n\n"
+              f"{emoji} <b>{lado}</b>\n\n"
+              f"🧠 <b>Confiança do agente: {confianca}%</b>\n\n"
+              f"📊 <b>Análise técnica</b>\n{justificativa}\n\n"
+              f"🕒 Candle UTC: {candle}\n\n"
+              "ℹ️ Confiança declarada pela IA; não é probabilidade comprovada de lucro.\n"
+              "Alerta informativo. Não executa ordens."
+          )
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          dados = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": mensagem,
+              "parse_mode": "HTML",
+              "disable_web_page_preview": "true"
+          }).encode("utf-8")
+
+          pedido = urllib.request.Request(url, data=dados, method="POST")
+          try:
+              with urllib.request.urlopen(pedido, timeout=20) as resposta:
+                  resultado = json.loads(resposta.read().decode("utf-8"))
+              if not resultado.get("ok"):
+                  sys.exit("Telegram não confirmou o envio.")
+              print("Mensagem enviada ao Telegram.")
+          except Exception as erro:
+              sys.exit(f"Falha no envio ao Telegram: {erro}")
           PY
 
-      - name: Guardar decisao do agente
         if: always()
         uses: actions/upload-artifact@v4
         with:
