@@ -68,7 +68,7 @@ jobs:
             --dir data
 
           if [ ! -f data/modelo_gemini.json ]; then
-            echo "::error::O arquivo de selecao do modelo nao foi encontrado."
+            echo "::error::Arquivo de selecao nao encontrado."
             exit 1
           fi
 
@@ -250,12 +250,13 @@ jobs:
               "w",
               encoding="utf-8"
           ) as f:
-              
+              json.dump(resultado, f, ensure_ascii=False, indent=2)
+
           print(json.dumps(resultado, ensure_ascii=False, indent=2))
           print("Analise do agente concluida.")
+          PY
 
       - name: Enviar sinal para o Telegram
-        if: success()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -264,36 +265,51 @@ jobs:
           import os
           import json
           import sys
+          import html
           import urllib.request
           import urllib.parse
           from pathlib import Path
 
           arquivo = Path("data/decisao_gemini.json")
-          decisao = json.loads(arquivo.read_text(encoding="utf-8"))
+          decisao = json.loads(
+              arquivo.read_text(encoding="utf-8")
+          )
 
           lado = decisao.get("decisao_gemini", "SEM_SINAL")
+
           if lado not in ("COMPRA", "VENDA"):
               print("SEM_SINAL: nenhuma mensagem enviada.")
               sys.exit(0)
 
           token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
           chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-          if not token or not chat_id:
-              sys.exit("Configure os Secrets do Telegram.")
 
-          confianca = decisao.get("confianca_declarada", "Não informada")
-          justificativa = str(decisao.get("justificativa", "Sem justificativa."))[:1000]
-          candle = decisao.get("candle_utc") or decisao.get("gerado_utc", "Não informado")
+          if not token or not chat_id:
+              sys.exit("Configure os Secrets do Telegram no GitHub.")
+
+          confianca = decisao.get("confianca_declarada", 0)
+          justificativa = html.escape(
+              str(decisao.get("justificativa", "Sem justificativa."))[:1000]
+          )
+          candle = html.escape(
+              str(
+                  decisao.get("candle_utc")
+                  or decisao.get("gerado_utc", "Nao informado")
+              )
+          )
 
           emoji = "🟢" if lado == "COMPRA" else "🔴"
+
           mensagem = (
               f"🥇 <b>XAUUSD · OURO</b>\n"
               f"⏱ Timeframe: M5\n\n"
               f"{emoji} <b>{lado}</b>\n\n"
               f"🧠 <b>Confiança do agente: {confianca}%</b>\n\n"
-              f"📊 <b>Análise técnica</b>\n{justificativa}\n\n"
+              f"📊 <b>Análise técnica</b>\n"
+              f"{justificativa}\n\n"
               f"🕒 Candle UTC: {candle}\n\n"
-              "ℹ️ Confiança declarada pela IA; não é probabilidade comprovada de lucro.\n"
+              "ℹ️ Confiança declarada pela IA; não é probabilidade "
+              "comprovada de lucro.\n"
               "Alerta informativo. Não executa ordens."
           )
 
@@ -305,14 +321,31 @@ jobs:
               "disable_web_page_preview": "true"
           }).encode("utf-8")
 
-          pedido = urllib.request.Request(url, data=dados, method="POST")
-          with urllib.request.urlopen(pedido, timeout=20) as resposta:
-              retorno = json.loads(resposta.read().decode("utf-8"))
+          pedido = urllib.request.Request(
+              url,
+              data=dados,
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              method="POST"
+          )
 
-          if not retorno.get("ok"):
-              sys.exit("Telegram não confirmou o envio.")
+          try:
+              with urllib.request.urlopen(pedido, timeout=20) as resposta:
+                  retorno = json.loads(
+                      resposta.read().decode("utf-8")
+                  )
 
-          print("Mensagem enviada ao Telegram.")
+              if not retorno.get("ok"):
+                  sys.exit("Telegram nao confirmou o envio.")
+
+              decisao["envio_telegram"] = True
+              arquivo.write_text(
+                  json.dumps(decisao, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
+              )
+              print("Mensagem enviada ao Telegram.")
+
+          except Exception as erro:
+              sys.exit(f"Falha no envio ao Telegram: {erro}")
           PY
 
       - name: Guardar decisao do agente
@@ -323,4 +356,3 @@ jobs:
           path: data/decisao_gemini.json
           if-no-files-found: ignore
           retention-days: 7
-
