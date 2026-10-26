@@ -91,7 +91,7 @@ def carregar_candles():
 
         coluna_data = localizar_coluna(
             cabecalhos,
-            ["datetime", "timestamp", "time", "date", "data", "hora"]
+            ["timestamp_utc", "datetime", "timestamp", "time", "date", "data", "hora"]
         )
         coluna_abertura = localizar_coluna(
             cabecalhos, ["open", "abertura"]
