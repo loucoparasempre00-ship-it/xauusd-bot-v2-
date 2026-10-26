@@ -7,18 +7,30 @@ ARQUIVO = "data/xauusd_m5_fechados.csv"
 IDADE_MAXIMA_MINUTOS = 12
 
 
-def validar_candles(candles, intervalo_minutos=5,
-                    idade_maxima_minutos=12, agora=None):
-    if not candles:
-        return {"valido": False, "motivos": ["Lista de candles vazia."]}
-
+def validar_candles(
+    candles,
+    intervalo_minutos=5,
+    idade_maxima_minutos=12,
+    agora=None
+):
     if agora is None:
         agora = datetime.now(timezone.utc)
     elif agora.tzinfo is None:
         agora = agora.replace(tzinfo=timezone.utc)
+    else:
+        agora = agora.astimezone(timezone.utc)
 
     motivos = []
     tempos = []
+
+    if not candles:
+        return {
+            "valido": False,
+            "status": "DADOS_INVALIDOS",
+            "quantidade": 0,
+            "ultimo_candle_utc": None,
+            "motivos": ["Lista de candles vazia."]
+        }
 
     for numero, candle in enumerate(candles, start=1):
         timestamp = candle.get("timestamp") or candle.get("timestamp_utc")
@@ -30,11 +42,10 @@ def validar_candles(candles, intervalo_minutos=5,
             if instante.tzinfo is None:
                 instante = instante.replace(tzinfo=timezone.utc)
             instante = instante.astimezone(timezone.utc)
+            tempos.append(instante)
         except (ValueError, TypeError):
             motivos.append(f"Candle {numero}: horário inválido.")
             continue
-
-        tempos.append(instante)
 
         try:
             o = float(candle["open"])
@@ -44,21 +55,25 @@ def validar_candles(candles, intervalo_minutos=5,
 
             if min(o, h, l, c) <= 0:
                 motivos.append(f"Candle {numero}: preço não positivo.")
+
             if h < max(o, c, l) or l > min(o, c, h):
                 motivos.append(f"Candle {numero}: OHLC inconsistente.")
+
         except (KeyError, ValueError, TypeError):
             motivos.append(f"Candle {numero}: OHLC ausente ou inválido.")
 
     if len(tempos) != len(candles):
         motivos.append("Há candles com horários inválidos.")
-    elif tempos != sorted(tempos):
-        motivos.append("Candles fora de ordem cronológica.")
-    elif len(set(tempos)) != len(tempos):
-        motivos.append("Há horários duplicados.")
+    else:
+        if tempos != sorted(tempos):
+            motivos.append("Candles fora de ordem cronológica.")
+
+        if len(set(tempos)) != len(tempos):
+            motivos.append("Há horários duplicados.")
 
     if tempos:
-        ultimo = max(tempos)
-        idade = (agora.astimezone(timezone.utc) - ultimo).total_seconds() / 60
+        ultimo = tempos[-1]
+        idade = (agora - ultimo).total_seconds() / 60
 
         if idade < 0:
             motivos.append("O último candle tem horário no futuro.")
@@ -67,16 +82,19 @@ def validar_candles(candles, intervalo_minutos=5,
                 f"Dados antigos: último candle há {idade:.1f} minutos."
             )
 
-        if ultimo + timedelta(minutes=intervalo_minutos) > agora.astimezone(timezone.utc):
+        if ultimo + timedelta(minutes=intervalo_minutos) > agora:
             motivos.append("O último candle ainda pode estar em formação.")
 
+    valido = len(motivos) == 0
+
     return {
-        "valido": len(motivos) == 0,
+        "valido": valido,
+        "status": "DADOS_VALIDOS" if valido else "DADOS_INVALIDOS",
         "quantidade": len(candles),
         "ultimo_candle_utc": (
-            max(tempos).isoformat() if tempos else None
+            tempos[-1].isoformat() if tempos else None
         ),
-        "motivos": motivos,
+        "motivos": motivos
     }
 
 
@@ -84,12 +102,13 @@ def executar():
     if not os.path.exists(ARQUIVO):
         raise FileNotFoundError(f"Arquivo não encontrado: {ARQUIVO}")
 
-    with open(ARQUIVO, newline="", encoding="utf-8") as arquivo:
+    with open(ARQUIVO, newline="", encoding="utf-8-sig") as arquivo:
         candles = list(csv.DictReader(arquivo))
 
     resultado = validar_candles(candles)
 
     print(f"Candles validados: {resultado['quantidade']}")
+    print(f"Status: {resultado['status']}")
     print(f"Último candle UTC: {resultado['ultimo_candle_utc']}")
 
     if not resultado["valido"]:
