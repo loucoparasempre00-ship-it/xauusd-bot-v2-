@@ -46,3 +46,11 @@ jobs:
 
       - name: Executar motor de contexto
         run: python -u motor_contexto_xau.py
+
+      - name: Diagnosticar arquivos de analise
+        run: |
+          echo "=== DIRETORIO ATUAL ==="
+          pwd
+          echo "=== ARQUIVOS PYTHON DO REPOSITORIO ==="
+          find . -type f -name "*.py" -not -path "./.git/*"
+          echo "=== FIM DO DIAGNOSTICO ==="
