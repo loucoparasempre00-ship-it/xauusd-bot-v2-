@@ -44,15 +44,5 @@ jobs:
           echo "Arquivo recebido corretamente."
           wc -l data/xauusd_m5_fechados.csv
 
-      - name: Localizar e executar analise tecnica
-        shell: bash
-        run: |
-          ARQUIVO=$(find . -type f -name "analise_tecnica_contexto.py" -not -path "./.git/*" -print -quit)
-
-          if [ -z "$ARQUIVO" ]; then
-            echo "::error::Arquivo analise_tecnica_contexto.py nao encontrado no repositorio."
-            exit 1
-          fi
-
-          echo "Arquivo encontrado: $ARQUIVO"
-          python -u "$ARQUIVO"
+      - name: Executar motor de contexto
+        run: python -u motor_contexto_xau.py
