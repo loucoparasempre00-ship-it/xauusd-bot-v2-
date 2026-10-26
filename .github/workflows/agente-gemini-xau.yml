@@ -1,0 +1,181 @@
+
+name: Agente Gemini XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Analise Tecnica Contexto"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  agente:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Receber analise do workflow anterior
+        uses: actions/download-artifact@v4
+        with:
+          name: analise-tecnica-xau
+          path: data
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Conferir dados recebidos
+        run: |
+          if [ ! -f data/analise_tecnica_contexto.json ]; then
+            echo "::error::Analise tecnica nao encontrada."
+            exit 1
+          fi
+          echo "Analise recebida:"
+          cat data/analise_tecnica_contexto.json
+
+      - name: Agente Gemini interpreta o mercado
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+          import urllib.error
+          from datetime import datetime, timezone
+
+          arquivo = "data/analise_tecnica_contexto.json"
+
+          with open(arquivo, encoding="utf-8") as f:
+              analise = json.load(f)
+
+          chave = os.getenv("GEMINI_API_KEY")
+          if not chave:
+              print("ERRO: secret GEMINI_API_KEY ausente.")
+              sys.exit(1)
+
+          prompt = """
+          Voce e um analista tecnico experimental especializado em XAUUSD.
+          Interprete os dados calculados pelo sistema, sem recalcular nem inventar
+          precos, indicadores ou informacoes externas.
+
+          Considere:
+          - Tendencias M5, M15 e H1.
+          - RSI, ATR, pontuacoes e motivos da analise.
+          - Impulso, possivel continuacao, esgotamento e reversao.
+          - Conflitos entre timeframes e risco de entrada atrasada.
+
+          Seja capaz de discordar da decisao preliminar do motor.
+          Se nao houver evidencias suficientes, escolha SEM_SINAL.
+          Nao afirme que pesquisou noticias: nenhuma fonte de noticias esta
+          conectada nesta etapa.
+
+          Responda somente JSON neste formato:
+          {
+            "decisao": "COMPRA",
+            "confianca": 60,
+            "justificativa": "Explicacao tecnica curta"
+          }
+
+          decisao deve ser COMPRA, VENDA ou SEM_SINAL.
+          confianca e uma avaliacao subjetiva, nao uma probabilidade comprovada.
+
+          DADOS DO SISTEMA:
+          """ + json.dumps(analise, ensure_ascii=False)
+
+          corpo = {
+              "contents": [
+                  {"parts": [{"text": prompt}]}
+              ],
+              "generationConfig": {
+                  "temperature": 0.2,
+                  "responseMimeType": "application/json"
+              }
+          }
+
+          url = (
+              "https://generativelanguage.googleapis.com/v1beta/"
+              "models/gemini-2.5-flash:generateContent?key=" + chave
+          )
+
+          pedido = urllib.request.Request(
+              url,
+              data=json.dumps(corpo).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(pedido, timeout=40) as resposta:
+                  bruto = json.loads(resposta.read().decode("utf-8"))
+
+              texto = bruto["candidates"][0]["content"]["parts"][0]["text"]
+              decisao = json.loads(texto)
+
+          except urllib.error.HTTPError as erro:
+              print("Erro HTTP do Gemini:", erro.code)
+              print(erro.read().decode("utf-8", "replace")[:1000])
+              sys.exit(1)
+
+          except Exception as erro:
+              print("Falha ao consultar ou interpretar Gemini:", str(erro))
+              sys.exit(1)
+
+          lado = decisao.get("decisao")
+          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
+              print("Decisao invalida recebida da IA.")
+              sys.exit(1)
+
+          try:
+              confianca = int(decisao.get("confianca", 0))
+          except (ValueError, TypeError):
+              confianca = 0
+
+          if not 0 <= confianca <= 100:
+              print("Valor de confianca invalido.")
+              sys.exit(1)
+
+          resultado = {
+              "ativo": "XAUUSD",
+              "timeframe": "M5",
+              "candle_utc": analise.get("candle_utc"),
+              "decisao_motor": analise.get("decisao"),
+              "decisao_gemini": lado,
+              "confianca_declarada": confianca,
+              "justificativa": str(
+                  decisao.get("justificativa", "")
+              )[:1000],
+              "modo_teste": True,
+              "envio_telegram": False,
+              "execucao_ordens": False,
+              "gerado_utc": datetime.now(timezone.utc).isoformat()
+          }
+
+          os.makedirs("data", exist_ok=True)
+          with open("data/decisao_gemini.json", "w", encoding="utf-8") as f:
+              json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          print("MODO DE TESTE: nenhum sinal enviado e nenhuma ordem executada.")
+          PY
+
+      - name: Guardar resultado do agente
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-agente-gemini
+          path: data/decisao_gemini.json
+          if-no-files-found: ignore
+          retention-days: 7
