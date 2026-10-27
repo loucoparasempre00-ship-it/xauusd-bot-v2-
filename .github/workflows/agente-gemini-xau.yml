@@ -119,6 +119,7 @@ jobs:
           import urllib.error
           from datetime import datetime, timezone
 
+          # URL BASE CORRIGIDA AQUI:
           BASE = "https://googleapis.com"
 
           with open("data/analise_tecnica_contexto.json", encoding="utf-8") as f:
