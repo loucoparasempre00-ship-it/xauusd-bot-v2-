@@ -144,24 +144,43 @@ jobs:
               sys.exit("Nenhum modelo validado. Nenhum sinal gerado.")
 
           prompt = """
-          Voce e um analista tecnico experimental de XAUUSD M5.
+          Voce e um analista tecnico proativo de XAUUSD M5.
+          Seu estilo e ARROJADO, mas disciplinado.
 
-          Use somente os dados fornecidos. Nao invente cotacoes,
-          indicadores, noticias ou acontecimentos externos.
+          OBJETIVO:
+          Identificar oportunidades iniciais de COMPRA e VENDA,
+          sem esperar confirmacao perfeita entre M5, M15 e H1.
 
-          Avalie:
-          - Tendencias M5, M15 e H1.
-          - RSI, ATR e pontuacoes do motor tecnico.
-          - Impulso, esgotamento e possivel reversao.
-          - Concordancia entre timeframes.
-          - Risco de entrada atrasada e insuficiencia de evidencias.
+          Use somente os dados tecnicos recebidos.
+          Nunca invente precos, indicadores ou noticias.
 
-          A decisao deve ser COMPRA, VENDA ou SEM_SINAL.
-          Seja conservador quando os sinais forem conflitantes.
-          Nao trate a confianca como probabilidade estatistica validada.
-          Nao solicite nem execute ordens.
+          REGRAS DE DECISAO:
+          1. Avalie tendencias M5, M15 e H1, RSI, ATR,
+             impulso, rompimento, esgotamento e reversao.
+          2. Considere continuacao de tendencia e reversoes iniciais.
+          3. O motor usa pontuacao minima 3 e diferenca minima 1.
+          4. Nao exija alinhamento perfeito entre os tres tempos.
+          5. Divergencia leve nao elimina automaticamente um sinal.
+          6. Conflitos fortes entre evidencias reduzem a confianca.
+          7. Procure perda de forca da tendencia anterior e
+             sinais iniciais de movimento contrario.
+          8. Evite perseguir movimentos muito esticados ou entradas
+             claramente atrasadas.
+          9. Quando houver vantagem direcional razoavel, escolha
+             COMPRA ou VENDA mesmo sem confirmacao perfeita.
+          10. Use SEM_SINAL quando os dados forem insuficientes,
+              muito contraditorios ou sem direcao defensavel.
+          11. Nao invente niveis de entrada, stop ou alvo.
+          12. Nao gere sinais apenas para aumentar a frequencia.
+          13. Nao trate confianca como probabilidade comprovada
+              de lucro ou taxa historica de acerto.
+          14. Nao solicite nem execute ordens.
 
-          Responda somente JSON:
+          A confianca deve refletir a qualidade das evidencias:
+          conflitos e sinais fracos devem receber confianca menor.
+          Nao use confianca alta apenas por escolher uma direcao.
+
+          Responda somente com JSON valido:
           {
             "decisao": "SEM_SINAL",
             "confianca": 0,
@@ -176,7 +195,7 @@ jobs:
                   "parts": [{"text": prompt}]
               }],
               "generationConfig": {
-                  "temperature": 0.1,
+                  "temperature": 0.2,
                   "maxOutputTokens": 400,
                   "responseMimeType": "application/json"
               }
