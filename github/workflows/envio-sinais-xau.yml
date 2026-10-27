@@ -1,0 +1,153 @@
+
+name: Envio Sinais XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Analise Tecnica Contexto"
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  enviar-sinal:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar resultado da analise tecnica
+        uses: actions/download-artifact@v4
+        with:
+          name: analise-tecnica-xau
+          path: resultado
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Interpretar decisao tecnica
+        id: decisao
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          arquivos = list(Path("resultado").rglob("*.json"))
+
+          if not arquivos:
+              sys.exit("ERRO: nenhum JSON encontrado no artefato.")
+
+          arquivo = next(
+              (p for p in arquivos
+               if p.name == "analise_tecnica_contexto.json"),
+              arquivos[0]
+          )
+
+          dados = json.loads(arquivo.read_text(encoding="utf-8"))
+
+          if not isinstance(dados, dict):
+              sys.exit("ERRO: o JSON nao contem um objeto.")
+
+          print("Arquivo:", arquivo)
+          print("Campos encontrados:", list(dados.keys()))
+
+          # Aceita campos comuns de decisao ja calculada.
+          decisao = str(
+              dados.get("decisao_motor",
+              dados.get("decisao",
+              dados.get("sinal", "")))
+          ).strip().upper()
+
+          # Se nao houver decisao pronta, tenta usar pontuacoes.
+          compra = dados.get("compra", dados.get("pontos_compra"))
+          venda = dados.get("venda", dados.get("pontos_venda"))
+
+          if decisao not in ("COMPRA", "VENDA", "SEM_SINAL"):
+              try:
+                  compra = float(compra)
+                  venda = float(venda)
+              except (TypeError, ValueError):
+                  sys.exit(
+                      "ERRO: o JSON nao tem decisao reconhecida "
+                      "nem pontuacoes compra/venda. "
+                      "Consulte os campos exibidos acima."
+                  )
+
+              if compra >= 4 and compra - venda >= 2:
+                  decisao = "COMPRA"
+              elif venda >= 4 and venda - compra >= 2:
+                  decisao = "VENDA"
+              else:
+                  decisao = "SEM_SINAL"
+
+          print("Decisao tecnica:", decisao)
+
+          if decisao == "SEM_SINAL":
+              print("Nenhum sinal para enviar.")
+              sys.exit(0)
+
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+          if not token or not chat_id:
+              sys.exit("ERRO: secrets do Telegram ausentes.")
+
+          # O envio e feito no passo seguinte.
+          Path("decisao.txt").write_text(decisao, encoding="utf-8")
+          PY
+
+      - name: Enviar sinal ao Telegram
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ ! -f decisao.txt ]; then
+            echo "Sem sinal novo para enviar."
+            exit 0
+          fi
+
+          DECISAO="$(cat decisao.txt)"
+
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          decisao = Path("decisao.txt").read_text().strip()
+
+          mensagem = (
+              f"XAUUSD M5 - {decisao}\n"
+              "Origem: motor tecnico, sem Gemini.\n"
+              "Alerta informativo; nao executa ordens."
+          )
+
+          dados = json.dumps({
+              "chat_id": os.environ["TELEGRAM_CHAT_ID"],
+              "text": mensagem
+          }).encode()
+
+          req = urllib.request.Request(
+              "https://api.telegram.org/bot"
+              + os.environ["TELEGRAM_BOT_TOKEN"]
+              + "/sendMessage",
+              data=dados,
+              headers={"Content-Type": "application/json"},
+              method="POST"
+          )
+
+          with urllib.request.urlopen(req, timeout=20) as resposta:
+              resultado = json.loads(resposta.read().decode())
+
+          if not resultado.get("ok"):
+              raise RuntimeError("Telegram nao confirmou o envio.")
+
+          print("Sinal enviado.")
+          PY
