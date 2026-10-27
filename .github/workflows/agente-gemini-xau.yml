@@ -1,3 +1,4 @@
+
 name: Agente Gemini XAUUSD
 
 on:
@@ -119,88 +120,256 @@ jobs:
           import urllib.error
           from datetime import datetime, timezone
 
-          # URL BASE CORRIGIDA AQUI:
-          BASE = "https://googleapis.com"
+          BASE = "https://generativelanguage.googleapis.com/v1beta"
 
-          with open("data/analise_tecnica_contexto.json", encoding="utf-8") as f:
+          with open(
+              "data/analise_tecnica_contexto.json",
+              encoding="utf-8"
+          ) as f:
               analise = json.load(f)
 
-          with open("data/modelo_gemini.json", encoding="utf-8") as f:
+          with open(
+              "data/modelo_gemini.json",
+              encoding="utf-8"
+          ) as f:
               selecao = json.load(f)
 
           chave = os.getenv("GEMINI_API_KEY", "").strip()
           modelo = selecao.get("modelo_escolhido")
 
           if not chave:
-              sys.exit("::error::Secret GEMINI_API_KEY ausente.")
+              sys.exit("Secret GEMINI_API_KEY ausente.")
 
           if selecao.get("status") != "pronto" or not modelo:
-              sys.exit("::error::Nenhum modelo validado. Nenhum sinal gerado.")
+              sys.exit("Nenhum modelo validado. Nenhum sinal gerado.")
 
-          prompt_texto = f"""
+          prompt = """
           Voce e um analista tecnico proativo de XAUUSD M5.
-          Seu estilo e ARROJADO, mas disciplinado.
 
           OBJETIVO:
-          Identificar oportunidades iniciais de COMPRA e VENDA,
-          sem esperar confirmacao perfeita entre M5, M15 e H1.
+          Encontrar oportunidades de COMPRA e VENDA mais cedo,
+          sem exigir alinhamento perfeito entre M5, M15 e H1.
 
-          DADOS TECNICOS ATUAIS DO MERCADO:
-          {json.dumps(analise, indent=2, ensure_ascii=False)}
+          Use exclusivamente os dados tecnicos fornecidos.
+          Nunca invente precos, indicadores ou noticias.
 
-          REGRAS DE DECISAO:
-          1. Avalie tendencias M5, M15 e H1, RSI, ATR, impulso, rompimento, esgotamento e reversao.
-          2. Considere continuacao de tendencia e reversoes iniciais.
-          3. O motor usa pontuacao minima 3 e diferenca minima 1.
-          4. Nao exija alinhamento perfeito entre os tres tempos.
-          5. Divergencia leve nao elimina automaticamente um sinal.
-          6. Conflitos fortes entre evidencias reduzem a confianca.
-          7. Procure perda de forca da tendencia anterior e sinais iniciais de movimento.
+          REGRAS:
+          1. Avalie tendencias M5, M15 e H1, RSI, ATR,
+             impulso, rompimento e possivel esgotamento.
+          2. Considere continuacao de tendencia e reversoes.
+          3. Pontuacao minima do motor: 3.
+          4. Diferenca minima entre direcoes: 1.
+          5. Nao exija alinhamento perfeito dos tres tempos.
+          6. Divergencias leves nao eliminam automaticamente
+             uma oportunidade; conflitos fortes reduzem
+             a confianca e podem justificar SEM_SINAL.
+          7. Procure sinais iniciais de perda de forca
+             e de tentativa de reversao.
+          8. Evite entradas muito atrasadas depois de
+             movimentos esticados ou ja muito avancados.
+          9. Se houver evidencia direcional razoavel,
+             escolha COMPRA ou VENDA.
+          10. Escolha SEM_SINAL se os dados forem insuficientes,
+              contraditorios demais ou sem direcao defensavel.
+          11. Nao invente preco de entrada, stop ou alvo.
+          12. Nao execute nem solicite ordens.
+          13. A confianca e uma avaliacao da IA, nao uma
+              probabilidade estatistica comprovada de acerto.
+          14. Nao gere sinais apenas para aumentar a frequencia.
+          15. Nao apresente uma oportunidade como garantia de lucro.
 
-          FORMATO DE RETORNO OBRIGATORIO:
-          Sua resposta deve ser EXCLUSIVAMENTE um objeto JSON valido, contendo:
-          {{
-            "decisao": "COMPRA" ou "VENDA" ou "SEM SINAL",
-            "justificativa": "Texto curto explicando os fatores tecnicos levados em conta"
-          }}
-          """
+          Responda somente JSON valido:
+          {
+            "decisao": "SEM_SINAL",
+            "confianca": 0,
+            "justificativa": "Motivo tecnico objetivo"
+          }
 
-          payload = {
+          DADOS TECNICOS:
+          """ + json.dumps(analise, ensure_ascii=False)
+
+          corpo = {
               "contents": [{
-                  "parts": [{"text": prompt_texto}]
+                  "parts": [{"text": prompt}]
               }],
               "generationConfig": {
+                  "temperature": 0.2,
+                  "maxOutputTokens": 400,
                   "responseMimeType": "application/json"
               }
           }
 
-          url = f"{BASE}/{modelo}:generateContent?key={chave}"
-          req = urllib.request.Request(
+          url = BASE + "/" + modelo + ":generateContent"
+
+          pedido = urllib.request.Request(
               url,
-              data=json.dumps(payload).encode("utf-8"),
-              headers={"Content-Type": "application/json"},
+              data=json.dumps(corpo).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": chave
+              },
               method="POST"
           )
 
           try:
-              print(f"Enviando analise para o modelo {modelo}...")
-              with urllib.request.urlopen(req) as response:
-                  res_data = json.loads(response.read().decode("utf-8"))
-                  
-              texto_resposta = res_data["candidates"][0]["content"]["parts"][0]["text"]
-              decisao_json = json.loads(texto_resposta.strip())
-              
-              os.makedirs("data", exist_ok=True)
-              with open("data/decisao_agente.json", "w", encoding="utf-8") as f:
-                  json.dump(decisao_json, f, indent=2, ensure_ascii=False)
-                  
-              print("Decisao do Agente gerada com sucesso:")
-              print(json.dumps(decisao_json, indent=2, ensure_ascii=False))
+              with urllib.request.urlopen(pedido, timeout=40) as resp:
+                  resposta = json.loads(
+                      resp.read().decode("utf-8")
+                  )
+
+              texto = resposta["candidates"][0]["content"]["parts"][0]["text"]
+              decisao = json.loads(texto)
 
           except urllib.error.HTTPError as e:
-              print(f"::error::Erro na API Gemini: {e.code} - {e.read().decode('utf-8')}")
+              detalhe = e.read().decode("utf-8", "replace")
+              print("Erro HTTP do Gemini:", e.code)
+              print(detalhe[:1200])
               sys.exit(1)
+
           except Exception as e:
-              print(f"::error::Falha ao processar resposta do Agente: {str(e)}")
+              print("Erro na resposta do agente:", str(e))
               sys.exit(1)
+
+          lado = decisao.get("decisao")
+          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
+              sys.exit("Resposta da IA contem decisao invalida.")
+
+          try:
+              confianca = int(decisao.get("confianca", 0))
+          except (ValueError, TypeError):
+              sys.exit("Confianca invalida.")
+
+          if not 0 <= confianca <= 100:
+              sys.exit("Confianca fora do intervalo de 0 a 100.")
+
+          resultado = {
+              "ativo": "XAUUSD",
+              "timeframe": "M5",
+              "candle_utc": analise.get("candle_utc"),
+              "decisao_motor": analise.get("decisao"),
+              "modelo_utilizado": modelo,
+              "decisao_gemini": lado,
+              "confianca_declarada": confianca,
+              "justificativa": str(
+                  decisao.get("justificativa", "")
+              )[:1200],
+              "gerado_utc": datetime.now(
+                  timezone.utc
+              ).isoformat(),
+              "modo_teste": True,
+              "envio_telegram": False,
+              "execucao_ordens": False
+          }
+
+          os.makedirs("data", exist_ok=True)
+          with open(
+              "data/decisao_gemini.json",
+              "w",
+              encoding="utf-8"
+          ) as f:
+              json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          print("Analise do agente concluida.")
           PY
+
+      - name: Enviar sinal para o Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import sys
+          import html
+          import urllib.request
+          import urllib.parse
+          from pathlib import Path
+
+          arquivo = Path("data/decisao_gemini.json")
+          decisao = json.loads(
+              arquivo.read_text(encoding="utf-8")
+          )
+
+          lado = decisao.get("decisao_gemini", "SEM_SINAL")
+
+          if lado not in ("COMPRA", "VENDA"):
+              print("SEM_SINAL: nenhuma mensagem enviada.")
+              sys.exit(0)
+
+          token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+          if not token or not chat_id:
+              sys.exit("Configure os Secrets do Telegram no GitHub.")
+
+          confianca = decisao.get("confianca_declarada", 0)
+          justificativa = html.escape(
+              str(decisao.get("justificativa", "Sem justificativa."))[:1000]
+          )
+          candle = html.escape(
+              str(
+                  decisao.get("candle_utc")
+                  or decisao.get("gerado_utc", "Nao informado")
+              )
+          )
+
+          emoji = "🟢" if lado == "COMPRA" else "🔴"
+
+          mensagem = (
+              f"🥇 <b>XAUUSD · OURO</b>\n"
+              f"⏱ Timeframe: M5\n\n"
+              f"{emoji} <b>{lado}</b>\n\n"
+              f"🧠 <b>Confiança do agente: {confianca}%</b>\n\n"
+              f"📊 <b>Análise técnica</b>\n"
+              f"{justificativa}\n\n"
+              f"🕒 Candle UTC: {candle}\n\n"
+              "ℹ️ Confiança declarada pela IA; não é probabilidade "
+              "comprovada de lucro.\n"
+              "Alerta informativo. Não executa ordens."
+          )
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          dados = urllib.parse.urlencode({
+              "chat_id": chat_id,
+              "text": mensagem,
+              "parse_mode": "HTML",
+              "disable_web_page_preview": "true"
+          }).encode("utf-8")
+
+          pedido = urllib.request.Request(
+              url,
+              data=dados,
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(pedido, timeout=20) as resposta:
+                  retorno = json.loads(
+                      resposta.read().decode("utf-8")
+                  )
+
+              if not retorno.get("ok"):
+                  sys.exit("Telegram nao confirmou o envio.")
+
+              decisao["envio_telegram"] = True
+              arquivo.write_text(
+                  json.dumps(decisao, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
+              )
+              print("Mensagem enviada ao Telegram.")
+
+          except Exception as erro:
+              sys.exit(f"Falha no envio ao Telegram: {erro}")
+          PY
+
+      - name: Guardar decisao do agente
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-agente-gemini
+          path: data/decisao_gemini.json
+          if-no-files-found: ignore
+          retention-days: 7
