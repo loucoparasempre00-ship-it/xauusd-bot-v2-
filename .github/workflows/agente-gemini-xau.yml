@@ -44,7 +44,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
+          set -euo pipefail
 
           RUN_ID=$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
@@ -56,11 +56,10 @@ jobs:
 
           if [ -z "$RUN_ID" ]; then
             echo "::error::Nenhuma execucao bem-sucedida do testador foi encontrada."
-            echo "Execute primeiro o workflow Testador e Seletor Gemini."
             exit 1
           fi
 
-          echo "Execucao do testador selecionada: $RUN_ID"
+          mkdir -p data
 
           gh run download "$RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
@@ -71,6 +70,40 @@ jobs:
             echo "::error::Arquivo de selecao nao encontrado."
             exit 1
           fi
+
+      - name: Receber candles para entrada e ATR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          RUN_ID=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "Integracao XAUUSD Bot V2" \
+            --status success \
+            --limit 30 \
+            --json databaseId,headSha,createdAt \
+            --jq "map(select(.headSha == \"$UPSTREAM_SHA\")) | sort_by(.createdAt) | last | .databaseId // empty")
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::Nenhuma integracao bem-sucedida encontrada para este commit."
+            exit 1
+          fi
+
+          mkdir -p data/candles
+
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name candles-xauusd-m5 \
+            --dir data/candles
+
+          if [ ! -f data/candles/xauusd_m5_fechados.csv ]; then
+            echo "::error::CSV de candles fechados nao encontrado."
+            exit 1
+          fi
+
+          echo "Candles recebidos para calcular entrada e stop."
 
       - name: Validar arquivos recebidos
         run: |
@@ -88,6 +121,7 @@ jobs:
                   encoding="utf-8"
               )
           )
+
           selecao = json.loads(
               Path("data/modelo_gemini.json").read_text(
                   encoding="utf-8"
@@ -98,6 +132,7 @@ jobs:
               raise SystemExit("A selecao de modelo nao esta pronta.")
 
           modelo = selecao.get("modelo_escolhido", "")
+
           if not isinstance(modelo, str) or not modelo.startswith("models/gemini-"):
               raise SystemExit("Nome de modelo invalido.")
 
@@ -149,7 +184,6 @@ jobs:
           OBJETIVO:
           Encontrar oportunidades de COMPRA e VENDA mais cedo,
           sem exigir alinhamento perfeito entre M5, M15 e H1.
-
           Use exclusivamente os dados tecnicos fornecidos.
           Nunca invente precos, indicadores ou noticias.
 
@@ -189,9 +223,9 @@ jobs:
           """ + json.dumps(analise, ensure_ascii=False)
 
           corpo = {
-              "contents": [{
-                  "parts": [{"text": prompt}]
-              }],
+              "contents": [
+                  {"parts": [{"text": prompt}]}
+              ],
               "generationConfig": {
                   "temperature": 0.2,
                   "maxOutputTokens": 400,
@@ -231,6 +265,7 @@ jobs:
               sys.exit(1)
 
           lado = decisao.get("decisao")
+
           if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
               sys.exit("Resposta da IA contem decisao invalida.")
 
@@ -253,24 +288,162 @@ jobs:
               "justificativa": str(
                   decisao.get("justificativa", "")
               )[:1200],
-              "gerado_utc": datetime.now(
-                  timezone.utc
-              ).isoformat(),
+              "gerado_utc": datetime.now(timezone.utc).isoformat(),
               "modo_teste": True,
               "envio_telegram": False,
               "execucao_ordens": False
           }
 
           os.makedirs("data", exist_ok=True)
+
           with open(
               "data/decisao_gemini.json",
               "w",
               encoding="utf-8"
           ) as f:
-              json.dump(resultado, f, ensure_ascii=False, indent=2)
+              json.dump(
+                  resultado,
+                  f,
+                  ensure_ascii=False,
+                  indent=2
+              )
 
           print(json.dumps(resultado, ensure_ascii=False, indent=2))
           print("Analise do agente concluida.")
+          PY
+
+      - name: Calcular entrada e stop pelo ATR
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import math
+          from pathlib import Path
+
+          csv_path = Path("data/candles/xauusd_m5_fechados.csv")
+          json_path = Path("data/decisao_gemini.json")
+
+          decisao = json.loads(
+              json_path.read_text(encoding="utf-8")
+          )
+
+          if decisao.get("decisao_gemini") not in ("COMPRA", "VENDA"):
+              print("SEM_SINAL: calculo de entrada dispensado.")
+              raise SystemExit(0)
+
+          with csv_path.open(
+              encoding="utf-8-sig",
+              newline=""
+          ) as f:
+              reader = csv.DictReader(f)
+
+              if not reader.fieldnames:
+                  raise SystemExit("CSV sem cabecalho.")
+
+              def normalizar(nome):
+                  return "".join(
+                      c.lower() for c in nome.strip()
+                      if c.isalnum()
+                  )
+
+              colunas = {
+                  normalizar(nome): nome
+                  for nome in reader.fieldnames
+              }
+
+              def encontrar(*nomes):
+                  for nome in nomes:
+                      chave = normalizar(nome)
+                      if chave in colunas:
+                          return colunas[chave]
+
+                  raise SystemExit(
+                      "Coluna necessaria ausente no CSV: "
+                      + ", ".join(nomes)
+                      + ". Confira o cabecalho do arquivo."
+                  )
+
+              col_high = encontrar("high", "max", "maximum")
+              col_low = encontrar("low", "min", "minimum")
+              col_close = encontrar("close", "fechamento", "last")
+
+              linhas = list(reader)
+
+          if len(linhas) < 15:
+              raise SystemExit(
+                  "Sao necessarios pelo menos 15 candles."
+              )
+
+          def numero(linha, coluna):
+              valor = float(linha[coluna])
+
+              if not math.isfinite(valor):
+                  raise ValueError("Preco invalido no CSV.")
+
+              return valor
+
+          candles = []
+
+          for linha in linhas:
+              candles.append({
+                  "high": numero(linha, col_high),
+                  "low": numero(linha, col_low),
+                  "close": numero(linha, col_close)
+              })
+
+          ultimos = candles[-15:]
+          true_ranges = []
+
+          for i in range(1, len(ultimos)):
+              atual = ultimos[i]
+              fechamento_anterior = ultimos[i - 1]["close"]
+
+              tr = max(
+                  atual["high"] - atual["low"],
+                  abs(atual["high"] - fechamento_anterior),
+                  abs(atual["low"] - fechamento_anterior)
+              )
+
+              true_ranges.append(tr)
+
+          atr14 = sum(true_ranges[-14:]) / 14
+          entrada = candles[-1]["close"]
+          lado = decisao["decisao_gemini"]
+
+          if atr14 <= 0:
+              raise SystemExit("ATR invalido ou igual a zero.")
+
+          distancia = atr14 * 1.5
+
+          if lado == "COMPRA":
+              stop = entrada - distancia
+          else:
+              stop = entrada + distancia
+
+          decisao["entrada"] = round(entrada, 3)
+          decisao["atr14"] = round(atr14, 5)
+          decisao["distancia_stop"] = round(distancia, 3)
+          decisao["stop_loss"] = round(stop, 3)
+          decisao["metodo_entrada"] = "Fechamento do ultimo candle"
+          decisao["metodo_stop"] = "ATR(14) x 1,5"
+
+          json_path.write_text(
+              json.dumps(
+                  decisao,
+                  ensure_ascii=False,
+                  indent=2
+              ),
+              encoding="utf-8"
+          )
+
+          print("Entrada e stop calculados.")
+          print(json.dumps({
+              "decisao": lado,
+              "entrada": decisao["entrada"],
+              "atr14": decisao["atr14"],
+              "distancia_stop": decisao["distancia_stop"],
+              "stop_loss": decisao["stop_loss"]
+          }, ensure_ascii=False, indent=2))
           PY
 
       - name: Enviar sinal para o Telegram
@@ -282,7 +455,6 @@ jobs:
           import os
           import json
           import sys
-          import html
           import urllib.request
           import urllib.parse
           from pathlib import Path
@@ -304,16 +476,18 @@ jobs:
           if not token or not chat_id:
               sys.exit("Configure os Secrets do Telegram no GitHub.")
 
-          confianca = decisao.get("confianca_declarada", 0)
-          justificativa = html.escape(
-              str(decisao.get("justificativa", "Sem justificativa."))[:1000]
-          )
-          candle = html.escape(
-              str(
-                  decisao.get("candle_utc")
-                  or decisao.get("gerado_utc", "Nao informado")
+          campos = ("entrada", "stop_loss", "distancia_stop")
+
+          if any(decisao.get(campo) is None for campo in campos):
+              sys.exit(
+                  "Entrada ou stop ausente. Mensagem nao enviada."
               )
-          )
+
+          confianca = decisao.get("confianca_declarada", 0)
+          entrada = decisao["entrada"]
+          stop = decisao["stop_loss"]
+          distancia = decisao["distancia_stop"]
+          candle = decisao.get("candle_utc") or "Nao informado"
 
           emoji = "🟢" if lado == "COMPRA" else "🔴"
 
@@ -321,16 +495,16 @@ jobs:
               f"🥇 <b>XAUUSD · OURO</b>\n"
               f"⏱ Timeframe: M5\n\n"
               f"{emoji} <b>{lado}</b>\n\n"
-              f"🧠 <b>Confiança do agente: {confianca}%</b>\n\n"
-              f"📊 <b>Análise técnica</b>\n"
-              f"{justificativa}\n\n"
-              f"🕒 Candle UTC: {candle}\n\n"
-              "ℹ️ Confiança declarada pela IA; não é probabilidade "
-              "comprovada de lucro.\n"
-              "Alerta informativo. Não executa ordens."
+              f"💰 Entrada: <code>{entrada:.3f}</code>\n"
+              f"🛑 Stop-loss: <code>{stop:.3f}</code>\n"
+              f"📏 Distância do stop: <code>{distancia:.3f}</code>\n"
+              f"📐 Método: ATR(14) × 1,5\n"
+              f"🧠 Confiança: <b>{confianca}%</b>\n\n"
+              f"🕒 Candle UTC: {candle}"
           )
 
           url = f"https://api.telegram.org/bot{token}/sendMessage"
+
           dados = urllib.parse.urlencode({
               "chat_id": chat_id,
               "text": mensagem,
@@ -341,7 +515,9 @@ jobs:
           pedido = urllib.request.Request(
               url,
               data=dados,
-              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              headers={
+                  "Content-Type": "application/x-www-form-urlencoded"
+              },
               method="POST"
           )
 
@@ -355,11 +531,17 @@ jobs:
                   sys.exit("Telegram nao confirmou o envio.")
 
               decisao["envio_telegram"] = True
+
               arquivo.write_text(
-                  json.dumps(decisao, ensure_ascii=False, indent=2),
+                  json.dumps(
+                      decisao,
+                      ensure_ascii=False,
+                      indent=2
+                  ),
                   encoding="utf-8"
               )
-              print("Mensagem enviada ao Telegram.")
+
+              print("Mensagem Gemini enviada ao Telegram.")
 
           except Exception as erro:
               sys.exit(f"Falha no envio ao Telegram: {erro}")
