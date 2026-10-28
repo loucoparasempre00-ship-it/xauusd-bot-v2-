@@ -18,12 +18,12 @@ concurrency:
 
 jobs:
   agente:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      - name: Baixar repositorio
+      - name: Baixar código do repositório
         uses: actions/checkout@v4
 
       - name: Configurar Python
@@ -31,527 +31,623 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Receber analise tecnica
-        uses: actions/download-artifact@v4
-        with:
-          name: analise-tecnica-xau
-          path: data
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
+      - name: Instalar dependências
+        run: python -m pip install --upgrade requests
 
-      - name: Localizar ultima selecao bem-sucedida
+      - name: Preparar diretórios
+        run: mkdir -p data/candles
+
+      - name: Baixar análise técnica do workflow anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$UPSTREAM_RUN_ID" \
+            --name analise-tecnica-xau \
+            --dir data
+
+          echo "Arquivos recebidos:"
+          find data -maxdepth 3 -type f -print
+
+      - name: Baixar seleção do modelo Gemini
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-
-          RUN_ID=$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow testador-gemini.yml \
-            --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')
+          RUN_ID=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/testador-gemini.yml/runs?status=success&per_page=10" \
+            --jq '.workflow_runs[0].id // empty')
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::Nenhuma execucao bem-sucedida do testador foi encontrada."
+            echo "::error::Não encontrei uma execução bem-sucedida de testador-gemini.yml."
             exit 1
           fi
 
-          mkdir -p data
+          echo "Execução do seletor Gemini: $RUN_ID"
 
           gh run download "$RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
             --name selecao-modelo-gemini \
             --dir data
 
           if [ ! -f data/modelo_gemini.json ]; then
-            echo "::error::Arquivo de selecao nao encontrado."
+            echo "::error::O artefato não contém data/modelo_gemini.json."
+            find data -maxdepth 3 -type f -print
             exit 1
           fi
 
-      - name: Receber candles para entrada e ATR
+      - name: Baixar candles da integração correspondente
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          set -euo pipefail
-
-          RUN_ID=$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow "Integracao XAUUSD Bot V2" \
-            --status success \
-            --limit 30 \
-            --json databaseId,headSha,createdAt \
-            --jq "map(select(.headSha == \"$UPSTREAM_SHA\")) | sort_by(.createdAt) | last | .databaseId // empty")
+          RUN_ID=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+            --jq ".workflow_runs[]
+              | select(.name == \"Integracao XAUUSD Bot V2\")
+              | select(.conclusion == \"success\")
+              | select(.head_sha == \"${UPSTREAM_SHA}\")
+              | .id" | head -n 1)
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::Nenhuma integracao bem-sucedida encontrada para este commit."
+            echo "::error::Não encontrei a integração bem-sucedida para o mesmo commit."
             exit 1
           fi
 
-          mkdir -p data/candles
+          echo "Execução da integração: $RUN_ID"
 
           gh run download "$RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
             --name candles-xauusd-m5 \
             --dir data/candles
 
-          if [ ! -f data/candles/xauusd_m5_fechados.csv ]; then
-            echo "::error::CSV de candles fechados nao encontrado."
+          CSV=$(find data/candles -type f -name 'xauusd_m5_fechados.csv' -print -quit)
+
+          if [ -z "$CSV" ]; then
+            echo "::error::Não encontrei xauusd_m5_fechados.csv."
+            find data/candles -maxdepth 4 -type f -print
             exit 1
           fi
 
-          echo "Candles recebidos para calcular entrada e stop."
+          echo "CSV encontrado: $CSV"
 
-      - name: Validar arquivos recebidos
+      - name: Validar arquivos e calcular setup Canal Scalper + Fenômeno do Pavio
+        id: setup
         run: |
-          test -f data/analise_tecnica_contexto.json || {
-            echo "::error::Analise tecnica ausente."
-            exit 1
-          }
-
           python - <<'PY'
+          import csv
           import json
+          import math
+          import os
+          from datetime import datetime, timezone
           from pathlib import Path
 
-          analise = json.loads(
-              Path("data/analise_tecnica_contexto.json").read_text(
+          DATA = Path("data")
+          DATA.mkdir(exist_ok=True)
+
+          def salvar(obj):
+              (DATA / "setup_canal_pavio.json").write_text(
+                  json.dumps(obj, ensure_ascii=False, indent=2),
                   encoding="utf-8"
               )
+
+          def sem_sinal(motivo, candle=""):
+              salvar({
+                  "status": "sem_sinal",
+                  "sinal": "SEM_SINAL",
+                  "motivo": motivo,
+                  "candle_utc": candle,
+                  "entrada": None,
+                  "stop": None,
+                  "gain": None,
+                  "atr20": None,
+                  "metodo_stop": "ATR(20) x 1,0",
+                  "metodo_exaustao": "Preço e corpos dos candles; sem volume"
+              })
+              print("Setup:", motivo)
+
+          # Localiza os arquivos independentemente da pasta interna do artefato.
+          analise_path = DATA / "analise_tecnica_contexto.json"
+          modelo_path = DATA / "modelo_gemini.json"
+          csv_path = next(
+              DATA.glob("candles/**/xauusd_m5_fechados.csv"),
+              None
           )
 
-          selecao = json.loads(
-              Path("data/modelo_gemini.json").read_text(
-                  encoding="utf-8"
+          if not analise_path.exists():
+              sem_sinal("Arquivo de análise técnica ausente.")
+              raise SystemExit(1)
+
+          if not modelo_path.exists():
+              sem_sinal("Arquivo de seleção Gemini ausente.")
+              raise SystemExit(1)
+
+          if csv_path is None:
+              sem_sinal("Arquivo de candles fechados ausente.")
+              raise SystemExit(1)
+
+          try:
+              analise = json.loads(analise_path.read_text(encoding="utf-8"))
+              modelo = json.loads(modelo_path.read_text(encoding="utf-8"))
+          except Exception as e:
+              sem_sinal(f"Falha ao ler JSON: {e}")
+              raise SystemExit(1)
+
+          if not isinstance(analise, dict):
+              sem_sinal("Formato inesperado da análise técnica.")
+              raise SystemExit(1)
+
+          if not isinstance(modelo, dict):
+              sem_sinal("Formato inesperado da seleção Gemini.")
+              raise SystemExit(1)
+
+          if modelo.get("status") != "pronto":
+              sem_sinal("Seletor Gemini não está pronto.")
+              raise SystemExit(1)
+
+          modelo_nome = str(modelo.get("modelo_escolhido", ""))
+          if not modelo_nome.startswith("models/gemini-"):
+              sem_sinal("Modelo Gemini selecionado inválido.")
+              raise SystemExit(1)
+
+          def normalizar_nome(nome):
+              return "".join(
+                  ch.lower() for ch in str(nome)
+                  if ch.isalnum()
               )
+
+          with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
+              reader = csv.DictReader(f)
+              if not reader.fieldnames:
+                  sem_sinal("CSV sem cabeçalho.")
+                  raise SystemExit(1)
+
+              campos = {
+                  normalizar_nome(c): c
+                  for c in reader.fieldnames
+              }
+
+              def achar(*nomes):
+                  for nome in nomes:
+                      chave = normalizar_nome(nome)
+                      if chave in campos:
+                          return campos[chave]
+                  return None
+
+              col_open = achar("open", "o", "abertura")
+              col_high = achar("high", "h", "maxima", "máxima")
+              col_low = achar("low", "l", "minima", "mínima")
+              col_close = achar("close", "c", "fechamento", "preco_fechamento")
+              col_time = achar(
+                  "timestamp_utc", "datetime", "timestamp",
+                  "date", "time", "data"
+              )
+
+              obrigatorias = {
+                  "open": col_open,
+                  "high": col_high,
+                  "low": col_low,
+                  "close": col_close
+              }
+
+              faltando = [k for k, v in obrigatorias.items() if v is None]
+              if faltando:
+                  sem_sinal("Colunas ausentes no CSV: " + ", ".join(faltando))
+                  raise SystemExit(1)
+
+              candles = []
+              for linha in reader:
+                  try:
+                      o = float(linha[col_open])
+                      h = float(linha[col_high])
+                      l = float(linha[col_low])
+                      c = float(linha[col_close])
+                      if not all(math.isfinite(x) for x in (o, h, l, c)):
+                          continue
+                      if h < max(o, c, l) or l > min(o, c, h):
+                          continue
+                      candles.append({
+                          "open": o, "high": h, "low": l, "close": c,
+                          "time": linha.get(col_time, "") if col_time else ""
+                      })
+                  except (ValueError, TypeError):
+                      continue
+
+          if len(candles) < 30:
+              sem_sinal(f"Poucos candles válidos: {len(candles)}; mínimo 30.")
+              raise SystemExit(1)
+
+          # O arquivo recebido deve conter candles já fechados.
+          # Não é feita consulta a volume nem a tick_volume.
+          def ema(valores, periodo):
+              alpha = 2.0 / (periodo + 1.0)
+              resultado = [float(valores[0])]
+              for v in valores[1:]:
+                  resultado.append(alpha * float(v) + (1 - alpha) * resultado[-1])
+              return resultado
+
+          def atr_wilder(lista, periodo=20):
+              trs = []
+              for i, c in enumerate(lista):
+                  if i == 0:
+                      tr = c["high"] - c["low"]
+                  else:
+                      anterior = lista[i - 1]["close"]
+                      tr = max(
+                          c["high"] - c["low"],
+                          abs(c["high"] - anterior),
+                          abs(c["low"] - anterior)
+                      )
+                  trs.append(tr)
+
+              if len(trs) < periodo:
+                  return [None] * len(trs)
+
+              saida = [None] * len(trs)
+              atual = sum(trs[:periodo]) / periodo
+              saida[periodo - 1] = atual
+
+              for i in range(periodo, len(trs)):
+                  atual = (atual * (periodo - 1) + trs[i]) / periodo
+                  saida[i] = atual
+
+              return saida
+
+          closes = [c["close"] for c in candles]
+          opens = [c["open"] for c in candles]
+          highs = [c["high"] for c in candles]
+          lows = [c["low"] for c in candles]
+
+          # Correspondência com o Pine: EMA de sinal 9 e linha central EMA 20.
+          media9 = ema(closes, 9)
+          meio20 = ema(closes, 20)
+          atr20 = atr_wilder(candles, 20)
+
+          i = len(candles) - 1
+          atual = candles[i]
+          anterior = candles[i - 1]
+          candle_utc = atual["time"]
+
+          corpo_atual = abs(atual["close"] - atual["open"])
+          corpos_anteriores = [
+              abs(candles[j]["close"] - candles[j]["open"])
+              for j in range(i - 3, i)
+          ]
+          corpo_medio_anterior = sum(corpos_anteriores) / 3.0
+
+          # Exaustão aproximada:
+          # corpo atual menor que a média dos 3 corpos anteriores e
+          # movimento anterior na direção que pode estar perdendo força.
+          pressao_vendedora_previa = candles[i - 3]["close"] > candles[i - 1]["close"]
+          pressao_compradora_previa = candles[i - 3]["close"] < candles[i - 1]["close"]
+          corpo_reduzido = (
+              corpo_medio_anterior > 0 and
+              corpo_atual < corpo_medio_anterior
           )
 
-          if selecao.get("status") != "pronto":
-              raise SystemExit("A selecao de modelo nao esta pronta.")
+          exaustao_compra = pressao_vendedora_previa and corpo_reduzido
+          exaustao_venda = pressao_compradora_previa and corpo_reduzido
 
-          modelo = selecao.get("modelo_escolhido", "")
+          amplitude = atual["high"] - atual["low"]
+          pavio_sup = (
+              amplitude > 0 and
+              atual["high"] >= media9[i] and
+              atual["close"] < media9[i] and
+              atual["high"] - max(atual["open"], atual["close"]) > amplitude * 0.3
+          )
+          pavio_inf = (
+              amplitude > 0 and
+              atual["low"] <= media9[i] and
+              atual["close"] > media9[i] and
+              min(atual["open"], atual["close"]) - atual["low"] > amplitude * 0.3
+          )
 
-          if not isinstance(modelo, str) or not modelo.startswith("models/gemini-"):
-              raise SystemExit("Nome de modelo invalido.")
+          # No Pine original, fluxo_ativo=close.
+          # Assim, o filtro de fluxo é o preço em relação à EMA 20.
+          fluxo_compra = atual["close"] > meio20[i]
+          fluxo_venda = atual["close"] < meio20[i]
 
-          if not isinstance(analise, dict) or not analise:
-              raise SystemExit("Analise tecnica vazia ou invalida.")
+          alinhamento_compra = media9[i] > meio20[i] and fluxo_compra
+          alinhamento_venda = media9[i] < meio20[i] and fluxo_venda
 
-          print("Analise tecnica validada.")
-          print("Modelo selecionado:", modelo)
+          compra = (
+              alinhamento_compra and pavio_inf and exaustao_compra
+          )
+          venda = (
+              alinhamento_venda and pavio_sup and exaustao_venda
+          )
+
+          atr_atual = atr20[i]
+          if atr_atual is None or atr_atual <= 0:
+              sem_sinal("ATR(20) indisponível ou inválido.", candle_utc)
+              raise SystemExit(0)
+
+          if compra and venda:
+              sem_sinal("Conflito entre condições de compra e venda.", candle_utc)
+              raise SystemExit(0)
+
+          if not compra and not venda:
+              sem_sinal(
+                  "O candle fechado não reuniu alinhamento, pavio e exaustão por preço.",
+                  candle_utc
+              )
+              raise SystemExit(0)
+
+          lado = "COMPRA" if compra else "VENDA"
+          entrada = atual["close"]
+          distancia = atr_atual * 1.0
+
+          if lado == "COMPRA":
+              stop = entrada - distancia
+              gain = entrada + distancia
+          else:
+              stop = entrada + distancia
+              gain = entrada - distancia
+
+          salvar({
+              "status": "pronto",
+              "sinal": lado,
+              "entrada": round(entrada, 6),
+              "stop": round(stop, 6),
+              "gain": round(gain, 6),
+              "distancia_stop": round(distancia, 6),
+              "atr20": round(atr_atual, 6),
+              "metodo_stop": "ATR(20) x 1,0",
+              "relacao_risco_retorno": "1:1",
+              "candle_utc": candle_utc,
+              "modelo_escolhido": modelo_nome,
+              "indicadores": {
+                  "ema9": round(media9[i], 6),
+                  "ema20": round(meio20[i], 6),
+                  "pavio_inferior": pavio_inf,
+                  "pavio_superior": pavio_sup,
+                  "corpo_atual": round(corpo_atual, 6),
+                  "media_corpos_3_anteriores": round(corpo_medio_anterior, 6),
+                  "pressao_vendedora_previa": pressao_vendedora_previa,
+                  "pressao_compradora_previa": pressao_compradora_previa,
+                  "exaustao_compra": exaustao_compra,
+                  "exaustao_venda": exaustao_venda
+              },
+              "metodo_exaustao": "Preço, pavio e contração do corpo; sem volume"
+          })
+
+          print(f"Setup encontrado: {lado}")
+          print(f"Entrada: {entrada:.3f}")
+          print(f"Stop: {stop:.3f}")
+          print(f"Gain: {gain:.3f}")
+          print(f"ATR(20): {atr_atual:.3f}")
+          print(f"Candle UTC: {candle_utc}")
           PY
 
-      - name: Agente interpreta o mercado
+      - name: Consultar Gemini para validar o sinal
+        if: ${{ success() }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python - <<'PY'
           import json
           import os
-          import sys
-          import urllib.request
-          import urllib.error
-          from datetime import datetime, timezone
+          import requests
+          from pathlib import Path
 
-          BASE = "https://generativelanguage.googleapis.com/v1beta"
+          data = Path("data")
+          setup_path = data / "setup_canal_pavio.json"
+          resultado_path = data / "decisao_gemini.json"
 
-          with open(
-              "data/analise_tecnica_contexto.json",
-              encoding="utf-8"
-          ) as f:
-              analise = json.load(f)
+          setup = json.loads(setup_path.read_text(encoding="utf-8"))
 
-          with open(
-              "data/modelo_gemini.json",
-              encoding="utf-8"
-          ) as f:
-              selecao = json.load(f)
+          if setup.get("status") != "pronto":
+              resultado = {
+                  **setup,
+                  "decisao": "SEM_SINAL",
+                  "confianca": 0,
+                  "justificativa": setup.get("motivo", "Nenhum setup válido.")
+              }
+              resultado_path.write_text(
+                  json.dumps(resultado, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
+              )
+              print("Sem setup. Gemini não será chamado.")
+              raise SystemExit(0)
 
-          chave = os.getenv("GEMINI_API_KEY", "").strip()
-          modelo = selecao.get("modelo_escolhido")
+          api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+          if not api_key:
+              raise SystemExit("Secret GEMINI_API_KEY ausente.")
 
-          if not chave:
-              sys.exit("Secret GEMINI_API_KEY ausente.")
+          modelo = setup.get("modelo_escolhido", "")
+          if not modelo.startswith("models/gemini-"):
+              modelo_json = json.loads(
+                  (data / "modelo_gemini.json").read_text(encoding="utf-8")
+              )
+              modelo = modelo_json.get("modelo_escolhido", "")
 
-          if selecao.get("status") != "pronto" or not modelo:
-              sys.exit("Nenhum modelo validado. Nenhum sinal gerado.")
+          if not modelo.startswith("models/gemini-"):
+              raise SystemExit("Modelo Gemini inválido.")
 
-          prompt = """
-          Voce e um analista tecnico proativo de XAUUSD M5.
+          url = (
+              "https://generativelanguage.googleapis.com/v1beta/"
+              + modelo
+              + ":generateContent"
+          )
 
-          OBJETIVO:
-          Encontrar oportunidades de COMPRA e VENDA mais cedo,
-          sem exigir alinhamento perfeito entre M5, M15 e H1.
-          Use exclusivamente os dados tecnicos fornecidos.
-          Nunca invente precos, indicadores ou noticias.
+          prompt = f"""
+          Você é um filtro técnico conservador para sinais XAUUSD no timeframe M5.
+          Analise somente os dados abaixo. Não invente dados de mercado.
+          Não execute ordens e não prometa rentabilidade.
 
-          REGRAS:
-          1. Avalie tendencias M5, M15 e H1, RSI, ATR,
-             impulso, rompimento e possivel esgotamento.
-          2. Considere continuacao de tendencia e reversoes.
-          3. Pontuacao minima do motor: 3.
-          4. Diferenca minima entre direcoes: 1.
-          5. Nao exija alinhamento perfeito dos tres tempos.
-          6. Divergencias leves nao eliminam automaticamente
-             uma oportunidade; conflitos fortes reduzem
-             a confianca e podem justificar SEM_SINAL.
-          7. Procure sinais iniciais de perda de forca
-             e de tentativa de reversao.
-          8. Evite entradas muito atrasadas depois de
-             movimentos esticados ou ja muito avancados.
-          9. Se houver evidencia direcional razoavel,
-             escolha COMPRA ou VENDA.
-          10. Escolha SEM_SINAL se os dados forem insuficientes,
-              contraditorios demais ou sem direcao defensavel.
-          11. Nao invente preco de entrada, stop ou alvo.
-          12. Nao execute nem solicite ordens.
-          13. A confianca e uma avaliacao da IA, nao uma
-              probabilidade estatistica comprovada de acerto.
-          14. Nao gere sinais apenas para aumentar a frequencia.
-          15. Nao apresente uma oportunidade como garantia de lucro.
+          O motor técnico já encontrou um setup. Sua função é VALIDAR ou
+          rejeitar esse lado, não inverter COMPRA para VENDA nem VENDA para COMPRA.
 
-          Responda somente JSON valido:
-          {
-            "decisao": "SEM_SINAL",
-            "confianca": 0,
-            "justificativa": "Motivo tecnico objetivo"
-          }
+          Setup calculado:
+          {json.dumps(setup, ensure_ascii=False)}
 
-          DADOS TECNICOS:
-          """ + json.dumps(analise, ensure_ascii=False)
+          Análise técnica/contextual do workflow anterior:
+          {json.dumps(
+              json.loads((data / "analise_tecnica_contexto.json").read_text(encoding="utf-8")),
+              ensure_ascii=False
+          )}
 
-          corpo = {
-              "contents": [
-                  {"parts": [{"text": prompt}]}
-              ],
+          Regras:
+          - Considere o lado do setup, EMA9/EMA20, pavio, exaustão aproximada,
+            ATR, contexto e possíveis conflitos.
+          - A exaustão foi calculada pelo preço e pela contração dos corpos.
+            Não há confirmação por volume real.
+          - Se os dados forem contraditórios, insuficientes ou o contexto
+            contrariar o setup, escolha SEM_SINAL.
+          - A confiança é uma avaliação subjetiva do conjunto de evidências,
+            não uma probabilidade estatística comprovada de acerto.
+          - Não altere entrada, stop, gain ou candle UTC.
+
+          Responda APENAS JSON válido:
+          {{
+            "decisao": "COMPRA" ou "VENDA" ou "SEM_SINAL",
+            "confianca": inteiro de 0 a 100,
+            "justificativa": "explicação curta em português"
+          }}
+          """
+
+          payload = {
+              "contents": [{
+                  "parts": [{"text": prompt}]
+              }],
               "generationConfig": {
-                  "temperature": 0.2,
-                  "maxOutputTokens": 400,
+                  "temperature": 0.1,
                   "responseMimeType": "application/json"
               }
           }
 
-          url = BASE + "/" + modelo + ":generateContent"
-
-          pedido = urllib.request.Request(
+          resposta = requests.post(
               url,
-              data=json.dumps(corpo).encode("utf-8"),
-              headers={
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": chave
-              },
-              method="POST"
+              params={"key": api_key},
+              json=payload,
+              timeout=45
           )
 
-          try:
-              with urllib.request.urlopen(pedido, timeout=40) as resp:
-                  resposta = json.loads(
-                      resp.read().decode("utf-8")
-                  )
+          if resposta.status_code != 200:
+              print("Erro Gemini HTTP:", resposta.status_code)
+              print(resposta.text[:2000])
+              raise SystemExit(
+                  "A chamada Gemini falhou. Verifique GEMINI_API_KEY e o modelo."
+              )
 
-              texto = resposta["candidates"][0]["content"]["parts"][0]["text"]
+          corpo = resposta.json()
+          try:
+              texto = corpo["candidates"][0]["content"]["parts"][0]["text"]
               decisao = json.loads(texto)
-
-          except urllib.error.HTTPError as e:
-              detalhe = e.read().decode("utf-8", "replace")
-              print("Erro HTTP do Gemini:", e.code)
-              print(detalhe[:1200])
-              sys.exit(1)
-
           except Exception as e:
-              print("Erro na resposta do agente:", str(e))
-              sys.exit(1)
+              print(json.dumps(corpo, ensure_ascii=False)[:3000])
+              raise SystemExit(f"Resposta Gemini inválida: {e}")
 
-          lado = decisao.get("decisao")
+          lado_original = setup["sinal"]
+          decisao_final = str(decisao.get("decisao", "SEM_SINAL")).upper()
 
-          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
-              sys.exit("Resposta da IA contem decisao invalida.")
+          if decisao_final not in ("COMPRA", "VENDA", "SEM_SINAL"):
+              decisao_final = "SEM_SINAL"
+
+          # O Gemini pode confirmar o lado encontrado ou rejeitá-lo.
+          # Nunca pode inverter a direção do sinal.
+          if decisao_final != lado_original:
+              decisao_final = "SEM_SINAL"
 
           try:
-              confianca = int(decisao.get("confianca", 0))
+              confianca = max(
+                  0, min(100, int(decisao.get("confianca", 0)))
+              )
           except (ValueError, TypeError):
-              sys.exit("Confianca invalida.")
-
-          if not 0 <= confianca <= 100:
-              sys.exit("Confianca fora do intervalo de 0 a 100.")
+              confianca = 0
 
           resultado = {
-              "ativo": "XAUUSD",
-              "timeframe": "M5",
-              "candle_utc": analise.get("candle_utc"),
-              "decisao_motor": analise.get("decisao"),
-              "modelo_utilizado": modelo,
-              "decisao_gemini": lado,
-              "confianca_declarada": confianca,
+              **setup,
+              "decisao": decisao_final,
+              "confianca": confianca,
               "justificativa": str(
-                  decisao.get("justificativa", "")
-              )[:1200],
-              "gerado_utc": datetime.now(timezone.utc).isoformat(),
-              "modo_teste": True,
-              "envio_telegram": False,
-              "execucao_ordens": False
+                  decisao.get("justificativa", "Sem justificativa.")
+              )[:1000],
+              "modelo_escolhido": modelo
           }
 
-          os.makedirs("data", exist_ok=True)
-
-          with open(
-              "data/decisao_gemini.json",
-              "w",
-              encoding="utf-8"
-          ) as f:
-              json.dump(
-                  resultado,
-                  f,
-                  ensure_ascii=False,
-                  indent=2
-              )
-
-          print(json.dumps(resultado, ensure_ascii=False, indent=2))
-          print("Analise do agente concluida.")
-          PY
-
-      - name: Calcular entrada e stop pelo ATR
-        run: |
-          python - <<'PY'
-          import csv
-          import json
-          import math
-          from pathlib import Path
-
-          csv_path = Path("data/candles/xauusd_m5_fechados.csv")
-          json_path = Path("data/decisao_gemini.json")
-
-          decisao = json.loads(
-              json_path.read_text(encoding="utf-8")
-          )
-
-          if decisao.get("decisao_gemini") not in ("COMPRA", "VENDA"):
-              print("SEM_SINAL: calculo de entrada dispensado.")
-              raise SystemExit(0)
-
-          with csv_path.open(
-              encoding="utf-8-sig",
-              newline=""
-          ) as f:
-              reader = csv.DictReader(f)
-
-              if not reader.fieldnames:
-                  raise SystemExit("CSV sem cabecalho.")
-
-              def normalizar(nome):
-                  return "".join(
-                      c.lower() for c in nome.strip()
-                      if c.isalnum()
-                  )
-
-              colunas = {
-                  normalizar(nome): nome
-                  for nome in reader.fieldnames
-              }
-
-              def encontrar(*nomes):
-                  for nome in nomes:
-                      chave = normalizar(nome)
-                      if chave in colunas:
-                          return colunas[chave]
-
-                  raise SystemExit(
-                      "Coluna necessaria ausente no CSV: "
-                      + ", ".join(nomes)
-                      + ". Confira o cabecalho do arquivo."
-                  )
-
-              col_high = encontrar("high", "max", "maximum")
-              col_low = encontrar("low", "min", "minimum")
-              col_close = encontrar("close", "fechamento", "last")
-
-              linhas = list(reader)
-
-          if len(linhas) < 15:
-              raise SystemExit(
-                  "Sao necessarios pelo menos 15 candles."
-              )
-
-          def numero(linha, coluna):
-              valor = float(linha[coluna])
-
-              if not math.isfinite(valor):
-                  raise ValueError("Preco invalido no CSV.")
-
-              return valor
-
-          candles = []
-
-          for linha in linhas:
-              candles.append({
-                  "high": numero(linha, col_high),
-                  "low": numero(linha, col_low),
-                  "close": numero(linha, col_close)
-              })
-
-          ultimos = candles[-15:]
-          true_ranges = []
-
-          for i in range(1, len(ultimos)):
-              atual = ultimos[i]
-              fechamento_anterior = ultimos[i - 1]["close"]
-
-              tr = max(
-                  atual["high"] - atual["low"],
-                  abs(atual["high"] - fechamento_anterior),
-                  abs(atual["low"] - fechamento_anterior)
-              )
-
-              true_ranges.append(tr)
-
-          atr14 = sum(true_ranges[-14:]) / 14
-          entrada = candles[-1]["close"]
-          lado = decisao["decisao_gemini"]
-
-          if atr14 <= 0:
-              raise SystemExit("ATR invalido ou igual a zero.")
-
-          distancia = atr14 * 1.5
-
-          if lado == "COMPRA":
-              stop = entrada - distancia
-          else:
-              stop = entrada + distancia
-
-          decisao["entrada"] = round(entrada, 3)
-          decisao["atr14"] = round(atr14, 5)
-          decisao["distancia_stop"] = round(distancia, 3)
-          decisao["stop_loss"] = round(stop, 3)
-          decisao["metodo_entrada"] = "Fechamento do ultimo candle"
-          decisao["metodo_stop"] = "ATR(14) x 1,5"
-
-          json_path.write_text(
-              json.dumps(
-                  decisao,
-                  ensure_ascii=False,
-                  indent=2
-              ),
+          resultado_path.write_text(
+              json.dumps(resultado, ensure_ascii=False, indent=2),
               encoding="utf-8"
           )
 
-          print("Entrada e stop calculados.")
-          print(json.dumps({
-              "decisao": lado,
-              "entrada": decisao["entrada"],
-              "atr14": decisao["atr14"],
-              "distancia_stop": decisao["distancia_stop"],
-              "stop_loss": decisao["stop_loss"]
-          }, ensure_ascii=False, indent=2))
+          print("Decisão final:", decisao_final)
+          print("Confiança:", confianca)
+          print("Justificativa:", resultado["justificativa"])
           PY
 
-      - name: Enviar sinal para o Telegram
+      - name: Enviar sinal validado ao Telegram
+        if: ${{ success() }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python - <<'PY'
-          import os
           import json
-          import sys
-          import urllib.request
-          import urllib.parse
+          import os
+          import requests
           from pathlib import Path
 
           arquivo = Path("data/decisao_gemini.json")
-          decisao = json.loads(
-              arquivo.read_text(encoding="utf-8")
-          )
+          decisao = json.loads(arquivo.read_text(encoding="utf-8"))
 
-          lado = decisao.get("decisao_gemini", "SEM_SINAL")
-
+          lado = decisao.get("decisao", "SEM_SINAL")
           if lado not in ("COMPRA", "VENDA"):
-              print("SEM_SINAL: nenhuma mensagem enviada.")
-              sys.exit(0)
+              print("Nenhum sinal aprovado. Telegram não será acionado.")
+              raise SystemExit(0)
 
-          token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-          chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
           if not token or not chat_id:
-              sys.exit("Configure os Secrets do Telegram no GitHub.")
-
-          campos = ("entrada", "stop_loss", "distancia_stop")
-
-          if any(decisao.get(campo) is None for campo in campos):
-              sys.exit(
-                  "Entrada ou stop ausente. Mensagem nao enviada."
+              raise SystemExit(
+                  "Configure os secrets TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID."
               )
 
-          confianca = decisao.get("confianca_declarada", 0)
-          entrada = decisao["entrada"]
-          stop = decisao["stop_loss"]
-          distancia = decisao["distancia_stop"]
-          candle = decisao.get("candle_utc") or "Nao informado"
-
           emoji = "🟢" if lado == "COMPRA" else "🔴"
+          entrada = float(decisao["entrada"])
+          stop = float(decisao["stop"])
+          distancia = float(decisao["distancia_stop"])
+          confianca = int(decisao.get("confianca", 0))
+          candle = decisao.get("candle_utc", "não informado")
+          metodo = decisao.get("metodo_stop", "ATR(20) x 1,0")
 
           mensagem = (
-              f"🥇 <b>XAUUSD · OURO</b>\n"
-              f"⏱ Timeframe: M5\n\n"
+              "🥇 <b>XAUUSD · OURO</b>\n\n"
+              "⏱ Timeframe: M5\n\n"
               f"{emoji} <b>{lado}</b>\n\n"
-              f"💰 Entrada: <code>{entrada:.3f}</code>\n"
-              f"🛑 Stop-loss: <code>{stop:.3f}</code>\n"
-              f"📏 Distância do stop: <code>{distancia:.3f}</code>\n"
-              f"📐 Método: ATR(14) × 1,5\n"
+              f"💰 Entrada: <code>{entrada:.3f}</code>\n\n"
+              f"🛑 Stop-loss: <code>{stop:.3f}</code>\n\n"
+              f"📏 Distância do stop: <code>{distancia:.3f}</code>\n\n"
+              f"📐 Método: {metodo}\n\n"
               f"🧠 Confiança: <b>{confianca}%</b>\n\n"
               f"🕒 Candle UTC: {candle}"
           )
 
           url = f"https://api.telegram.org/bot{token}/sendMessage"
-
-          dados = urllib.parse.urlencode({
-              "chat_id": chat_id,
-              "text": mensagem,
-              "parse_mode": "HTML",
-              "disable_web_page_preview": "true"
-          }).encode("utf-8")
-
-          pedido = urllib.request.Request(
+          r = requests.post(
               url,
-              data=dados,
-              headers={
-                  "Content-Type": "application/x-www-form-urlencoded"
+              json={
+                  "chat_id": chat_id,
+                  "text": mensagem,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": True
               },
-              method="POST"
+              timeout=30
           )
 
-          try:
-              with urllib.request.urlopen(pedido, timeout=20) as resposta:
-                  retorno = json.loads(
-                      resposta.read().decode("utf-8")
-                  )
+          if r.status_code != 200:
+              print("Erro Telegram HTTP:", r.status_code)
+              print(r.text[:2000])
+              raise SystemExit("Falha ao enviar mensagem ao Telegram.")
 
-              if not retorno.get("ok"):
-                  sys.exit("Telegram nao confirmou o envio.")
-
-              decisao["envio_telegram"] = True
-
-              arquivo.write_text(
-                  json.dumps(
-                      decisao,
-                      ensure_ascii=False,
-                      indent=2
-                  ),
-                  encoding="utf-8"
-              )
-
-              print("Mensagem Gemini enviada ao Telegram.")
-
-          except Exception as erro:
-              sys.exit(f"Falha no envio ao Telegram: {erro}")
+          print("Sinal enviado ao Telegram.")
           PY
 
-      - name: Guardar decisao do agente
-        if: always()
+      - name: Salvar resultado do agente
+        if: ${{ always() && hashFiles('data/decisao_gemini.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: resultado-agente-gemini
-          path: data/decisao_gemini.json
-          if-no-files-found: ignore
+          path: |
+            data/decisao_gemini.json
+            data/setup_canal_pavio.json
+          if-no-files-found: warn
           retention-days: 7
