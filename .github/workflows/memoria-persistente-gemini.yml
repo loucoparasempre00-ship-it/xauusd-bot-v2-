@@ -1,0 +1,189 @@
+name: Memoria Persistente Gemini XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Agente Gemini XAUUSD"
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: memoria-persistente-gemini
+  cancel-in-progress: false
+
+jobs:
+  memoria:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Preparar diretorios
+        run: |
+          mkdir -p data/entrada
+
+      - name: Recuperar memoria anterior
+        run: |
+          if [ -f data/memoria_agente.json ]; then
+            cp data/memoria_agente.json data/memoria_anterior.json
+            echo "Memoria anterior encontrada."
+          else
+            echo "Primeira execucao: memoria sera criada."
+            printf '{"historico":[]}\n' > data/memoria_anterior.json
+          fi
+
+      - name: Baixar resultado do agente Gemini
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name resultado-agente-gemini \
+            --dir data/entrada || {
+              echo "Aviso: artefato resultado-agente-gemini nao encontrado."
+            }
+
+          echo "Arquivos recebidos:"
+          find data/entrada -type f -print
+
+      - name: Consolidar historico Gemini
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          base = Path("data")
+          anterior = base / "memoria_anterior.json"
+          destino = base / "memoria_agente.json"
+
+          try:
+              memoria = json.loads(anterior.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError):
+              memoria = {"historico": []}
+
+          historico = memoria.get("historico", [])
+          if not isinstance(historico, list):
+              historico = []
+
+          chaves = set()
+          for item in historico:
+              if isinstance(item, dict):
+                  chaves.add((
+                      str(item.get("candle_utc", "")),
+                      str(item.get("decisao", item.get("sinal", "")))
+                  ))
+
+          novos = 0
+
+          for arquivo in (base / "entrada").rglob("decisao_gemini.json"):
+              try:
+                  resultado = json.loads(
+                      arquivo.read_text(encoding="utf-8")
+                  )
+              except (OSError, json.JSONDecodeError):
+                  print(f"JSON invalido ignorado: {arquivo}")
+                  continue
+
+              if not isinstance(resultado, dict):
+                  continue
+
+              candle = str(resultado.get("candle_utc", ""))
+              decisao = str(
+                  resultado.get(
+                      "decisao",
+                      resultado.get("sinal", "SEM_SINAL")
+                  )
+              )
+
+              if not candle:
+                  print(
+                      f"Resultado ignorado: candle_utc ausente em {arquivo}"
+                  )
+                  continue
+
+              chave = (candle, decisao)
+              if chave in chaves:
+                  print(f"Registro duplicado ignorado: {chave}")
+                  continue
+
+              historico.append({
+                  "candle_utc": candle,
+                  "sinal": resultado.get("sinal", "SEM_SINAL"),
+                  "decisao": decisao,
+                  "entrada": resultado.get("entrada"),
+                  "stop": resultado.get("stop"),
+                  "gain": resultado.get("gain"),
+                  "confianca": resultado.get("confianca"),
+                  "justificativa": resultado.get("justificativa", ""),
+                  "registrado_utc": datetime.now(
+                      timezone.utc
+                  ).isoformat()
+              })
+
+              chaves.add(chave)
+              novos += 1
+
+          historico = historico[-2000:]
+
+          memoria_final = {
+              "atualizado_utc": datetime.now(timezone.utc).isoformat(),
+              "total_registros": len(historico),
+              "novos_registros_nesta_execucao": novos,
+              "historico": historico
+          }
+
+          destino.write_text(
+              json.dumps(memoria_final, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print("Total de registros:", len(historico))
+          print("Novos registros:", novos)
+          print("Arquivo criado:", destino)
+          PY
+
+      - name: Salvar memoria no repositorio
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/memoria_agente.json
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteracao na memoria para salvar."
+          else
+            git commit -m "Atualiza memoria persistente do Gemini"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Guardar copia de seguranca
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoria-agente-gemini
+          path: data/memoria_agente.json
+          if-no-files-found: error
+          retention-days: 30
