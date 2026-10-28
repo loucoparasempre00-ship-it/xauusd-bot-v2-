@@ -1,0 +1,154 @@
+
+name: Memoria Persistente XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Agente Gemini XAUUSD"
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: memoria-persistente-xau
+  cancel-in-progress: false
+
+jobs:
+  memoria:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Preparar diretórios
+        run: mkdir -p data/entrada data/anterior
+
+      - name: Recuperar memória anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+            --jq '.workflow_runs[]
+              | select(.name == "Memoria Persistente XAUUSD")
+              | select(.conclusion == "success")
+              | .id' |
+          head -n 1 > data/ultimo_run.txt
+
+          RUN_ID=$(cat data/ultimo_run.txt)
+
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" \
+              --name memoria-agente-xau \
+              --dir data/anterior || true
+          fi
+
+      - name: Recuperar resultado do agente
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$RUN_ID" \
+            --name resultado-agente-gemini \
+            --dir data/entrada || true
+
+          find data -type f -print
+
+      - name: Consolidar histórico
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          base = Path("data")
+          memoria_path = base / "memoria_agente.json"
+          anterior_path = base / "anterior" / "memoria_agente.json"
+
+          memoria = {"historico": []}
+
+          if anterior_path.exists():
+              try:
+                  memoria = json.loads(
+                      anterior_path.read_text(encoding="utf-8")
+                  )
+              except (OSError, json.JSONDecodeError):
+                  print("Memória anterior inválida; será reiniciada.")
+
+          historico = memoria.get("historico", [])
+          if not isinstance(historico, list):
+              historico = []
+
+          chaves = {
+              (
+                  str(x.get("candle_utc", "")),
+                  str(x.get("decisao", x.get("sinal", "")))
+              )
+              for x in historico
+          }
+
+          for arquivo in (base / "entrada").rglob("decisao_gemini.json"):
+              try:
+                  resultado = json.loads(
+                      arquivo.read_text(encoding="utf-8")
+                  )
+              except (OSError, json.JSONDecodeError):
+                  continue
+
+              candle = str(resultado.get("candle_utc", ""))
+              decisao = str(
+                  resultado.get("decisao", resultado.get("sinal", "SEM_SINAL"))
+              )
+
+              if not candle or (candle, decisao) in chaves:
+                  continue
+
+              historico.append({
+                  "candle_utc": candle,
+                  "sinal": resultado.get("sinal", "SEM_SINAL"),
+                  "decisao": decisao,
+                  "entrada": resultado.get("entrada"),
+                  "stop": resultado.get("stop"),
+                  "gain": resultado.get("gain"),
+                  "confianca": resultado.get("confianca"),
+                  "justificativa": resultado.get("justificativa", ""),
+                  "registrado_utc": datetime.now(
+                      timezone.utc
+                  ).isoformat()
+              })
+              chaves.add((candle, decisao))
+
+          historico = historico[-2000:]
+          memoria = {
+              "atualizado_utc": datetime.now(timezone.utc).isoformat(),
+              "total_registros": len(historico),
+              "historico": historico
+          }
+
+          memoria_path.write_text(
+              json.dumps(memoria, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print("Histórico preservado:", len(historico))
+          PY
+
+      - name: Publicar memória
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoria-agente-xau
+          path: data/memoria_agente.json
+          if-no-files-found: error
+          retention-days: 30
