@@ -1,0 +1,172 @@
+
+name: Salvar historico de velas XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Agente Gemini XAUUSD"
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: salvar-historico-velas-xauusd
+  cancel-in-progress: false
+
+jobs:
+  salvar-velas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Localizar integracao que gerou as velas
+        id: localizar
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const execucaoGemini = context.payload.workflow_run;
+            const limite = new Date(execucaoGemini.created_at).getTime();
+
+            const workflows = await github.rest.actions.listRepoWorkflows({
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            const integracao = workflows.data.workflows.find(
+              w => w.name === "Integracao XAUUSD Bot V2"
+            );
+
+            if (!integracao) {
+              core.setFailed("Workflow de integracao nao encontrado.");
+              return;
+            }
+
+            const execucoes = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: integracao.id,
+              status: "completed",
+              branch: execucaoGemini.head_branch,
+              per_page: 50
+            });
+
+            const candidata = execucoes.data.workflow_runs.find(
+              r => r.conclusion === "success" &&
+                   new Date(r.created_at).getTime() <= limite
+            );
+
+            if (!candidata) {
+              core.setFailed("Nenhuma integracao bem-sucedida encontrada.");
+              return;
+            }
+
+            core.setOutput("run_id", String(candidata.id));
+            core.info(`Integracao selecionada: ${candidata.id}`);
+
+      - name: Baixar velas da integracao
+        uses: actions/download-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data/entrada
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.localizar.outputs.run_id }}
+
+      - name: Acumular historico de velas
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          pasta = Path("data/entrada")
+          entrada = pasta / "xauusd_m5_fechados.csv"
+
+          if not entrada.exists():
+              encontrados = list(pasta.rglob("xauusd_m5_fechados.csv"))
+              if encontrados:
+                  entrada = encontrados[0]
+              else:
+                  raise SystemExit("CSV de velas nao encontrado.")
+
+          destino = Path("data/historico_velas_m5.csv")
+          destino.parent.mkdir(parents=True, exist_ok=True)
+
+          campos = [
+              "timestamp_utc", "open", "high",
+              "low", "close", "volume"
+          ]
+          historico = {}
+
+          def carregar(arquivo):
+              if not arquivo.exists():
+                  return
+
+              with arquivo.open(
+                  encoding="utf-8-sig", newline=""
+              ) as f:
+                  leitor = csv.DictReader(f)
+
+                  for linha in leitor:
+                      tempo = (
+                          linha.get("timestamp_utc")
+                          or linha.get("datetime")
+                          or linha.get("timestamp")
+                          or linha.get("time")
+                          or ""
+                      ).strip()
+
+                      if not tempo:
+                          continue
+
+                      historico[tempo] = {
+                          "timestamp_utc": tempo,
+                          **{
+                              campo: linha.get(campo, "")
+                              for campo in campos[1:]
+                          }
+                      }
+
+          carregar(destino)
+          total_anterior = len(historico)
+          carregar(entrada)
+
+          velas = [
+              historico[t] for t in sorted(historico)
+          ]
+
+          with destino.open(
+              "w", encoding="utf-8", newline=""
+          ) as f:
+              escritor = csv.DictWriter(
+                  f, fieldnames=campos
+              )
+              escritor.writeheader()
+              escritor.writerows(velas)
+
+          print("Velas anteriores:", total_anterior)
+          print("Total acumulado:", len(velas))
+          print("Arquivo:", destino)
+          PY
+
+      - name: Salvar historico no GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/historico_velas_m5.csv
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteracao no historico."
+          else
+            git commit -m "Atualiza historico de velas XAUUSD M5"
+            git push
+          fi
