@@ -17,91 +17,156 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  descobrir:
+  coordenar:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
+
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
 
     steps:
       - name: Baixar repositório
         uses: actions/checkout@v4
 
-      - name: Procurar módulos Python que salvam arquivos
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Descobrir e executar módulos independentes
         shell: bash
         run: |
           python -u <<'PY'
           from pathlib import Path
           import ast
+          import subprocess
+          import sys
 
-          ignorar = {
+          IGNORAR = {
               ".git", ".venv", "venv", "env",
               "__pycache__", "node_modules"
           }
 
-          palavras = (
-              "save", "salvar", "write", "escrever",
-              "dump", "export", "persist", "historico",
-              "memoria", "resultado", "estado"
-          )
+          def arquivos_python():
+              encontrados = []
 
-          encontrados = 0
+              for arquivo in Path(".").rglob("*.py"):
+                  if any(p in IGNORAR for p in arquivo.parts):
+                      continue
+
+                  nome = arquivo.name.lower()
+
+                  if nome.startswith("testar_"):
+                      continue
+
+                  if "antigo" in nome or nome.endswith("_old.py"):
+                      continue
+
+                  encontrados.append(arquivo)
+
+              return sorted(encontrados)
+
+          def tem_ponto_de_entrada(arvore):
+              for no in ast.walk(arvore):
+                  if not isinstance(no, ast.If):
+                      continue
+
+                  teste = no.test
+
+                  if (
+                      isinstance(teste, ast.Compare)
+                      and isinstance(teste.left, ast.Name)
+                      and teste.left.id == "__name__"
+                      and any(
+                          isinstance(op, ast.Eq)
+                          for op in teste.ops
+                      )
+                      and any(
+                          isinstance(valor, ast.Constant)
+                          and valor.value == "__main__"
+                          for valor in teste.comparators
+                      )
+                  ):
+                      return True
+
+              return False
+
+          arquivos = arquivos_python()
+          executaveis = []
 
           print("=" * 60)
-          print("COORDENADOR XAUUSD - DESCOBERTA DE MÓDULOS")
+          print("PARTE 1 - DESCOBERTA")
           print("=" * 60)
 
-          for arquivo in sorted(Path(".").rglob("*.py")):
-              if any(p in ignorar for p in arquivo.parts):
+          for arquivo in arquivos:
+              try:
+                  texto = arquivo.read_text(
+                      encoding="utf-8",
+                      errors="replace"
+                  )
+                  arvore = ast.parse(texto)
+              except Exception as erro:
+                  print(f"Não foi possível analisar {arquivo}: {erro}")
                   continue
+
+              if tem_ponto_de_entrada(arvore):
+                  executaveis.append(arquivo)
+                  print(f"[EXECUTÁVEL] {arquivo}")
+              else:
+                  print(f"[MÓDULO AUXILIAR] {arquivo}")
+
+          print()
+          print(f"Arquivos Python encontrados: {len(arquivos)}")
+          print(f"Programas independentes: {len(executaveis)}")
+
+          print()
+          print("=" * 60)
+          print("PARTE 2 - EXECUÇÃO SEQUENCIAL")
+          print("=" * 60)
+
+          falhas = []
+
+          for numero, arquivo in enumerate(executaveis, 1):
+              print()
+              print(f"[{numero}/{len(executaveis)}] Executando: {arquivo}")
 
               try:
-                  codigo = arquivo.read_text(
-                      encoding="utf-8", errors="replace"
+                  resultado = subprocess.run(
+                      [sys.executable, "-u", str(arquivo)],
+                      timeout=180,
+                      check=False
                   )
-                  arvore = ast.parse(codigo)
-              except (OSError, SyntaxError) as erro:
-                  print(f"\nERRO DE LEITURA: {arquivo} - {erro}")
-                  continue
 
-              achados = []
+                  if resultado.returncode == 0:
+                      print(f"[OK] {arquivo}")
+                  else:
+                      print(
+                          f"[ERRO] {arquivo} "
+                          f"código {resultado.returncode}"
+                      )
+                      falhas.append(str(arquivo))
 
-              for no in ast.walk(arvore):
-                  if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                      nome = no.name.lower()
-                      if any(p in nome for p in palavras):
-                          achados.append(
-                              f"função {no.name} (linha {no.lineno})"
-                          )
+              except subprocess.TimeoutExpired:
+                  print(f"[TEMPO ESGOTADO] {arquivo}")
+                  falhas.append(str(arquivo))
 
-                  if isinstance(no, ast.Call):
-                      funcao = no.func
-                      nome = ""
+              except Exception as erro:
+                  print(f"[ERRO] {arquivo}: {erro}")
+                  falhas.append(str(arquivo))
 
-                      if isinstance(funcao, ast.Name):
-                          nome = funcao.id.lower()
-                      elif isinstance(funcao, ast.Attribute):
-                          nome = funcao.attr.lower()
-
-                      if nome in {
-                          "write_text", "write_bytes", "to_csv",
-                          "to_json", "dump", "save", "savefig",
-                          "commit", "replace"
-                      }:
-                          achados.append(
-                              f"gravação {nome} (linha {no.lineno})"
-                          )
-
-              if achados:
-                  encontrados += 1
-                  print(f"\nMÓDULO: {arquivo}")
-                  for achado in sorted(set(achados)):
-                      print(f"  - {achado}")
-
-          print("\n" + "=" * 60)
-          print(f"MÓDULOS COM INDÍCIOS DE GRAVAÇÃO: {encontrados}")
-          print("Nenhum módulo do projeto foi executado.")
-          print("Nenhum arquivo de memória foi alterado.")
+          print()
           print("=" * 60)
+          print("RESUMO DA EXECUÇÃO")
+          print("=" * 60)
+          print(f"Executados: {len(executaveis)}")
+          print(f"Falhas: {len(falhas)}")
+
+          for falha in falhas:
+              print(f" - {falha}")
+
+          if falhas:
+              sys.exit(1)
+
+          print("Todas as execuções foram concluídas.")
           PY
