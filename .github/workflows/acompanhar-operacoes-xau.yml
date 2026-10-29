@@ -1,20 +1,15 @@
+
 name: Acompanhar Operacoes XAUUSD
 
 on:
   workflow_run:
     workflows:
-      - "Agente Gemini XAUUSD"
+      - "Memoria Persistente Gemini XAUUSD"
     types:
       - completed
 
-  schedule:
-    - cron: "*/5 * * * 1-5"
-
-  workflow_dispatch:
-
 permissions:
   contents: write
-  actions: read
 
 concurrency:
   group: acompanhar-operacoes-xau
@@ -23,36 +18,96 @@ concurrency:
 jobs:
   acompanhar:
     if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      }}
 
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      - name: Baixar repositorio
+      - name: Baixar codigo do repositorio
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
 
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Acompanhar sinais e registrar resultados
+      - name: Confirmar arquivos necessarios
+        run: |
+          test -f acompanhar_operacoes_xau.py || {
+            echo "ERRO: acompanhar_operacoes_xau.py nao encontrado na raiz."
+            exit 1
+          }
+
+          test -f data/memoria_agente.json || {
+            echo "ERRO: data/memoria_agente.json nao encontrado."
+            exit 1
+          }
+
+          test -f data/historico_velas_m5.csv || {
+            echo "ERRO: historico de velas nao encontrado."
+            exit 1
+          }
+
+      - name: Acompanhar operacoes e gerar CSV
         run: python -u acompanhar_operacoes_xau.py
 
-      - name: Salvar resultados no repositorio
+      - name: Conferir CSV gerado
         run: |
+          if [ ! -f data/resultados_operacoes.csv ]; then
+            echo "ERRO: o CSV de resultados nao foi criado."
+            exit 1
+          fi
+
+          echo "Arquivo de resultados:"
+          ls -lh data/resultados_operacoes.csv
+
+          echo "Quantidade de linhas:"
+          wc -l data/resultados_operacoes.csv
+
+      - name: Salvar resultados no repositorio
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/resultados_operacoes.json
+          git add data/resultados_operacoes.csv
 
-          if ! git diff --cached --quiet; then
-            git commit -m "Atualiza resultados das operacoes XAUUSD"
-            git push
-          else
+          if git diff --cached --quiet; then
             echo "Nenhuma alteracao nos resultados."
+            exit 0
           fi
+
+          git commit -m "Atualiza resultados das operacoes XAUUSD"
+
+          for tentativa in 1 2 3; do
+            echo "Tentativa de sincronizacao: $tentativa"
+
+            git fetch origin "$DEFAULT_BRANCH"
+
+            if ! git rebase "origin/$DEFAULT_BRANCH"; then
+              echo "Conflito detectado. Abortando para proteger os dados."
+              git rebase --abort || true
+              exit 1
+            fi
+
+            if git push origin "HEAD:$DEFAULT_BRANCH"; then
+              echo "CSV de resultados salvo com sucesso."
+              exit 0
+            fi
+
+            echo "O repositorio mudou durante o envio. Tentando novamente..."
+            sleep 2
+          done
+
+          echo "Falha ao salvar o CSV apos 3 tentativas."
+          exit 1
