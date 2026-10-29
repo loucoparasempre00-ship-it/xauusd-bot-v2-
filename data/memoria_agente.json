@@ -1,7 +1,4 @@
 {
-  "atualizado_utc": "2026-10-29T04:40:22.038922+00:00",
-  "total_registros": 5,
-  "novos_registros_nesta_execucao": 1,
   "historico": [
     {
       "candle_utc": "2026-10-28T19:25:00+00:00",
@@ -63,6 +60,20 @@
       "justificativa": "Embora a tendência de curto prazo (M5 e M15) seja de baixa, há um conflito direto com a tendência de alta no H1. O RSI em 40.11 indica neutralidade, sem sinais claros de sobrevenda ou esgotamento, e a pontuação de venda é insuficiente para confirmar um rompimento de suporte com convicção.",
       "resultado": "SEM_OPERACAO",
       "registrado_utc": "2026-10-29T04:40:22.038893+00:00"
+    },
+    {
+      "candle_utc": "2026-10-29T19:15:00+00:00",
+      "sinal": "",
+      "decisao": "",
+      "entrada": 4010.183,
+      "stop": 4013.881,
+      "gain": 4004.635,
+      "confianca": "",
+      "pontuacao_final": 71.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Alinhamento de tendência de baixa em todos os tempos gráficos (M5, M15, H1), suporte técnico pela configuração das médias móveis (EMA9 abaixo da EMA21) e RSI em zona neutra com espaço para continuidade do movimento de queda.",
+      "resultado": "SEM_OPERACAO",
+      "registrado_utc": "2026-10-29T19:20:52.806268+00:00"
     }
   ]
 }
