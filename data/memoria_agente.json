@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-10-28T21:04:33.649433+00:00",
-  "total_registros": 3,
+  "atualizado_utc": "2026-10-29T04:28:19.591597+00:00",
+  "total_registros": 4,
   "novos_registros_nesta_execucao": 1,
   "historico": [
     {
@@ -35,6 +35,20 @@
       "confianca": null,
       "justificativa": "O ativo apresenta alinhamento de tendência de alta em todos os tempos gráficos analisados (M5, M15 e H1). A configuração técnica de médias móveis (EMA9 acima da EMA21) no M5 confirma o impulso comprador, enquanto o RSI em 58.14 indica espaço para valorização antes de atingir zonas de sobrecompra.",
       "registrado_utc": "2026-10-28T21:04:33.649406+00:00"
+    },
+    {
+      "candle_utc": "2026-10-29T04:20:00+00:00",
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "entrada": null,
+      "stop": null,
+      "gain": null,
+      "confianca": 35,
+      "pontuacao_final": null,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora a tendência de curto prazo (M5 e M15) seja de baixa, há um conflito direto com a tendência de alta no H1. O RSI em 39.72 indica pressão vendedora, mas não está em zona de sobrevenda extrema, e a pontuação de venda é baixa, sugerindo falta de convicção para uma entrada técnica clara no momento.",
+      "resultado": "SEM_OPERACAO",
+      "registrado_utc": "2026-10-29T04:28:19.591567+00:00"
     }
   ]
 }
