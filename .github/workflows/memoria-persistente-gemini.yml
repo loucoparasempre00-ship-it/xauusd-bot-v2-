@@ -141,7 +141,9 @@ jobs:
                   decisao = "SEM_SINAL"
 
               if not candle:
-                  print(f"Registro ignorado: candle_utc ausente em {arquivo}")
+                  print(
+                      f"Registro ignorado: candle_utc ausente em {arquivo}"
+                  )
                   continue
 
               chave = (candle, decisao)
@@ -164,7 +166,7 @@ jobs:
                   resultado.get("confianca")
               )
 
-              registro = {
+              historico.append({
                   "candle_utc": candle,
                   "sinal": decisao,
                   "decisao": decisao,
@@ -181,9 +183,8 @@ jobs:
                       else "SEM_OPERACAO"
                   ),
                   "registrado_utc": agora_utc()
-              }
+              })
 
-              historico.append(registro)
               chaves.add(chave)
               novos += 1
 
@@ -211,9 +212,10 @@ jobs:
 
       - name: Salvar memoria no repositorio
         env:
-          GH_TOKEN: ${{ github.token }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -221,10 +223,34 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao na memoria para salvar."
-          else
-            git commit -m "Atualiza memoria persistente do Gemini"
-            git push origin "HEAD:${DEFAULT_BRANCH}"
+            exit 0
           fi
+
+          git commit -m "Atualiza memoria persistente do Gemini"
+
+          for tentativa in 1 2 3; do
+            echo "Tentativa de sincronizacao: $tentativa"
+
+            git fetch origin "$DEFAULT_BRANCH"
+
+            if ! git rebase "origin/$DEFAULT_BRANCH"; then
+              echo "Conflito durante a sincronizacao."
+              git rebase --abort || true
+              echo "A memoria nao foi enviada. Verifique o conflito antes de tentar novamente."
+              exit 1
+            fi
+
+            if git push origin "HEAD:$DEFAULT_BRANCH"; then
+              echo "Memoria salva com sucesso."
+              exit 0
+            fi
+
+            echo "O repositorio mudou durante o envio. Tentando novamente..."
+            sleep 2
+          done
+
+          echo "Nao foi possivel salvar apos 3 tentativas."
+          exit 1
 
       - name: Guardar copia de seguranca
         uses: actions/upload-artifact@v4
