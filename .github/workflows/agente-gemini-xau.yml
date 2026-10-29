@@ -544,6 +544,7 @@ jobs:
           DUPLICADO=$(python -c "import json; print(str(json.load(open('data/duplicidade.json'))['duplicado']).lower())")
           echo "duplicado=$DUPLICADO" >> "$GITHUB_OUTPUT"
 
+   
       - name: Enviar sinal para o Telegram
         if: steps.duplicidade.outputs.duplicado != 'true'
         env:
@@ -557,6 +558,10 @@ jobs:
           import urllib.request
           import urllib.parse
           from pathlib import Path
+          from datetime import datetime, timezone, timedelta
+          from zoneinfo import ZoneInfo
+
+          FUSO_SP = ZoneInfo("America/Sao_Paulo")
 
           arquivo = Path("data/decisao_gemini.json")
           decisao = json.loads(arquivo.read_text(encoding="utf-8"))
@@ -590,6 +595,48 @@ jobs:
           candle = decisao.get("candle_utc") or "Nao informado"
           justificativa = str(decisao.get("justificativa", ""))[:700]
 
+          # O timestamp recebido identifica a ABERTURA do candle M5.
+          # O fechamento ocorre cinco minutos depois.
+          horario_sinal_utc = datetime.now(timezone.utc)
+
+          try:
+              abertura_utc = datetime.fromisoformat(
+                  str(candle).replace("Z", "+00:00")
+              )
+
+              if abertura_utc.tzinfo is None:
+                  abertura_utc = abertura_utc.replace(
+                      tzinfo=timezone.utc
+                  )
+              else:
+                  abertura_utc = abertura_utc.astimezone(timezone.utc)
+
+              fechamento_utc = abertura_utc + timedelta(minutes=5)
+
+              atraso_minutos = (
+                  horario_sinal_utc - fechamento_utc
+              ).total_seconds() / 60
+
+              fechamento_sp = fechamento_utc.astimezone(FUSO_SP)
+              sinal_sp = horario_sinal_utc.astimezone(FUSO_SP)
+
+              fechamento_texto = fechamento_sp.strftime("%H:%M:%S")
+              sinal_texto = sinal_sp.strftime("%H:%M:%S")
+              atraso_texto = f"{atraso_minutos:.1f} min"
+
+          except (ValueError, TypeError, OverflowError):
+              fechamento_texto = "Nao calculado"
+              sinal_texto = horario_sinal_utc.astimezone(
+                  FUSO_SP
+              ).strftime("%H:%M:%S")
+              atraso_texto = "Nao calculado"
+
+              print(
+                  "Aviso: nao foi possivel interpretar "
+                  "o horario do candle:",
+                  candle
+              )
+
           emoji = "🟢" if lado == "COMPRA" else "🔴"
 
           mensagem = (
@@ -604,7 +651,10 @@ jobs:
               f"📊 Pontuação final: <b>{pontos}/100</b>\n"
               f"🧠 Confiança declarada pela IA: <b>{confianca}%</b>\n\n"
               f"📝 {justificativa}\n\n"
-              f"🕒 Candle UTC: {candle}\n"
+              f"🕯️ Abertura do candle UTC: {candle}\n"
+              f"🔔 Fechamento do candle (Brasília): {fechamento_texto}\n"
+              f"📨 Horário do sinal (Brasília): {sinal_texto}\n"
+              f"⏱️ Atraso após fechamento: {atraso_texto}\n"
               f"⚠️ Sinal experimental. Não é garantia de lucro."
           )
 
@@ -628,12 +678,27 @@ jobs:
 
           try:
               with urllib.request.urlopen(pedido, timeout=20) as resposta:
-                  retorno = json.loads(resposta.read().decode("utf-8"))
+                  retorno = json.loads(
+                      resposta.read().decode("utf-8")
+                  )
 
               if not retorno.get("ok"):
                   sys.exit("Telegram nao confirmou o envio.")
 
               decisao["envio_telegram"] = True
+              decisao["fechamento_candle_utc"] = (
+                  fechamento_utc.isoformat()
+                  if fechamento_texto != "Nao calculado"
+                  else None
+              )
+              decisao["horario_sinal_utc"] = (
+                  horario_sinal_utc.isoformat()
+              )
+              decisao["atraso_apos_fechamento_minutos"] = (
+                  round(atraso_minutos, 2)
+                  if fechamento_texto != "Nao calculado"
+                  else None
+              )
 
               arquivo.write_text(
                   json.dumps(decisao, ensure_ascii=False, indent=2),
@@ -641,11 +706,14 @@ jobs:
               )
 
               print("Mensagem enviada ao Telegram.")
+              print("Fechamento (Brasilia):", fechamento_texto)
+              print("Horario do sinal (Brasilia):", sinal_texto)
+              print("Atraso apos fechamento:", atraso_texto)
 
           except Exception as erro:
               sys.exit(f"Falha no envio ao Telegram: {erro}")
           PY
-
+          
       - name: Registrar decisao no historico
         if: always()
         run: |
