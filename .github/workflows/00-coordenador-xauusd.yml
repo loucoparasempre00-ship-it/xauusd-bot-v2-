@@ -4,13 +4,13 @@ name: Coordenador XAUUSD
 on:
   workflow_run:
     workflows:
-      - "Agente Gemini XAUUSD"
+      - "Analise Tecnica Contexto"
     types:
       - completed
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: coordenador-xauusd
@@ -23,150 +23,73 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Baixar repositório
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Descobrir e executar módulos independentes
+      - name: Verificar arquivos necessários
         shell: bash
         run: |
-          python -u <<'PY'
-          from pathlib import Path
-          import ast
-          import subprocess
-          import sys
+          set -e
 
-          IGNORAR = {
-              ".git", ".venv", "venv", "env",
-              "__pycache__", "node_modules"
+          echo "Verificando memória e histórico de velas..."
+
+          test -s data/memoria_agente.json || {
+            echo "ERRO: memória de sinais não encontrada."
+            exit 1
           }
 
-          def arquivos_python():
-              encontrados = []
+          test -s data/historico_velas_m5.csv || {
+            echo "ERRO: histórico de velas não encontrado."
+            exit 1
+          }
 
-              for arquivo in Path(".").rglob("*.py"):
-                  if any(p in IGNORAR for p in arquivo.parts):
-                      continue
+          echo "Memória encontrada."
+          echo "Histórico de velas encontrado."
+          echo "Arquivos prontos."
 
-                  nome = arquivo.name.lower()
+      - name: Acompanhar sinais e resultados
+        run: |
+          python -u acompanhar_operacoes_xau.py
 
-                  if nome.startswith("testar_"):
-                      continue
+      - name: Atualizar memória persistente
+        run: |
+          python -u memoria_persistente_gemini.py
 
-                  if "antigo" in nome or nome.endswith("_old.py"):
-                      continue
+      - name: Conferir arquivos atualizados
+        shell: bash
+        run: |
+          set -e
 
-                  encontrados.append(arquivo)
+          test -s data/resultados_operacoes.csv
+          test -s data/memoria_agente.csv
 
-              return sorted(encontrados)
+          echo "Resultados e memória atualizados."
 
-          def tem_ponto_de_entrada(arvore):
-              for no in ast.walk(arvore):
-                  if not isinstance(no, ast.If):
-                      continue
+      - name: Salvar histórico para próxima execução
+        shell: bash
+        run: |
+          set -e
 
-                  teste = no.test
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-                  if (
-                      isinstance(teste, ast.Compare)
-                      and isinstance(teste.left, ast.Name)
-                      and teste.left.id == "__name__"
-                      and any(
-                          isinstance(op, ast.Eq)
-                          for op in teste.ops
-                      )
-                      and any(
-                          isinstance(valor, ast.Constant)
-                          and valor.value == "__main__"
-                          for valor in teste.comparators
-                      )
-                  ):
-                      return True
+          git add data/memoria_agente.json
+          git add data/memoria_agente.csv
+          git add data/resultados_operacoes.csv
 
-              return False
-
-          arquivos = arquivos_python()
-          executaveis = []
-
-          print("=" * 60)
-          print("PARTE 1 - DESCOBERTA")
-          print("=" * 60)
-
-          for arquivo in arquivos:
-              try:
-                  texto = arquivo.read_text(
-                      encoding="utf-8",
-                      errors="replace"
-                  )
-                  arvore = ast.parse(texto)
-              except Exception as erro:
-                  print(f"Não foi possível analisar {arquivo}: {erro}")
-                  continue
-
-              if tem_ponto_de_entrada(arvore):
-                  executaveis.append(arquivo)
-                  print(f"[EXECUTÁVEL] {arquivo}")
-              else:
-                  print(f"[MÓDULO AUXILIAR] {arquivo}")
-
-          print()
-          print(f"Arquivos Python encontrados: {len(arquivos)}")
-          print(f"Programas independentes: {len(executaveis)}")
-
-          print()
-          print("=" * 60)
-          print("PARTE 2 - EXECUÇÃO SEQUENCIAL")
-          print("=" * 60)
-
-          falhas = []
-
-          for numero, arquivo in enumerate(executaveis, 1):
-              print()
-              print(f"[{numero}/{len(executaveis)}] Executando: {arquivo}")
-
-              try:
-                  resultado = subprocess.run(
-                      [sys.executable, "-u", str(arquivo)],
-                      timeout=180,
-                      check=False
-                  )
-
-                  if resultado.returncode == 0:
-                      print(f"[OK] {arquivo}")
-                  else:
-                      print(
-                          f"[ERRO] {arquivo} "
-                          f"código {resultado.returncode}"
-                      )
-                      falhas.append(str(arquivo))
-
-              except subprocess.TimeoutExpired:
-                  print(f"[TEMPO ESGOTADO] {arquivo}")
-                  falhas.append(str(arquivo))
-
-              except Exception as erro:
-                  print(f"[ERRO] {arquivo}: {erro}")
-                  falhas.append(str(arquivo))
-
-          print()
-          print("=" * 60)
-          print("RESUMO DA EXECUÇÃO")
-          print("=" * 60)
-          print(f"Executados: {len(executaveis)}")
-          print(f"Falhas: {len(falhas)}")
-
-          for falha in falhas:
-              print(f" - {falha}")
-
-          if falhas:
-              sys.exit(1)
-
-          print("Todas as execuções foram concluídas.")
-          PY
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração nova para salvar."
+          else
+            git commit -m "Atualiza memoria e resultados XAUUSD"
+            git push origin HEAD:main
+          fi
