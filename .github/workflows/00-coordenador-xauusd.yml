@@ -1,0 +1,176 @@
+
+name: Coordenador XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coordenador-xauusd
+  cancel-in-progress: false
+
+jobs:
+  descobrir:
+    name: "Parte 1 - Descobrir os módulos"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Identificar módulos, workflows e arquivos
+        shell: bash
+        run: |
+          python -u <<'PY'
+          from pathlib import Path
+          import re
+
+          raiz = Path(".").resolve()
+          ignorar = {
+              ".git", ".venv", "venv", "env",
+              "__pycache__", "node_modules",
+              ".pytest_cache", ".mypy_cache",
+              "site-packages"
+          }
+
+          def arquivos_do_repositorio():
+              for pasta in raiz.rglob("*"):
+                  if not pasta.is_file():
+                      continue
+
+                  relativo = pasta.relative_to(raiz)
+
+                  if any(parte in ignorar for parte in relativo.parts):
+                      continue
+
+                  yield relativo
+
+          arquivos = sorted(arquivos_do_repositorio())
+          python_files = [
+              p for p in arquivos if p.suffix.lower() == ".py"
+          ]
+          workflow_files = [
+              p for p in arquivos
+              if len(p.parts) >= 3
+              and p.parts[0] == ".github"
+              and p.parts[1] == "workflows"
+              and p.suffix.lower() in {".yml", ".yaml"}
+          ]
+          data_files = [
+              p for p in arquivos
+              if p.parts and p.parts[0].lower() == "data"
+          ]
+
+          linhas = []
+          linhas.append("INVENTÁRIO AUTOMÁTICO - PROJETO XAUUSD")
+          linhas.append("=" * 60)
+          linhas.append(f"Arquivos encontrados: {len(arquivos)}")
+          linhas.append(f"Módulos Python: {len(python_files)}")
+          linhas.append(f"Workflows: {len(workflow_files)}")
+          linhas.append(f"Arquivos na pasta data/: {len(data_files)}")
+          linhas.append("")
+
+          linhas.append("1. MÓDULOS PYTHON")
+          linhas.append("-" * 60)
+
+          for p in python_files:
+              linhas.append(str(p))
+
+          linhas.append("")
+          linhas.append("2. WORKFLOWS EXISTENTES")
+          linhas.append("-" * 60)
+
+          for p in workflow_files:
+              linhas.append(f"\nARQUIVO: {p}")
+              try:
+                  conteudo = p.read_text(
+                      encoding="utf-8", errors="replace"
+                  )
+                  for numero, linha in enumerate(
+                      conteudo.splitlines(), start=1
+                  ):
+                      if re.search(
+                          r"\.py\b|data/|workflow_run|schedule:|"
+                          r"workflow_dispatch|git push|git commit",
+                          linha,
+                          re.IGNORECASE
+                      ):
+                          linhas.append(
+                              f"  L{numero}: {linha.strip()[:240]}"
+                          )
+              except OSError as erro:
+                  linhas.append(f"  ERRO DE LEITURA: {erro}")
+
+          linhas.append("")
+          linhas.append("3. ARQUIVOS DA PASTA data/")
+          linhas.append("-" * 60)
+
+          for p in data_files:
+              linhas.append(str(p))
+
+          linhas.append("")
+          linhas.append("4. REFERÊNCIAS A MÓDULOS PYTHON")
+          linhas.append("-" * 60)
+
+          referencias = {}
+          for p in workflow_files:
+              texto = p.read_text(
+                  encoding="utf-8", errors="replace"
+              )
+              nomes = sorted(set(re.findall(
+                  r"(?<![\w./-])[\w.-]+\.py\b", texto
+              )))
+              if nomes:
+                  referencias[str(p)] = nomes
+
+          for workflow, nomes in referencias.items():
+              linhas.append(f"{workflow}:")
+              for nome in nomes:
+                  linhas.append(f"  - {nome}")
+
+          if not referencias:
+              linhas.append(
+                  "Nenhuma referência .py identificada nos workflows."
+              )
+
+          linhas.append("")
+          linhas.append("5. OBSERVAÇÕES")
+          linhas.append("-" * 60)
+          linhas.append(
+              "Esta etapa apenas inventaria arquivos e referências."
+          )
+          linhas.append(
+              "Nenhum módulo Python do projeto foi executado."
+          )
+          linhas.append(
+              "Nenhum arquivo de memória ou histórico foi alterado."
+          )
+          linhas.append(
+              "Referências encontradas não garantem que um módulo "
+              "seja seguro ou esteja pronto para execução."
+          )
+
+          relatorio = "\n".join(linhas) + "\n"
+          destino = raiz / "relatorio_descoberta.txt"
+          destino.write_text(relatorio, encoding="utf-8")
+
+          print(relatorio)
+          print(f"\nRelatório salvo em: {destino.name}")
+          PY
+
+      - name: Publicar inventário como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventario-xauusd
+          path: relatorio_descoberta.txt
+          if-no-files-found: warn
+          retention-days: 14
