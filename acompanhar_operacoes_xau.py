@@ -1,31 +1,46 @@
+
 import csv
-import hashlib
 import json
-from datetime import datetime, timezone
+import math
+import re
+import hashlib
 from pathlib import Path
+from datetime import datetime, timezone
+
 
 BASE = Path(__file__).resolve().parent
 DATA = BASE / "data"
 
-ARQUIVO_RESULTADOS = DATA / "resultados_operacoes.json"
+ARQUIVO_MEMORIA = DATA / "memoria_agente.json"
+ARQUIVO_VELAS = DATA / "historico_velas_m5.csv"
+ARQUIVO_RESULTADOS = DATA / "resultados_operacoes.csv"
 
-FONTES_SINAIS = [
-    DATA / "sinais_pendentes.json",
-    DATA / "memoria_agente.json",
+ATR_PERIODO = 14
+STOP_ATR = 1.5
+RR = 1.5
+
+CAMPOS = [
+    "id_sinal",
+    "tipo_avaliacao",
+    "origem",
+    "horario_sinal_utc",
+    "ativo",
+    "timeframe",
+    "direcao",
+    "entrada",
+    "stop",
+    "alvo",
+    "status",
+    "resultado_r",
+    "horario_resultado_utc",
+    "motivo",
 ]
 
-FONTES_VELAS = [
-    DATA / "xauusd_m5_fechados.csv",
-    DATA / "historico_velas_m5.csv",
-]
 
-
-def agora_utc():
-    return datetime.now(timezone.utc).isoformat()
-
-
-def normalizar_texto(valor):
-    return str(valor or "").strip().lower()
+def texto(valor):
+    if valor is None:
+        return ""
+    return str(valor).strip()
 
 
 def numero(valor):
@@ -35,462 +50,709 @@ def numero(valor):
     try:
         if isinstance(valor, str):
             valor = valor.strip().replace(",", ".")
-        return float(valor)
+        resultado = float(valor)
+        return resultado if math.isfinite(resultado) else None
     except (ValueError, TypeError):
         return None
 
 
+def normalizar_chave(valor):
+    valor = texto(valor).lower().strip()
+    return (
+        valor.replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
+    )
+
+
+def primeiro(registro, nomes, padrao=None):
+    if not isinstance(registro, dict):
+        return padrao
+
+    mapa = {
+        normalizar_chave(chave): valor
+        for chave, valor in registro.items()
+    }
+
+    for nome in nomes:
+        chave = normalizar_chave(nome)
+        if chave in mapa and mapa[chave] not in (None, ""):
+            return mapa[chave]
+
+    return padrao
+
+
 def data_utc(valor):
+    valor = texto(valor)
     if not valor:
         return None
 
     try:
-        texto = str(valor).strip().replace("Z", "+00:00")
-        dt = datetime.fromisoformat(texto)
+        valor = valor.replace("Z", "+00:00")
+        resultado = datetime.fromisoformat(valor)
 
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+        if resultado.tzinfo is None:
+            resultado = resultado.replace(tzinfo=timezone.utc)
 
-        return dt.astimezone(timezone.utc)
+        return resultado.astimezone(timezone.utc)
     except (ValueError, TypeError):
         return None
 
 
-def ler_json(caminho, padrao):
+def data_iso(valor):
+    resultado = data_utc(valor)
+    if resultado is None:
+        return ""
+    return resultado.isoformat()
+
+
+def ler_csv(caminho):
     if not caminho.exists():
-        return padrao
-
-    try:
-        with caminho.open("r", encoding="utf-8") as arquivo:
-            return json.load(arquivo)
-    except (OSError, json.JSONDecodeError) as erro:
-        print(f"AVISO: nao foi possivel ler {caminho}: {erro}")
-        return padrao
-
-
-def salvar_json(caminho, conteudo):
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-
-    temporario = caminho.with_suffix(".tmp")
-
-    with temporario.open("w", encoding="utf-8") as arquivo:
-        json.dump(
-            conteudo,
-            arquivo,
-            ensure_ascii=False,
-            indent=2,
+        raise FileNotFoundError(
+            f"Arquivo não encontrado: {caminho}"
         )
 
-    temporario.replace(caminho)
+    with caminho.open("r", encoding="utf-8-sig", newline="") as arquivo:
+        amostra = arquivo.read(8192)
+        arquivo.seek(0)
 
-
-def extrair_registros(conteudo):
-    if isinstance(conteudo, list):
-        return conteudo
-
-    if not isinstance(conteudo, dict):
-        return []
-
-    for chave in ("sinais", "historico", "operacoes", "registros"):
-        valor = conteudo.get(chave)
-
-        if isinstance(valor, list):
-            return valor
-
-    # Tambem aceita um unico sinal em formato de objeto.
-    if any(
-        chave in conteudo
-        for chave in ("sinal", "direcao", "entrada", "stop", "gain")
-    ):
-        return [conteudo]
-
-    return []
-
-
-def obter_direcao(registro):
-    texto = normalizar_texto(
-        registro.get("direcao")
-        or registro.get("sinal")
-        or registro.get("decisao")
-        or registro.get("tipo")
-    )
-
-    if texto in ("compra", "buy", "long", "alta"):
-        return "COMPRA"
-
-    if texto in ("venda", "sell", "short", "baixa"):
-        return "VENDA"
-
-    return None
-
-
-def obter_timestamp_sinal(registro):
-    for chave in (
-        "candle_utc",
-        "timestamp_utc",
-        "timestamp",
-        "data_hora",
-        "registrado_utc",
-        "created_at",
-    ):
-        instante = data_utc(registro.get(chave))
-
-        if instante:
-            return instante
-
-    return None
-
-
-def identificar_sinal(registro, direcao, instante, entrada, stop, alvo):
-    identificador_existente = (
-        registro.get("id_sinal")
-        or registro.get("signal_id")
-        or registro.get("id")
-    )
-
-    if identificador_existente:
-        return str(identificador_existente)
-
-    base_id = "|".join(
-        [
-            direcao,
-            instante.isoformat(),
-            f"{entrada:.5f}",
-            f"{stop:.5f}",
-            f"{alvo:.5f}",
-        ]
-    )
-
-    return hashlib.sha256(base_id.encode("utf-8")).hexdigest()[:20]
-
-
-def carregar_sinais():
-    encontrados = {}
-
-    for caminho in FONTES_SINAIS:
-        conteudo = ler_json(caminho, {})
-        registros = extrair_registros(conteudo)
-
-        for registro in registros:
-            if not isinstance(registro, dict):
-                continue
-
-            direcao = obter_direcao(registro)
-
-            # SEM_SINAL e registros sem direcao nao sao operacoes.
-            if not direcao:
-                continue
-
-            entrada = numero(
-                registro.get("entrada")
-                or registro.get("preco_entrada")
+        try:
+            dialeto = csv.Sniffer().sniff(
+                amostra,
+                delimiters=";,\t|"
             )
-            stop = numero(
-                registro.get("stop")
-                or registro.get("stop_loss")
-                or registro.get("sl")
-            )
-            alvo = numero(
-                registro.get("gain")
-                or registro.get("alvo")
-                or registro.get("take_profit")
-                or registro.get("tp")
-            )
-            instante = obter_timestamp_sinal(registro)
+        except csv.Error:
+            dialeto = csv.excel
+            dialeto.delimiter = ";"
 
-            # Sem entrada, stop, alvo ou horario nao ha como
-            # acompanhar a operacao com seguranca.
-            if (
-                entrada is None
-                or stop is None
-                or alvo is None
-                or instante is None
-            ):
-                continue
+        leitor = csv.DictReader(arquivo, dialect=dialeto)
 
-            # Impede niveis incoerentes com a direcao.
-            if direcao == "COMPRA" and not (stop < entrada < alvo):
-                print(
-                    "Sinal ignorado: niveis incoerentes para COMPRA."
-                )
-                continue
+        linhas = []
+        for linha in leitor:
+            if linha and any(texto(v) for v in linha.values()):
+                linhas.append({
+                    normalizar_chave(k): v
+                    for k, v in linha.items()
+                    if k is not None
+                })
 
-            if direcao == "VENDA" and not (alvo < entrada < stop):
-                print(
-                    "Sinal ignorado: niveis incoerentes para VENDA."
-                )
-                continue
-
-            identificador = identificar_sinal(
-                registro,
-                direcao,
-                instante,
-                entrada,
-                stop,
-                alvo,
-            )
-
-            encontrados[identificador] = {
-                "id_sinal": identificador,
-                "ativo": "XAUUSD",
-                "timeframe": "M5",
-                "direcao": direcao,
-                "horario_sinal_utc": instante.isoformat(),
-                "entrada": entrada,
-                "stop": stop,
-                "alvo": alvo,
-                "status": "PENDENTE",
-                "resultado_r": None,
-                "horario_resultado_utc": None,
-                "motivo": None,
-                "origem": str(caminho.relative_to(BASE)),
-            }
-
-    return encontrados
+        return linhas
 
 
-def localizar_arquivo_velas():
-    for caminho in FONTES_VELAS:
-        if caminho.exists() and caminho.stat().st_size > 0:
-            return caminho
+def carregar_memoria():
+    if not ARQUIVO_MEMORIA.exists():
+        raise FileNotFoundError(
+            f"Arquivo não encontrado: {ARQUIVO_MEMORIA}"
+        )
 
-    return None
+    with ARQUIVO_MEMORIA.open("r", encoding="utf-8") as arquivo:
+        dados = json.load(arquivo)
 
+    if isinstance(dados, list):
+        registros = dados
+    elif isinstance(dados, dict):
+        registros = None
 
-def obter_campo(registro, alternativas):
-    mapa = {
-        normalizar_texto(chave): valor
-        for chave, valor in registro.items()
-        if chave is not None
-    }
+        for chave in (
+            "historico",
+            "registros",
+            "memoria",
+            "sinais",
+            "resultados",
+            "decisoes",
+            "dados",
+        ):
+            valor = dados.get(chave)
+            if isinstance(valor, list):
+                registros = valor
+                break
 
-    for alternativa in alternativas:
-        valor = mapa.get(normalizar_texto(alternativa))
+        if registros is None:
+            registros = [dados]
+    else:
+        raise ValueError(
+            "Formato inesperado em memoria_agente.json."
+        )
 
-        if valor is not None and str(valor).strip() != "":
-            return valor
-
-    return None
+    return [r for r in registros if isinstance(r, dict)]
 
 
 def carregar_velas():
-    caminho = localizar_arquivo_velas()
-
-    if caminho is None:
-        print("AVISO: nenhum CSV de velas encontrado.")
-        print("Esperado: data/xauusd_m5_fechados.csv")
-        print("Ou: data/historico_velas_m5.csv")
-        return []
-
+    linhas = ler_csv(ARQUIVO_VELAS)
     velas = []
 
-    with caminho.open("r", encoding="utf-8-sig", newline="") as arquivo:
-        leitor = csv.DictReader(arquivo)
+    for linha in linhas:
+        horario = primeiro(
+            linha,
+            [
+                "timestamp_utc",
+                "candle_utc",
+                "datetime",
+                "timestamp",
+                "time",
+                "date",
+                "data_hora",
+                "horario",
+                "data",
+            ],
+        )
 
-        for registro in leitor:
-            instante = data_utc(
-                obter_campo(
-                    registro,
-                    [
-                        "timestamp_utc",
-                        "candle_utc",
-                        "timestamp",
-                        "datetime",
-                        "date",
-                        "time",
-                        "data",
-                    ],
-                )
-            )
+        dt = data_utc(horario)
+        abertura = numero(primeiro(linha, ["open", "abertura", "o"]))
+        maxima = numero(primeiro(linha, ["high", "maxima", "máxima", "h"]))
+        minima = numero(primeiro(linha, ["low", "minima", "mínima", "l"]))
+        fechamento = numero(primeiro(linha, ["close", "fechamento", "c"]))
 
-            abertura = numero(
-                obter_campo(registro, ["open", "abertura", "o"])
-            )
-            maxima = numero(
-                obter_campo(registro, ["high", "maxima", "máxima", "h"])
-            )
-            minima = numero(
-                obter_campo(registro, ["low", "minima", "mínima", "l"])
-            )
-            fechamento = numero(
-                obter_campo(registro, ["close", "fechamento", "c"])
-            )
+        if (
+            dt is None
+            or abertura is None
+            or maxima is None
+            or minima is None
+            or fechamento is None
+        ):
+            continue
 
-            if (
-                instante is None
-                or abertura is None
-                or maxima is None
-                or minima is None
-                or fechamento is None
-            ):
-                continue
+        if maxima < minima:
+            continue
 
-            velas.append(
-                {
-                    "timestamp": instante,
-                    "open": abertura,
-                    "high": maxima,
-                    "low": minima,
-                    "close": fechamento,
-                }
-            )
+        velas.append({
+            "dt": dt,
+            "open": abertura,
+            "high": maxima,
+            "low": minima,
+            "close": fechamento,
+        })
 
-    velas.sort(key=lambda vela: vela["timestamp"])
+    velas.sort(key=lambda v: v["dt"])
 
-    print(f"Velas carregadas: {len(velas)}")
-    print(f"Arquivo de velas: {caminho}")
+    unicas = {}
+    for vela in velas:
+        unicas[vela["dt"]] = vela
+
+    velas = sorted(unicas.values(), key=lambda v: v["dt"])
+
+    if not velas:
+        raise ValueError(
+            "Nenhuma vela válida encontrada. "
+            "Confira os cabeçalhos de data, open, high, low e close."
+        )
 
     return velas
 
 
-def verificar_resultado(operacao, velas):
-    if operacao["status"] != "PENDENTE":
-        return False
+def calcular_atr(velas, horario_sinal, periodo=ATR_PERIODO):
+    anteriores = [
+        v for v in velas
+        if v["dt"] <= horario_sinal
+    ]
 
-    instante_sinal = data_utc(operacao["horario_sinal_utc"])
+    if len(anteriores) < periodo + 1:
+        return None
 
-    if instante_sinal is None:
-        return False
+    ranges = []
 
-    entrada = operacao["entrada"]
-    stop = operacao["stop"]
-    alvo = operacao["alvo"]
-    direcao = operacao["direcao"]
+    for i in range(1, len(anteriores)):
+        atual = anteriores[i]
+        anterior = anteriores[i - 1]
 
-    for vela in velas:
-        # Ignora a vela do sinal e todas as anteriores.
-        if vela["timestamp"] <= instante_sinal:
-            continue
+        tr = max(
+            atual["high"] - atual["low"],
+            abs(atual["high"] - anterior["close"]),
+            abs(atual["low"] - anterior["close"]),
+        )
 
+        ranges.append(tr)
+
+    if len(ranges) < periodo:
+        return None
+
+    # ATR simples das últimas 14 velas fechadas disponíveis
+    ultimos = ranges[-periodo:]
+    return sum(ultimos) / periodo
+
+
+def obter_direcao(registro):
+    valor = primeiro(
+        registro,
+        ["direcao", "direction", "decisao", "sinal", "signal", "acao", "ação"],
+        "",
+    )
+
+    valor = texto(valor).upper()
+
+    if valor in ("BUY", "LONG", "COMPRA", "COMPRAR"):
+        return "COMPRA"
+
+    if valor in ("SELL", "SHORT", "VENDA", "VENDER"):
+        return "VENDA"
+
+    if valor not in ("", "SEM_SINAL", "NO_SIGNAL", "NONE", "NEUTRO"):
+        # Não converter valores desconhecidos em uma direção.
+        pass
+
+    contexto = " ".join(
+        texto(v)
+        for k, v in registro.items()
+        if any(
+            parte in normalizar_chave(k)
+            for parte in (
+                "justific",
+                "context",
+                "analise",
+                "análise",
+                "tendencia",
+                "tendência",
+                "motivo",
+                "resumo",
+                "leitura",
+            )
+        )
+    ).lower()
+
+    contexto = (
+        contexto.replace("á", "a")
+        .replace("à", "a")
+        .replace("ã", "a")
+        .replace("â", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ô", "o")
+        .replace("õ", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+
+    termos_alta = [
+        "tendencia de alta",
+        "impulso comprador",
+        "pressao compradora",
+        "compradores dominam",
+        "ema9 acima da ema21",
+        "ema 9 acima da ema 21",
+        "sinal de compra",
+        "direcao compradora",
+        "movimento ascendente",
+    ]
+
+    termos_baixa = [
+        "tendencia de baixa",
+        "impulso vendedor",
+        "pressao vendedora",
+        "vendedores dominam",
+        "ema9 abaixo da ema21",
+        "ema 9 abaixo da ema 21",
+        "sinal de venda",
+        "direcao vendedora",
+        "movimento descendente",
+    ]
+
+    alta = any(t in contexto for t in termos_alta)
+    baixa = any(t in contexto for t in termos_baixa)
+
+    if alta and not baixa:
+        return "COMPRA"
+
+    if baixa and not alta:
+        return "VENDA"
+
+    return ""
+
+
+def obter_horario(registro):
+    return data_utc(
+        primeiro(
+            registro,
+            [
+                "candle_utc",
+                "timestamp_utc",
+                "horario_sinal_utc",
+                "timestamp",
+                "datetime",
+                "data_hora",
+                "horario",
+                "data",
+            ],
+        )
+    )
+
+
+def obter_entrada(registro):
+    return numero(
+        primeiro(
+            registro,
+            [
+                "entrada",
+                "preco_entrada",
+                "preço_entrada",
+                "entry",
+                "preco",
+                "preço",
+                "close",
+                "fechamento",
+            ],
+        )
+    )
+
+
+def criar_id(tipo, horario, direcao, entrada, stop, alvo):
+    base = "|".join([
+        tipo,
+        horario.isoformat() if horario else "",
+        direcao or "",
+        str(entrada if entrada is not None else ""),
+        str(stop if stop is not None else ""),
+        str(alvo if alvo is not None else ""),
+    ])
+
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()[:20]
+
+
+def normalizar_resultado(linha):
+    saida = {campo: texto(linha.get(campo, "")) for campo in CAMPOS}
+
+    if not saida["tipo_avaliacao"]:
+        direcao = saida["direcao"].upper()
+        saida["tipo_avaliacao"] = (
+            "REAL" if direcao in ("COMPRA", "VENDA") else "HIPOTETICA"
+        )
+
+    if not saida["origem"]:
+        saida["origem"] = "memoria_agente.json"
+
+    return saida
+
+
+def carregar_resultados_existentes():
+    if not ARQUIVO_RESULTADOS.exists():
+        return {}
+
+    try:
+        linhas = ler_csv(ARQUIVO_RESULTADOS)
+    except Exception as erro:
+        raise RuntimeError(
+            f"Não foi possível ler o CSV de resultados: {erro}"
+        ) from erro
+
+    resultados = {}
+
+    for linha in linhas:
+        registro = normalizar_resultado(linha)
+        identificador = registro["id_sinal"]
+
+        if identificador:
+            resultados[identificador] = registro
+
+    return resultados
+
+
+def montar_candidato(registro, velas):
+    horario = obter_horario(registro)
+
+    if horario is None:
+        return None
+
+    sinal_original = texto(
+        primeiro(
+            registro,
+            ["sinal", "signal", "decisao", "direcao", "direction"],
+            "",
+        )
+    ).upper()
+
+    direcao = obter_direcao(registro)
+
+    entrada = obter_entrada(registro)
+    stop = numero(primeiro(registro, ["stop", "stop_loss", "sl"]))
+    alvo = numero(
+        primeiro(
+            registro,
+            ["alvo", "gain", "take_profit", "target", "tp"],
+        )
+    )
+
+    hipotetica = sinal_original in (
+        "SEM_SINAL",
+        "NO_SIGNAL",
+        "NONE",
+        "",
+        "NEUTRO",
+    )
+
+    # Se o registro já traz uma direção válida, é um sinal real,
+    # mesmo que outro campo auxiliar tenha valor diferente.
+    if direcao and not (
+        sinal_original in ("SEM_SINAL", "NO_SIGNAL", "NONE", "NEUTRO")
+    ):
+        hipotetica = False
+
+    tipo = "HIPOTETICA" if hipotetica else "REAL"
+    origem = "SEM_SINAL" if hipotetica else "SINAL_REAL"
+
+    if entrada is None:
+        velas_ate_sinal = [
+            v for v in velas
+            if v["dt"] <= horario
+        ]
+
+        if velas_ate_sinal:
+            entrada = velas_ate_sinal[-1]["close"]
+
+    motivo = texto(
+        primeiro(
+            registro,
+            ["justificativa", "motivo", "contexto", "analise", "análise"],
+            "",
+        )
+    )
+
+    status_inicial = "EM_ABERTO"
+
+    if entrada is None:
+        status_inicial = "SEM_PRECO"
+        motivo = (
+            motivo + " | Não foi possível determinar o preço de entrada."
+        ).strip(" |")
+
+    elif hipotetica and not direcao:
+        status_inicial = "SEM_DIRECAO"
+        motivo = (
+            motivo
+            + " | O contexto disponível no momento do registro "
+              "não determina uma direção com segurança."
+        ).strip(" |")
+
+    elif hipotetica:
+        atr = calcular_atr(velas, horario)
+
+        if atr is None or atr <= 0:
+            status_inicial = "SEM_ATR"
+            motivo = (
+                motivo
+                + " | ATR indisponível no horário do registro; "
+                  "simulação não criada."
+            ).strip(" |")
+        else:
+            risco = STOP_ATR * atr
+            distancia_alvo = risco * RR
+
+            if direcao == "COMPRA":
+                stop = entrada - risco
+                alvo = entrada + distancia_alvo
+            else:
+                stop = entrada + risco
+                alvo = entrada - distancia_alvo
+
+            motivo = (
+                motivo
+                + f" | Simulação hipotética: ATR14={atr:.5f}, "
+                  f"stop={STOP_ATR} ATR, RR=1:{RR}. "
+                  "Direção baseada apenas no contexto do registro."
+            ).strip(" |")
+
+    elif stop is None or alvo is None:
+        status_inicial = "SEM_NIVEIS"
+        motivo = (
+            motivo
+            + " | Sinal real sem stop ou alvo válido; "
+              "não foi inventado um nível."
+        ).strip(" |")
+
+    identificador = criar_id(
+        tipo, horario, direcao, entrada, stop, alvo
+    )
+
+    return {
+        "id_sinal": identificador,
+        "tipo_avaliacao": tipo,
+        "origem": origem,
+        "horario_sinal_utc": horario.isoformat(),
+        "ativo": texto(primeiro(registro, ["ativo", "symbol", "ticker"], "XAUUSD")),
+        "timeframe": texto(primeiro(registro, ["timeframe", "intervalo"], "M5")),
+        "direcao": direcao,
+        "entrada": f"{entrada:.5f}" if entrada is not None else "",
+        "stop": f"{stop:.5f}" if stop is not None else "",
+        "alvo": f"{alvo:.5f}" if alvo is not None else "",
+        "status": status_inicial,
+        "resultado_r": "",
+        "horario_resultado_utc": "",
+        "motivo": motivo,
+    }
+
+
+def avaliar_operacao(registro, velas):
+    if registro["status"] not in ("EM_ABERTO", ""):
+        return registro
+
+    if registro["status"] in (
+        "SEM_DIRECAO",
+        "SEM_ATR",
+        "SEM_PRECO",
+        "SEM_NIVEIS",
+    ):
+        return registro
+
+    horario = data_utc(registro["horario_sinal_utc"])
+    entrada = numero(registro["entrada"])
+    stop = numero(registro["stop"])
+    alvo = numero(registro["alvo"])
+    direcao = registro["direcao"]
+
+    if (
+        horario is None
+        or entrada is None
+        or stop is None
+        or alvo is None
+        or direcao not in ("COMPRA", "VENDA")
+    ):
+        registro["status"] = "SEM_NIVEIS"
+        registro["motivo"] = (
+            registro["motivo"]
+            + " | Dados insuficientes para avaliar a operação."
+        ).strip(" |")
+        return registro
+
+    risco = abs(entrada - stop)
+
+    if risco <= 0:
+        registro["status"] = "SEM_NIVEIS"
+        registro["motivo"] = (
+            registro["motivo"] + " | Risco inválido."
+        ).strip(" |")
+        return registro
+
+    posteriores = [
+        v for v in velas
+        if v["dt"] > horario
+    ]
+
+    for vela in posteriores:
         if direcao == "COMPRA":
-            stop_atingido = vela["low"] <= stop
-            alvo_atingido = vela["high"] >= alvo
+            atingiu_stop = vela["low"] <= stop
+            atingiu_alvo = vela["high"] >= alvo
         else:
-            stop_atingido = vela["high"] >= stop
-            alvo_atingido = vela["low"] <= alvo
+            atingiu_stop = vela["high"] >= stop
+            atingiu_alvo = vela["low"] <= alvo
 
-        if not stop_atingido and not alvo_atingido:
-            continue
+        if atingiu_stop and atingiu_alvo:
+            registro["status"] = "AMBIGUO"
+            registro["resultado_r"] = ""
+            registro["horario_resultado_utc"] = vela["dt"].isoformat()
+            registro["motivo"] = (
+                registro["motivo"]
+                + " | Stop e alvo apareceram na mesma vela; "
+                  "a sequência intravela não pode ser confirmada."
+            ).strip(" |")
+            return registro
 
-        # OHLC M5 nao revela qual nivel foi atingido primeiro
-        # quando stop e alvo aparecem na mesma vela.
-        if stop_atingido and alvo_atingido:
-            operacao["status"] = "AMBIGUO"
-            operacao["motivo"] = (
-                "Stop e alvo aparecem na mesma vela M5; "
-                "a sequencia nao pode ser confirmada pelo OHLC."
-            )
-            operacao["horario_resultado_utc"] = (
-                vela["timestamp"].isoformat()
-            )
-            operacao["resultado_r"] = None
+        if atingiu_stop:
+            registro["status"] = "STOP"
+            registro["resultado_r"] = "-1.00"
+            registro["horario_resultado_utc"] = vela["dt"].isoformat()
+            return registro
 
-        elif stop_atingido:
-            operacao["status"] = "STOP"
-            operacao["motivo"] = "Stop confirmado pela vela M5."
-            operacao["horario_resultado_utc"] = (
-                vela["timestamp"].isoformat()
-            )
-            operacao["resultado_r"] = -1.0
+        if atingiu_alvo:
+            registro["status"] = "ALVO"
+            registro["resultado_r"] = f"{abs(alvo - entrada) / risco:.2f}"
+            registro["horario_resultado_utc"] = vela["dt"].isoformat()
+            return registro
 
-        else:
-            operacao["status"] = "ALVO"
-            operacao["motivo"] = "Alvo confirmado pela vela M5."
-            operacao["horario_resultado_utc"] = (
-                vela["timestamp"].isoformat()
-            )
-            operacao["resultado_r"] = round(
-                abs(alvo - entrada) / abs(entrada - stop),
-                4,
-            )
+    registro["status"] = "EM_ABERTO"
+    return registro
 
-        operacao["atualizado_utc"] = agora_utc()
-        return True
 
-    return False
+def salvar_resultados(resultados):
+    ARQUIVO_RESULTADOS.parent.mkdir(parents=True, exist_ok=True)
+
+    temporario = ARQUIVO_RESULTADOS.with_suffix(".csv.tmp")
+
+    with temporario.open(
+        "w",
+        encoding="utf-8-sig",
+        newline="",
+    ) as arquivo:
+        escritor = csv.DictWriter(
+            arquivo,
+            fieldnames=CAMPOS,
+            delimiter=";",
+            extrasaction="ignore",
+        )
+        escritor.writeheader()
+
+        for identificador in sorted(resultados):
+            escritor.writerow(resultados[identificador])
+
+    temporario.replace(ARQUIVO_RESULTADOS)
 
 
 def main():
-    DATA.mkdir(parents=True, exist_ok=True)
+    print("=== ACOMPANHAMENTO XAUUSD ===")
+    print(f"Memória: {ARQUIVO_MEMORIA}")
+    print(f"Velas: {ARQUIVO_VELAS}")
+    print(f"Resultados: {ARQUIVO_RESULTADOS}")
 
-    estado = ler_json(
-        ARQUIVO_RESULTADOS,
-        {
-            "atualizado_utc": None,
-            "total_operacoes": 0,
-            "total_pendentes": 0,
-            "total_alvos": 0,
-            "total_stops": 0,
-            "total_ambiguos": 0,
-            "operacoes": [],
-        },
-    )
-
-    if not isinstance(estado, dict):
-        estado = {"operacoes": []}
-
-    operacoes_anteriores = estado.get("operacoes", [])
-
-    if not isinstance(operacoes_anteriores, list):
-        operacoes_anteriores = []
-
-    por_id = {}
-
-    for operacao in operacoes_anteriores:
-        if isinstance(operacao, dict) and operacao.get("id_sinal"):
-            por_id[str(operacao["id_sinal"])] = operacao
-
-    sinais_novos = carregar_sinais()
-    adicionadas = 0
-
-    for identificador, sinal in sinais_novos.items():
-        if identificador not in por_id:
-            por_id[identificador] = sinal
-            adicionadas += 1
-
+    memoria = carregar_memoria()
     velas = carregar_velas()
-    alteradas = 0
+    resultados = carregar_resultados_existentes()
 
-    if velas:
-        for operacao in por_id.values():
-            if verificar_resultado(operacao, velas):
-                alteradas += 1
+    print(f"Registros de memória: {len(memoria)}")
+    print(f"Velas válidas: {len(velas)}")
+    print(f"Resultados anteriores preservados: {len(resultados)}")
 
-    lista = sorted(
-        por_id.values(),
-        key=lambda item: item.get("horario_sinal_utc", ""),
-    )
+    novos = 0
 
-    estado_final = {
-        "atualizado_utc": agora_utc(),
-        "total_operacoes": len(lista),
-        "total_pendentes": sum(
-            item.get("status") == "PENDENTE" for item in lista
-        ),
-        "total_alvos": sum(
-            item.get("status") == "ALVO" for item in lista
-        ),
-        "total_stops": sum(
-            item.get("status") == "STOP" for item in lista
-        ),
-        "total_ambiguos": sum(
-            item.get("status") == "AMBIGUO" for item in lista
-        ),
-        "novas_operacoes": adicionadas,
-        "resultados_confirmados_nesta_execucao": alteradas,
-        "operacoes": lista,
-    }
+    for item in memoria:
+        candidato = montar_candidato(item, velas)
 
-    salvar_json(ARQUIVO_RESULTADOS, estado_final)
+        if candidato is None:
+            continue
 
-    print("Acompanhamento concluido.")
-    print(f"Novas operacoes: {adicionadas}")
-    print(f"Resultados atualizados: {alteradas}")
-    print(f"Pendentes: {estado_final['total_pendentes']}")
-    print(f"Alvos: {estado_final['total_alvos']}")
-    print(f"Stops: {estado_final['total_stops']}")
-    print(f"Ambiguos: {estado_final['total_ambiguos']}")
-    print(f"Arquivo salvo: {ARQUIVO_RESULTADOS}")
+        identificador = candidato["id_sinal"]
+
+        if identificador not in resultados:
+            resultados[identificador] = candidato
+            novos += 1
+
+    # Reavalia apenas registros ainda abertos.
+    # Resultados terminais existentes não são sobrescritos.
+    for identificador, registro in list(resultados.items()):
+        if registro["status"] == "EM_ABERTO":
+            resultados[identificador] = avaliar_operacao(
+                registro, velas
+            )
+
+    salvar_resultados(resultados)
+
+    contagem = {}
+    por_tipo = {}
+
+    for registro in resultados.values():
+        status = registro["status"] or "SEM_STATUS"
+        contagem[status] = contagem.get(status, 0) + 1
+
+        tipo = registro["tipo_avaliacao"] or "NAO_CLASSIFICADA"
+        por_tipo.setdefault(tipo, {})
+        por_tipo[tipo][status] = (
+            por_tipo[tipo].get(status, 0) + 1
+        )
+
+    print(f"Novos registros adicionados: {novos}")
+    print(f"Total de registros: {len(resultados)}")
+    print("Resumo por status:")
+
+    for status, quantidade in sorted(contagem.items()):
+        print(f"  {status}: {quantidade}")
+
+    print("Resumo separado por tipo de avaliação:")
+
+    for tipo, estados in sorted(por_tipo.items()):
+        print(f"  {tipo}:")
+        for status, quantidade in sorted(estados.items()):
+            print(f"    {status}: {quantidade}")
+
+    print(f"CSV atualizado: {ARQUIVO_RESULTADOS}")
+    print("Concluído.")
 
 
 if __name__ == "__main__":
