@@ -1,15 +1,10 @@
 
-name: Salvar historico de velas XAUUSD
+name: Salvar Historico Velas XAUUSD M5
 
 on:
-  workflow_run:
-    workflows:
-      - "Agente Gemini XAUUSD"
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
-  actions: read
   contents: write
 
 concurrency:
@@ -17,156 +12,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  salvar-velas:
+  salvar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
-      - name: Baixar repositorio
+      - name: Baixar codigo do repositorio
         uses: actions/checkout@v4
-
-      - name: Localizar integracao que gerou as velas
-        id: localizar
-        uses: actions/github-script@v7
         with:
-          script: |
-            const { owner, repo } = context.repo;
-            const execucaoGemini = context.payload.workflow_run;
-            const limite = new Date(execucaoGemini.created_at).getTime();
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
 
-            const workflows = await github.rest.actions.listRepoWorkflows({
-              owner,
-              repo,
-              per_page: 100
-            });
-
-            const integracao = workflows.data.workflows.find(
-              w => w.name === "Integracao XAUUSD Bot V2"
-            );
-
-            if (!integracao) {
-              core.setFailed("Workflow de integracao nao encontrado.");
-              return;
-            }
-
-            const execucoes = await github.rest.actions.listWorkflowRuns({
-              owner,
-              repo,
-              workflow_id: integracao.id,
-              status: "completed",
-              branch: execucaoGemini.head_branch,
-              per_page: 50
-            });
-
-            const candidata = execucoes.data.workflow_runs.find(
-              r => r.conclusion === "success" &&
-                   new Date(r.created_at).getTime() <= limite
-            );
-
-            if (!candidata) {
-              core.setFailed("Nenhuma integracao bem-sucedida encontrada.");
-              return;
-            }
-
-            core.setOutput("run_id", String(candidata.id));
-            core.info(`Integracao selecionada: ${candidata.id}`);
-
-      - name: Baixar velas da integracao
-        uses: actions/download-artifact@v4
-        with:
-          name: candles-xauusd-m5
-          path: data/entrada
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.localizar.outputs.run_id }}
-
-      - name: Acumular historico de velas
+      - name: Salvar historico de velas
         run: |
-          python - <<'PY'
-          import csv
-          from pathlib import Path
+          set -e
 
-          pasta = Path("data/entrada")
-          entrada = pasta / "xauusd_m5_fechados.csv"
+          if [ ! -f data/historico_velas_m5.csv ]; then
+            echo "Arquivo data/historico_velas_m5.csv nao encontrado."
+            exit 1
+          fi
 
-          if not entrada.exists():
-              encontrados = list(pasta.rglob("xauusd_m5_fechados.csv"))
-              if encontrados:
-                  entrada = encontrados[0]
-              else:
-                  raise SystemExit("CSV de velas nao encontrado.")
-
-          destino = Path("data/historico_velas_m5.csv")
-          destino.parent.mkdir(parents=True, exist_ok=True)
-
-          campos = [
-              "timestamp_utc", "open", "high",
-              "low", "close", "volume"
-          ]
-          historico = {}
-
-          def carregar(arquivo):
-              if not arquivo.exists():
-                  return
-
-              with arquivo.open(
-                  encoding="utf-8-sig", newline=""
-              ) as f:
-                  leitor = csv.DictReader(f)
-
-                  for linha in leitor:
-                      tempo = (
-                          linha.get("timestamp_utc")
-                          or linha.get("datetime")
-                          or linha.get("timestamp")
-                          or linha.get("time")
-                          or ""
-                      ).strip()
-
-                      if not tempo:
-                          continue
-
-                      historico[tempo] = {
-                          "timestamp_utc": tempo,
-                          **{
-                              campo: linha.get(campo, "")
-                              for campo in campos[1:]
-                          }
-                      }
-
-          carregar(destino)
-          total_anterior = len(historico)
-          carregar(entrada)
-
-          velas = [
-              historico[t] for t in sorted(historico)
-          ]
-
-          with destino.open(
-              "w", encoding="utf-8", newline=""
-          ) as f:
-              escritor = csv.DictWriter(
-                  f, fieldnames=campos
-              )
-              escritor.writeheader()
-              escritor.writerows(velas)
-
-          print("Velas anteriores:", total_anterior)
-          print("Total acumulado:", len(velas))
-          print("Arquivo:", destino)
-          PY
-
-      - name: Salvar historico no GitHub
-        run: |
           git config user.name "github-actions[bot]"
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add data/historico_velas_m5.csv
 
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao no historico."
-          else
-            git commit -m "Atualiza historico de velas XAUUSD M5"
-            git push
+            exit 0
           fi
+
+          git commit -m "Atualiza historico de velas XAUUSD M5"
+
+          BRANCH="${{ github.event.repository.default_branch }}"
+
+          for tentativa in 1 2 3; do
+            git fetch origin "$BRANCH"
+
+            if ! git rebase "origin/$BRANCH"; then
+              echo "Conflito detectado. Interrompendo para proteger o historico."
+              git rebase --abort || true
+              exit 1
+            fi
+
+            if git push origin "HEAD:$BRANCH"; then
+              echo "Historico salvo com sucesso."
+              exit 0
+            fi
+
+            echo "Push recusado. Nova tentativa: $tentativa"
+            sleep 2
+          done
+
+          echo "Nao foi possivel salvar o historico apos 3 tentativas."
+          exit 1
