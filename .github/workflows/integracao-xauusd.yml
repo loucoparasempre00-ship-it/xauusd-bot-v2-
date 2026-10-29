@@ -1,13 +1,18 @@
+
 name: Integracao XAUUSD Bot V2
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "2-57/5 * * * *"
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * 1-5"
 
 permissions:
   contents: read
   actions: write
+
+concurrency:
+  group: integracao-xauusd-bot-v2
+  cancel-in-progress: false
 
 jobs:
   integracao:
@@ -48,30 +53,70 @@ jobs:
           }
           echo "Segredos obrigatorios encontrados."
 
-      - name: 1 - Coletar candles
+      - name: 1 - Cronometro de fechamento M5
+        run: |
+          python -u - <<'PY'
+          import time
+          from datetime import datetime, timezone
+
+          agora = datetime.now(timezone.utc)
+          minuto = agora.minute % 5
+
+          # Se iniciou exatamente na virada, aguarda somente
+          # o restante da margem de seguranca de 3 segundos.
+          if minuto == 0:
+              alvo = agora.replace(second=3, microsecond=0)
+              if agora >= alvo:
+                  espera = 0
+              else:
+                  espera = (alvo - agora).total_seconds()
+          else:
+              # Proximo fechamento M5, mais 3 segundos.
+              minutos_ate = 5 - minuto
+              alvo = agora.replace(
+                  second=0, microsecond=0
+              )
+              from datetime import timedelta
+              alvo += timedelta(minutes=minutos_ate, seconds=3)
+              espera = max(0, (alvo - agora).total_seconds())
+
+          print(f"Inicio UTC: {agora.isoformat()}")
+          print(f"Alvo UTC: {alvo.isoformat()}")
+          print(f"Espera calculada: {espera:.1f} segundos")
+
+          if espera > 0:
+              time.sleep(espera)
+
+          print(
+              "Fim da espera UTC:",
+              datetime.now(timezone.utc).isoformat()
+          )
+          PY
+
+      - name: 2 - Coletar candles
         env:
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
         run: python -u coletar_candles.py
 
-      - name: 2 - Filtrar candles fechados
+      - name: 3 - Filtrar candles fechados
         run: python -u filtro_candles_fechados.py
 
-      - name: 3 - Validar mercado
+      - name: 4 - Validar mercado
         run: python -u validador_mercado.py
 
-      - name: 4 - Motor matematico
+      - name: 5 - Motor matematico
         run: python -u motor_matematico.py
 
-      - name: 5 - Leitura do mercado
+      - name: 6 - Leitura do mercado
         run: python -u leitura_mercado.py
 
-      - name: 6 - Gerar candidato
+      - name: 7 - Gerar candidato
         run: python -u gerador_candidatos.py
 
-      - name: 7 - Validar sinal
+      - name: 8 - Validar sinal
         run: python -u validador_sinais_ia.py
 
-      - name: 8 - Decisor final
+      - name: 9 - Decisor final
         continue-on-error: true
         run: python -u decisor_final.py
 
@@ -90,7 +135,6 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-          
       - name: Acionar seletor de modelo e agente de IA
         if: success()
         env:
@@ -98,4 +142,3 @@ jobs:
         run: |
           gh workflow run testador-gemini.yml \
             --ref "${GITHUB_REF_NAME}"
-
