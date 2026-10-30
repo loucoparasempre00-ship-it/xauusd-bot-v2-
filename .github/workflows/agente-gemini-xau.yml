@@ -1,3 +1,4 @@
+
 name: Agente Gemini XAUUSD
 
 on:
@@ -70,25 +71,40 @@ jobs:
             exit 1
           }
 
+      # CORRECAO:
+      # Localiza a integracao pela mesma branch e horario.
+      # Nao exige igualdade entre os SHAs dos workflows.
+
       - name: Receber candles para entrada e ATR
         env:
           GH_TOKEN: ${{ github.token }}
-          UPSTREAM_SHA: ${{ github.event.workflow_run.head_sha }}
+          UPSTREAM_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          UPSTREAM_CREATED_AT: ${{ github.event.workflow_run.created_at }}
         run: |
           set -euo pipefail
+
+          echo "Procurando integracao bem-sucedida..."
+          echo "Branch: $UPSTREAM_BRANCH"
+          echo "Analise concluida em: $UPSTREAM_CREATED_AT"
 
           RUN_ID=$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow "Integracao XAUUSD Bot V2" \
+            --branch "$UPSTREAM_BRANCH" \
             --status success \
-            --limit 30 \
-            --json databaseId,headSha,createdAt \
-            --jq "map(select(.headSha == \"$UPSTREAM_SHA\")) | sort_by(.createdAt) | last | .databaseId // empty")
+            --limit 100 \
+            --json databaseId,headBranch,createdAt \
+            --jq "map(select(
+              .headBranch == \"$UPSTREAM_BRANCH\" and
+              .createdAt <= \"$UPSTREAM_CREATED_AT\"
+            )) | sort_by(.createdAt) | last | .databaseId // empty")
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::Nenhuma integracao bem-sucedida encontrada para este commit."
+            echo "::error::Nenhuma integracao bem-sucedida anterior a analise foi encontrada nesta branch."
             exit 1
           fi
+
+          echo "Integracao localizada: $RUN_ID"
 
           mkdir -p data/candles
 
@@ -97,12 +113,14 @@ jobs:
             --name candles-xauusd-m5 \
             --dir data/candles
 
-          test -f data/candles/xauusd_m5_fechados.csv || {
-            echo "::error::CSV de candles fechados nao encontrado."
+          if [ ! -f data/candles/xauusd_m5_fechados.csv ]; then
+            echo "::error::CSV de candles fechados nao encontrado no artefato."
+            echo "Verifique se a integracao publicou candles-xauusd-m5."
             exit 1
-          }
+          fi
 
-          echo "Candles recebidos."
+          echo "Candles recebidos com sucesso."
+          wc -l data/candles/xauusd_m5_fechados.csv
 
       - name: Validar arquivos recebidos
         run: |
