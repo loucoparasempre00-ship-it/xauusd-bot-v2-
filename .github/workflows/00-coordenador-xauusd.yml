@@ -1,12 +1,12 @@
-
 name: Coordenador XAUUSD
 
 on:
   workflow_run:
     workflows:
-      - "Analise Tecnica Contexto"
+      - "Agente Gemini XAUUSD"
     types:
       - completed
+
   workflow_dispatch:
 
 permissions:
