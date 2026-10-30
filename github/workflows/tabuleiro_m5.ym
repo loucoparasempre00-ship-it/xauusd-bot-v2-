@@ -1,0 +1,74 @@
+
+name: Tabuleiro Estatistico M5
+
+on:
+  workflow_run:
+    workflows:
+      - "Acompanhar Operacoes XAUUSD"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: tabuleiro-estatistico-m5
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Preparar pasta de dados
+        run: mkdir -p data
+
+      - name: Baixar velas fechadas da integracao
+        uses: actions/download-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Conferir arquivo de entrada
+        run: |
+          if [ ! -f data/xauusd_m5_fechados.csv ]; then
+            echo "::error::CSV de velas fechadas não encontrado."
+            exit 1
+          fi
+
+      - name: Executar coleta do tabuleiro
+        run: python -u coletor_tabuleiro_m5.py
+
+      - name: Conferir resultado
+        run: |
+          echo "Registros:"
+          wc -l data/tabuleiro_m5.csv
+          head -n 6 data/tabuleiro_m5.csv
+
+      - name: Salvar historico no repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/tabuleiro_m5.csv
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração no histórico."
+          else
+            git commit -m "Atualiza coleta do tabuleiro M5"
+            git push origin HEAD:main
+          fi
