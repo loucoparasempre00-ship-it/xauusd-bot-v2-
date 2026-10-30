@@ -4,7 +4,7 @@ name: Tabuleiro Estatistico M5
 on:
   workflow_run:
     workflows:
-      - "Integracao XAUUSD Bot V2"
+      - "Acompanhar Operacoes XAUUSD"
     types:
       - completed
 
@@ -45,11 +45,8 @@ jobs:
 
       - name: Conferir arquivo de entrada
         run: |
-          echo "Arquivos recebidos:"
-          find data -maxdepth 3 -type f
-
           if [ ! -f data/xauusd_m5_fechados.csv ]; then
-            echo "::error::CSV de velas fechadas não encontrado em data/xauusd_m5_fechados.csv"
+            echo "::error::CSV de velas fechadas não encontrado."
             exit 1
           fi
 
@@ -58,11 +55,9 @@ jobs:
 
       - name: Conferir resultado
         run: |
-          echo "Primeiros registros:"
-          head -n 6 data/tabuleiro_m5.csv
-
-          echo "Quantidade de registros:"
+          echo "Registros:"
           wc -l data/tabuleiro_m5.csv
+          head -n 6 data/tabuleiro_m5.csv
 
       - name: Salvar historico no repositorio
         run: |
