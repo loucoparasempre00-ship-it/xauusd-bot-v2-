@@ -1,0 +1,282 @@
+name: Central Inteligente XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Agente Gemini XAUUSD"
+    types:
+      - completed
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: central-inteligente-xauusd
+  cancel-in-progress: false
+
+jobs:
+  processamento:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ==========================================
+      # 1 - PREPARAÇÃO
+      # ==========================================
+
+      - name: 1 - Baixar repositório e histórico
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: 2 - Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ==========================================
+      # 2 - COORDENADOR XAUUSD
+      # ==========================================
+
+      - name: 3 - Verificar arquivos necessários
+        shell: bash
+        run: |
+          set -e
+
+          echo "Verificando memória e histórico de velas..."
+
+          test -s data/memoria_agente.json || {
+            echo "ERRO: memória de sinais não encontrada."
+            exit 1
+          }
+
+          test -s data/historico_velas_m5.csv || {
+            echo "ERRO: histórico de velas não encontrado."
+            exit 1
+          }
+
+          echo "Memória encontrada."
+          echo "Histórico de velas encontrado."
+          echo "Arquivos prontos."
+
+      - name: 4 - Acompanhar sinais e resultados
+        run: |
+          python -u acompanhar_operacoes_xau.py
+
+      - name: 5 - Atualizar memória persistente
+        run: |
+          python -u memoria_persistente_gemini.py
+
+      - name: 6 - Conferir arquivos atualizados
+        shell: bash
+        run: |
+          set -e
+
+          test -s data/resultados_operacoes.csv
+          test -s data/memoria_agente.csv
+
+          echo "Resultados e memória atualizados."
+
+      - name: 7 - Salvar memória e resultados
+        shell: bash
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/memoria_agente.json
+          git add data/memoria_agente.csv
+          git add data/resultados_operacoes.csv
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza memoria e resultados XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "Nenhuma alteração nova para salvar."
+          fi
+
+      # ==========================================
+      # 3 - LOCALIZAR INTEGRAÇÃO
+      # ==========================================
+
+      - name: 8 - Localizar integração de velas
+        id: integracao
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          RUN_ID=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+            --jq '[.workflow_runs[]
+              | select(.name == "Integracao XAUUSD Bot V2")
+              | select(.conclusion == "success")]
+              | sort_by(.created_at)
+              | last
+              | .id // empty')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Nenhuma integração bem-sucedida encontrada."
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Integração encontrada: $RUN_ID"
+
+      - name: 9 - Baixar velas fechadas da integração
+        uses: actions/download-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.integracao.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 10 - Verificar histórico de velas
+        shell: bash
+        run: |
+          set -e
+          mkdir -p data
+
+          if [ ! -s data/xauusd_m5_fechados.csv ]; then
+            echo "CSV de velas fechadas não encontrado."
+            find data -maxdepth 2 -type f
+            exit 1
+          fi
+
+          echo "Velas recebidas:"
+          wc -l data/xauusd_m5_fechados.csv
+
+          echo "Histórico anterior do tabuleiro:"
+          if [ -f data/tabuleiro_m5.csv ]; then
+            wc -l data/tabuleiro_m5.csv
+          else
+            echo "Primeira execução: histórico será iniciado."
+          fi
+
+      # ==========================================
+      # 4 - TABULEIRO INTELIGENTE
+      # ==========================================
+
+      - name: 11 - Construir histórico do tabuleiro
+        run: |
+          python -u coletor_tabuleiro_m5.py
+
+      - name: 12 - Detectar bordas e eventos
+        run: |
+          python -u detector_bordas_m5.py
+
+      - name: 13 - Atualizar banco de dados
+        run: |
+          python -u banco_dados_tabuleiro.py
+
+      - name: 14 - Processar estatísticas das regiões
+        run: |
+          python -u processador_estatistico_m5.py
+
+      - name: 15 - Calcular sequências prováveis
+        run: |
+          python -u sequenciador_tabuleiro_m5.py
+
+      - name: 16 - Avaliar resultados dos eventos
+        run: |
+          python -u avaliador_resultados_m5.py
+
+      - name: 17 - Gerar relatório consolidado
+        run: |
+          python -u relatorio_tabuleiro_m5.py
+
+      # ==========================================
+      # 5 - CONFERÊNCIA DOS BANCOS
+      # ==========================================
+
+      - name: 18 - Conferir arquivos produzidos
+        shell: bash
+        run: |
+          set -e
+
+          echo "========== CENTRAL INTELIGENTE XAUUSD =========="
+
+          for arquivo in \
+            data/memoria_agente.json \
+            data/memoria_agente.csv \
+            data/resultados_operacoes.csv \
+            data/tabuleiro_m5.csv \
+            data/eventos_bordas_m5.csv \
+            data/tabuleiro_m5.db \
+            data/estatisticas_regioes_m5.csv \
+            data/transicoes_probabilidade_m5.csv \
+            data/sequencias_provaveis_m5.csv \
+            data/proximas_regioes_m5.json \
+            data/resultados_eventos_m5.csv \
+            data/resumo_resultados_m5.csv \
+            data/relatorio_tabuleiro_m5.json \
+            data/relatorio_geral_tabuleiro_m5.csv
+          do
+            if [ -s "$arquivo" ]; then
+              echo "OK: $arquivo"
+            else
+              echo "AUSENTE OU VAZIO: $arquivo"
+              exit 1
+            fi
+          done
+
+      # ==========================================
+      # 6 - PERSISTÊNCIA FINAL
+      # ==========================================
+
+      - name: 19 - Salvar bancos e históricos
+        shell: bash
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/memoria_agente.json
+          git add data/memoria_agente.csv
+          git add data/resultados_operacoes.csv
+          git add data/tabuleiro_m5.csv
+          git add data/tabuleiro_m5.db
+          git add data/eventos_bordas_m5.csv
+          git add data/estatisticas_regioes_m5.csv
+          git add data/transicoes_probabilidade_m5.csv
+          git add data/sequencias_provaveis_m5.csv
+          git add data/proximas_regioes_m5.json
+          git add data/resultados_eventos_m5.csv
+          git add data/resumo_resultados_m5.csv
+          git add data/relatorio_tabuleiro_m5.json
+          git add data/relatorio_geral_tabuleiro_m5.csv
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza central inteligente e tabuleiro XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "Nenhuma alteração nova para salvar."
+          fi
+
+      # ==========================================
+      # 7 - PUBLICAR RELATÓRIOS
+      # ==========================================
+
+      - name: 20 - Publicar relatórios da execução
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-central-inteligente-xauusd
+          path: |
+            data/relatorio_tabuleiro_m5.json
+            data/relatorio_geral_tabuleiro_m5.csv
+            data/proximas_regioes_m5.json
+            data/resumo_resultados_m5.csv
+          if-no-files-found: warn
+          retention-days: 30
