@@ -284,6 +284,20 @@
       "justificativa": "O ativo apresenta um conflito técnico claro entre a tendência de alta no M5 e as tendências de baixa no M15 e H1. Embora o RSI em 55.2 indique neutralidade com leve viés comprador, a pontuação de venda (3) supera a de compra (2), mas sem força suficiente para confirmar um rompimento. O histórico recente demonstra que operações realizadas sob conflito de tempos gráficos apresentam menor probabilidade de sucesso, sendo prudente aguardar o realinhamento das tendências.",
       "resultado": "SEM_OPERACAO",
       "registrado_utc": "2026-10-30T05:51:30.548848+00:00"
+    },
+    {
+      "candle_utc": "2026-10-30T06:20:00+00:00",
+      "sinal": "",
+      "decisao": "",
+      "entrada": 3988.029,
+      "stop": 3993.911,
+      "gain": 3979.206,
+      "confianca": "",
+      "pontuacao_final": 71.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta alinhamento completo de tendência de baixa em M5, M15 e H1. A configuração das médias móveis (EMA9 abaixo da EMA21) e o RSI em 35.66 confirmam o momentum vendedor sem sinais de exaustão. O histórico recente valida que operações com alinhamento macro e RSI em zona neutra com viés baixista possuem maior consistência técnica. A pontuação de venda (4) reforça a continuidade do movimento.",
+      "resultado": "SEM_OPERACAO",
+      "registrado_utc": "2026-10-30T06:26:00.213679+00:00"
     }
   ]
 }
