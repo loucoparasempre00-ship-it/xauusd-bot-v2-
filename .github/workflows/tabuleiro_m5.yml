@@ -1,9 +1,10 @@
+
 name: Tabuleiro Inteligente XAUUSD M5
 
 on:
   workflow_run:
     workflows:
-      - "Acompanhar Operacoes XAUUSD"
+      - "00-coordenador-xauusd.yml"
     types:
       - completed
 
@@ -60,20 +61,20 @@ jobs:
               workflow_id: workflow.id,
               branch: "main",
               status: "completed",
-              per_page: 20
+              per_page: 100
             });
 
-            const horarioAcompanhamento =
+            const horarioCoordenador =
               new Date(context.payload.workflow_run.created_at);
 
             const execucao = runs.data.workflow_runs.find(run =>
               run.conclusion === "success" &&
-              new Date(run.created_at) <= horarioAcompanhamento
+              new Date(run.created_at) <= horarioCoordenador
             );
 
             if (!execucao) {
               core.setFailed(
-                "Nenhuma integração bem-sucedida anterior ao acompanhamento foi encontrada."
+                "Nenhuma integração bem-sucedida anterior ao coordenador foi encontrada."
               );
               return;
             }
