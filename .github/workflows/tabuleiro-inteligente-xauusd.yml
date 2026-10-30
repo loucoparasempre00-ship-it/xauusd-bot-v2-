@@ -20,16 +20,20 @@ concurrency:
 
 jobs:
   processamento:
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
+      # ==========================================
+      # 1 - PREPARAÇÃO
+      # ==========================================
+
       - name: 1 - Baixar repositório e histórico
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: 2 - Preparar Python
@@ -37,11 +41,32 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: 3 - Localizar integração de velas
+      - name: 3 - Verificar ambiente
+        shell: bash
+        run: |
+          set -e
+
+          python --version
+          git status --short
+
+          mkdir -p data
+
+          echo "Ambiente preparado."
+
+      # ==========================================
+      # 2 - LOCALIZAR INTEGRAÇÃO
+      # ==========================================
+
+      - name: 4 - Localizar integração de velas
         id: integracao
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
+          set -e
+
+          echo "Procurando integração bem-sucedida..."
+
           RUN_ID=$(gh api \
             "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
             --jq '[.workflow_runs[]
@@ -52,14 +77,15 @@ jobs:
               | .id // empty')
 
           if [ -z "$RUN_ID" ]; then
-            echo "Nenhuma integração bem-sucedida encontrada."
+            echo "ERRO: nenhuma integração bem-sucedida encontrada."
             exit 1
           fi
 
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
           echo "Integração encontrada: $RUN_ID"
 
-      - name: 4 - Baixar velas fechadas da integração
+      - name: 5 - Baixar velas fechadas
         uses: actions/download-artifact@v4
         with:
           name: candles-xauusd-m5
@@ -68,60 +94,85 @@ jobs:
           run-id: ${{ steps.integracao.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 5 - Verificar histórico de velas
+      - name: 6 - Conferir CSV de velas
+        shell: bash
         run: |
-          mkdir -p data
+          set -e
 
           if [ ! -s data/xauusd_m5_fechados.csv ]; then
-            echo "CSV de velas fechadas não encontrado."
-            find data -maxdepth 2 -type f
+            echo "ERRO: CSV de velas fechadas não encontrado ou vazio."
+            echo "Arquivos disponíveis:"
+            find data -maxdepth 3 -type f
             exit 1
           fi
 
-          echo "Velas recebidas:"
+          echo "CSV encontrado."
+
           wc -l data/xauusd_m5_fechados.csv
 
           echo "Histórico anterior do tabuleiro:"
-          if [ -f data/tabuleiro_m5.csv ]; then
+
+          if [ -s data/tabuleiro_m5.csv ]; then
             wc -l data/tabuleiro_m5.csv
           else
-            echo "Primeira execução: histórico será iniciado."
+            echo "Histórico ainda não existe."
           fi
 
-      - name: 6 - Instalar dependências
-        run: |
-          python -m pip install --upgrade pip
+      # ==========================================
+      # 3 - PROCESSAMENTO DO TABULEIRO
+      # ==========================================
 
       - name: 7 - Construir histórico do tabuleiro
+        shell: bash
         run: |
+          set -e
           python -u coletor_tabuleiro_m5.py
 
       - name: 8 - Detectar bordas e eventos
+        shell: bash
         run: |
+          set -e
           python -u detector_bordas_m5.py
 
       - name: 9 - Atualizar banco de dados
+        shell: bash
         run: |
+          set -e
           python -u banco_dados_tabuleiro.py
 
       - name: 10 - Processar estatísticas das regiões
+        shell: bash
         run: |
+          set -e
           python -u processador_estatistico_m5.py
 
       - name: 11 - Calcular sequências prováveis
+        shell: bash
         run: |
+          set -e
           python -u sequenciador_tabuleiro_m5.py
 
       - name: 12 - Avaliar resultados dos eventos
+        shell: bash
         run: |
+          set -e
           python -u avaliador_resultados_m5.py
 
       - name: 13 - Gerar relatório consolidado
+        shell: bash
         run: |
+          set -e
           python -u relatorio_tabuleiro_m5.py
 
+      # ==========================================
+      # 4 - VALIDAR RESULTADOS
+      # ==========================================
+
       - name: 14 - Conferir arquivos produzidos
+        shell: bash
         run: |
+          set -e
+
           echo "========== TABULEIRO INTELIGENTE =========="
 
           for arquivo in \
@@ -137,37 +188,54 @@ jobs:
             data/relatorio_tabuleiro_m5.json \
             data/relatorio_geral_tabuleiro_m5.csv
           do
-            if [ -f "$arquivo" ]; then
+            if [ -s "$arquivo" ]; then
               echo "OK: $arquivo"
             else
-              echo "AUSENTE: $arquivo"
+              echo "ERRO: arquivo ausente ou vazio: $arquivo"
               exit 1
             fi
           done
 
-      - name: 15 - Salvar histórico e resultados no repositório
+          echo "Todos os arquivos foram conferidos."
+
+      # ==========================================
+      # 5 - PERSISTÊNCIA
+      # ==========================================
+
+      - name: 15 - Salvar histórico e resultados
+        shell: bash
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/tabuleiro_m5.csv
-          git add data/tabuleiro_m5.db
-          git add data/eventos_bordas_m5.csv
-          git add data/estatisticas_regioes_m5.csv
-          git add data/transicoes_probabilidade_m5.csv
-          git add data/sequencias_provaveis_m5.csv
-          git add data/proximas_regioes_m5.json
-          git add data/resultados_eventos_m5.csv
-          git add data/resumo_resultados_m5.csv
-          git add data/relatorio_tabuleiro_m5.json
-          git add data/relatorio_geral_tabuleiro_m5.csv
+          git add \
+            data/tabuleiro_m5.csv \
+            data/tabuleiro_m5.db \
+            data/eventos_bordas_m5.csv \
+            data/estatisticas_regioes_m5.csv \
+            data/transicoes_probabilidade_m5.csv \
+            data/sequencias_provaveis_m5.csv \
+            data/proximas_regioes_m5.json \
+            data/resultados_eventos_m5.csv \
+            data/resumo_resultados_m5.csv \
+            data/relatorio_tabuleiro_m5.json \
+            data/relatorio_geral_tabuleiro_m5.csv
 
           if ! git diff --cached --quiet; then
             git commit -m "Atualiza histórico e inteligência do tabuleiro M5"
-            git push
+
+            git push origin HEAD:main
+
+            echo "Histórico salvo na branch main."
           else
-            echo "Nenhuma alteração para salvar."
+            echo "Nenhuma alteração nova para salvar."
           fi
+
+      # ==========================================
+      # 6 - PUBLICAR RELATÓRIOS
+      # ==========================================
 
       - name: 16 - Publicar relatórios da execução
         if: always()
