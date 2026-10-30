@@ -1,10 +1,10 @@
 
-name: Tabuleiro Inteligente XAUUSD M5
+name: Tabuleiro Estatistico M5
 
 on:
   workflow_run:
     workflows:
-      - "00-coordenador-xauusd.yml"
+      - "Integracao XAUUSD Bot V2"
     types:
       - completed
 
@@ -13,207 +13,67 @@ permissions:
   actions: read
 
 concurrency:
-  group: tabuleiro-inteligente-xauusd
+  group: tabuleiro-estatistico-m5
   cancel-in-progress: false
 
 jobs:
-  processamento:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
-
+  coletar:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar repositório
+      - name: Baixar repositorio
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Localizar execução da integração
-        id: integracao
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const workflows = await github.rest.actions.listRepoWorkflows({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            });
+      - name: Preparar pasta de dados
+        run: mkdir -p data
 
-            const workflow = workflows.data.workflows.find(
-              w => w.name === "Integracao XAUUSD Bot V2"
-            );
-
-            if (!workflow) {
-              core.setFailed("Workflow de integração não encontrado.");
-              return;
-            }
-
-            const runs = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: workflow.id,
-              branch: "main",
-              status: "completed",
-              per_page: 100
-            });
-
-            const horarioCoordenador =
-              new Date(context.payload.workflow_run.created_at);
-
-            const execucao = runs.data.workflow_runs.find(run =>
-              run.conclusion === "success" &&
-              new Date(run.created_at) <= horarioCoordenador
-            );
-
-            if (!execucao) {
-              core.setFailed(
-                "Nenhuma integração bem-sucedida anterior ao coordenador foi encontrada."
-              );
-              return;
-            }
-
-            core.setOutput("run_id", String(execucao.id));
-
-            core.info(
-              `Integração encontrada: ${execucao.id}`
-            );
-
-      - name: Baixar velas da integração
+      - name: Baixar velas fechadas da integracao
         uses: actions/download-artifact@v4
         with:
           name: candles-xauusd-m5
-          run-id: ${{ steps.integracao.outputs.run_id }}
+          path: data
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          path: dados_baixados
+          run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Preparar CSV de velas
-        shell: bash
+      - name: Conferir arquivo de entrada
         run: |
-          mkdir -p data
+          echo "Arquivos recebidos:"
+          find data -maxdepth 3 -type f
 
-          ARQUIVO=$(find dados_baixados \
-            -type f \
-            -name "xauusd_m5_fechados.csv" \
-            | head -n 1)
-
-          if [ -z "$ARQUIVO" ]; then
-            echo "CSV de velas fechadas não encontrado."
-            find dados_baixados -type f
+          if [ ! -f data/xauusd_m5_fechados.csv ]; then
+            echo "::error::CSV de velas fechadas não encontrado em data/xauusd_m5_fechados.csv"
             exit 1
           fi
 
-          cp "$ARQUIVO" data/xauusd_m5_fechados.csv
-
-          echo "CSV preparado:"
-          ls -lh data/xauusd_m5_fechados.csv
-
-      - name: Verificar arquivos do tabuleiro
-        shell: bash
-        run: |
-          arquivos=(
-            coletor_tabuleiro_m5.py
-            banco_dados_tabuleiro.py
-            detector_bordas_m5.py
-            processador_estatistico_m5.py
-            sequenciador_tabuleiro_m5.py
-            avaliador_resultados_m5.py
-            relatorio_tabuleiro_m5.py
-          )
-
-          for arquivo in "${arquivos[@]}"; do
-            if [ ! -f "$arquivo" ]; then
-              echo "Arquivo ausente: $arquivo"
-              exit 1
-            fi
-            echo "OK: $arquivo"
-          done
-
-      - name: 1 - Construir tabuleiro
+      - name: Executar coleta do tabuleiro
         run: python -u coletor_tabuleiro_m5.py
 
-      - name: 2 - Detectar bordas
-        run: python -u detector_bordas_m5.py
-
-      - name: 3 - Atualizar banco histórico
-        run: python -u banco_dados_tabuleiro.py
-
-      - name: 4 - Calcular estatísticas
-        run: python -u processador_estatistico_m5.py
-
-      - name: 5 - Construir sequências prováveis
-        run: python -u sequenciador_tabuleiro_m5.py
-
-      - name: 6 - Avaliar resultados dos eventos
-        run: python -u avaliador_resultados_m5.py
-
-      - name: 7 - Consolidar relatório geral
-        run: python -u relatorio_tabuleiro_m5.py
-
-      - name: Finalizar banco SQLite
+      - name: Conferir resultado
         run: |
-          python - <<'PY'
-          import os
-          import sqlite3
+          echo "Primeiros registros:"
+          head -n 6 data/tabuleiro_m5.csv
 
-          caminho = "data/tabuleiro_m5.db"
+          echo "Quantidade de registros:"
+          wc -l data/tabuleiro_m5.csv
 
-          if os.path.exists(caminho):
-              conexao = sqlite3.connect(caminho)
-              conexao.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-              conexao.execute("PRAGMA journal_mode=DELETE")
-              conexao.close()
-              print("Banco SQLite finalizado.")
-          else:
-              print("Banco não encontrado; verificar etapa de persistência.")
-          PY
-
-      - name: Conferir resultados
-        run: |
-          echo "ARQUIVOS PRODUZIDOS"
-          ls -lh data/
-
-          arquivos=(
-            tabuleiro_m5.csv
-            tabuleiro_m5.db
-            eventos_bordas_m5.csv
-            estatisticas_regioes_m5.csv
-            transicoes_probabilidade_m5.csv
-            resumo_estatistico_m5.json
-            sequencias_provaveis_m5.csv
-            proximas_regioes_m5.json
-            resultados_eventos_m5.csv
-            resumo_resultados_m5.csv
-            relatorio_tabuleiro_m5.json
-            relatorio_geral_tabuleiro_m5.csv
-          )
-
-          for arquivo in "${arquivos[@]}"; do
-            if [ ! -s "data/$arquivo" ]; then
-              echo "Resultado ausente ou vazio: data/$arquivo"
-              exit 1
-            fi
-          done
-
-          echo "Todos os resultados foram encontrados."
-
-      - name: Salvar histórico no GitHub
+      - name: Salvar historico no repositorio
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/
+          git add data/tabuleiro_m5.csv
 
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração para salvar."
+            echo "Nenhuma alteração no histórico."
           else
-            git commit -m "Atualiza tabuleiro histórico XAUUSD M5"
+            git commit -m "Atualiza coleta do tabuleiro M5"
             git push origin HEAD:main
           fi
