@@ -1,9 +1,8 @@
-name: Central Inteligente XAUUSD
-
 on:
   workflow_run:
     workflows:
       - "Agente Gemini XAUUSD"
+      - "Analise Diaria Gemini XAUUSD"
     types:
       - completed
 
@@ -14,12 +13,19 @@ permissions:
   actions: read
 
 concurrency:
-  group: central-inteligente-xauusd
+  group: central-inteligente-xauusd-${{ github.event.workflow_run.name || github.event_name }}
   cancel-in-progress: false
-
+  
 jobs:
   processamento:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.name == 'Agente Gemini XAUUSD' &&
+          github.event.workflow_run.conclusion == 'success'
+        )
+      }}
 
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -233,3 +239,103 @@ jobs:
             data/resumo_resultados_m5.csv
           if-no-files-found: warn
           retention-days: 30
+
+          
+  ponte_memoria_diaria:
+    name: Receber conclusão diária do Gemini
+
+    if: >-
+      ${{
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.name == 'Analise Diaria Gemini XAUUSD' &&
+        github.event.workflow_run.conclusion == 'success'
+      }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 1 - Baixar repositório
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: 2 - Receber conclusão do agente diário
+        uses: actions/download-artifact@v4
+        with:
+          name: conclusao-diaria-gemini-xauusd
+          path: recebimento
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 3 - Validar conclusão recebida
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s recebimento/analise_diaria_gemini.json
+
+          python - <<'PY'
+          import json
+
+          caminho = "recebimento/analise_diaria_gemini.json"
+
+          with open(caminho, encoding="utf-8") as arquivo:
+              dados = json.load(arquivo)
+
+          status = dados.get("status")
+
+          if status not in ("concluido", "sem_dados_do_dia"):
+              raise SystemExit(
+                  f"Status inesperado na conclusão: {status}"
+              )
+
+          if not dados.get("dia_utc_analisado"):
+              raise SystemExit(
+                  "A conclusão não informa o dia UTC analisado."
+              )
+
+          print("Conclusão validada.")
+          print("Status:", status)
+          print("Dia UTC:", dados["dia_utc_analisado"])
+          PY
+
+      - name: 4 - Guardar memória diária na biblioteca
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p data
+
+          cp \
+            recebimento/analise_diaria_gemini.json \
+            data/memoria_gemini_diaria.json
+
+      - name: 5 - Persistir conclusão na biblioteca
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/memoria_gemini_diaria.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza memoria diaria Gemini XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "A memória diária já está atualizada."
+          fi
+
+      - name: 6 - Publicar confirmação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirmacao-central-memoria-diaria
+          path: data/memoria_gemini_diaria.json
+          if-no-files-found: warn
+          retention-days: 14
+
