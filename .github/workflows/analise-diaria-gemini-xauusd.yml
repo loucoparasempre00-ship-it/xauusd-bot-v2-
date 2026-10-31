@@ -1,0 +1,76 @@
+
+name: Analise Diaria Gemini XAUUSD
+
+on:
+  schedule:
+    - cron: "5 0 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: analise-diaria-gemini-xauusd
+  cancel-in-progress: false
+
+jobs:
+  analisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Baixar biblioteca
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Localizar modelo Gemini validado
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RUN_ID=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow testador-gemini.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::Nenhuma seleção Gemini bem-sucedida encontrada."
+            exit 1
+          fi
+
+          mkdir -p data
+
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name selecao-modelo-gemini \
+            --dir data
+
+          test -s data/modelo_gemini.json
+
+      - name: Analisar o dia UTC encerrado
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -u agente_analise_diaria_gemini.py
+
+      - name: Publicar conclusão para a Central
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conclusao-diaria-gemini-xauusd
+          path: data/analise_diaria_gemini.json
+          if-no-files-found: error
+          retention-days: 14
