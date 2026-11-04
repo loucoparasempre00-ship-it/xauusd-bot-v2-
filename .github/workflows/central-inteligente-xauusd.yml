@@ -1,8 +1,10 @@
 
+name: Central Inteligente XAUUSD
+
 on:
   workflow_run:
     workflows:
-      - "Agente Gemini XAUUSD"
+      - "Memoria Persistente XAUUSD"
     types:
       - completed
 
@@ -22,7 +24,7 @@ jobs:
       ${{
         github.event_name == 'workflow_dispatch' ||
         (
-          github.event.workflow_run.name == 'Agente Gemini XAUUSD' &&
+          github.event.workflow_run.name == 'Memoria Persistente XAUUSD' &&
           github.event.workflow_run.conclusion == 'success'
         )
       }}
@@ -32,10 +34,10 @@ jobs:
 
     steps:
       # ==========================================
-      # 1 - PREPARAÇÃO
+      # 1 - PREPARACAO
       # ==========================================
 
-      - name: 1 - Baixar repositório
+      - name: 1 - Baixar repositorio
         uses: actions/checkout@v4
         with:
           ref: main
@@ -55,38 +57,61 @@ jobs:
           echo "Ambiente preparado."
 
       # ==========================================
-      # 2 - COORDENADOR
+      # 2 - RECUPERAR MEMORIA DO GEMINI
       # ==========================================
 
-      - name: 4 - Verificar arquivos necessários
+      - name: 4 - Localizar execucao da memoria
+        id: memoria
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENTO: ${{ github.event_name }}
+          RUN_EVENTO: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           set -e
 
+          if [ "$EVENTO" = "workflow_run" ]; then
+            RUN_ID="$RUN_EVENTO"
+          else
+            RUN_ID=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+              --jq '[.workflow_runs[]
+                | select(.name == "Memoria Persistente XAUUSD")
+                | select(.conclusion == "success")]
+                | sort_by(.created_at)
+                | last
+                | .id // empty')
+          fi
+
+          if [ -z "$RUN_ID" ]; then
+            echo "ERRO: nenhuma memoria bem-sucedida encontrada."
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Execucao da memoria encontrada: $RUN_ID"
+
+      - name: 5 - Baixar memoria persistente
+        uses: actions/download-artifact@v4
+        with:
+          name: memoria-agente-xau
+          path: data
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.memoria.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 6 - Conferir memoria recebida
+        shell: bash
+        run: |
+          set -e
           test -s data/memoria_agente.json
-          test -s data/historico_velas_m5.csv
-
-          echo "Memória e histórico encontrados."
-
-      - name: 5 - Acompanhar sinais e resultados
-        run: python -u acompanhar_operacoes_xau.py
-
-      - name: 6 - Atualizar memória persistente
-        run: python -u memoria_persistente_gemini.py
-
-      - name: 7 - Conferir arquivos atualizados
-        shell: bash
-        run: |
-          set -e
-          test -s data/resultados_operacoes.csv
-          test -s data/memoria_agente.csv
-          echo "Memória e resultados atualizados."
+          echo "Memoria do Gemini recebida."
 
       # ==========================================
-      # 3 - LOCALIZAR INTEGRAÇÃO
+      # 3 - LOCALIZAR INTEGRACAO DE VELAS
       # ==========================================
 
-      - name: 8 - Localizar integração de velas
+      - name: 7 - Localizar integracao de velas
         id: integracao
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,14 +129,14 @@ jobs:
               | .id // empty')
 
           if [ -z "$RUN_ID" ]; then
-            echo "ERRO: nenhuma integração bem-sucedida encontrada."
+            echo "ERRO: nenhuma integracao bem-sucedida encontrada."
             exit 1
           fi
 
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "Integração encontrada: $RUN_ID"
+          echo "Integracao encontrada: $RUN_ID"
 
-      - name: 9 - Baixar velas fechadas
+      - name: 8 - Baixar velas fechadas
         uses: actions/download-artifact@v4
         with:
           name: candles-xauusd-m5
@@ -120,46 +145,81 @@ jobs:
           run-id: ${{ steps.integracao.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 10 - Conferir CSV de velas
+      - name: 9 - Preparar historico de velas
         shell: bash
         run: |
           set -e
 
           test -s data/xauusd_m5_fechados.csv
 
-          echo "CSV de velas encontrado:"
-          wc -l data/xauusd_m5_fechados.csv
+          cp data/xauusd_m5_fechados.csv \
+             data/historico_velas_m5.csv
+
+          test -s data/historico_velas_m5.csv
+
+          echo "Historico de velas preparado."
+          wc -l data/historico_velas_m5.csv
 
       # ==========================================
-      # 4 - TABULEIRO INTELIGENTE
+      # 4 - COORDENADOR
       # ==========================================
 
-      - name: 11 - Construir histórico do tabuleiro
+      - name: 10 - Verificar arquivos necessarios
+        shell: bash
+        run: |
+          set -e
+
+          test -s data/memoria_agente.json
+          test -s data/historico_velas_m5.csv
+
+          echo "Memoria e historico encontrados."
+
+      - name: 11 - Acompanhar sinais e resultados
+        run: python -u acompanhar_operacoes_xau.py
+
+      - name: 12 - Atualizar memoria persistente
+        run: python -u memoria_persistente_gemini.py
+
+      - name: 13 - Conferir arquivos atualizados
+        shell: bash
+        run: |
+          set -e
+
+          test -s data/resultados_operacoes.csv
+          test -s data/memoria_agente.csv
+
+          echo "Memoria e resultados atualizados."
+
+      # ==========================================
+      # 5 - TABULEIRO INTELIGENTE
+      # ==========================================
+
+      - name: 14 - Construir historico do tabuleiro
         run: python -u coletor_tabuleiro_m5.py
 
-      - name: 12 - Detectar bordas e eventos
+      - name: 15 - Detectar bordas e eventos
         run: python -u detector_bordas_m5.py
 
-      - name: 13 - Atualizar banco de dados
+      - name: 16 - Atualizar banco de dados
         run: python -u banco_dados_tabuleiro.py
 
-      - name: 14 - Processar estatísticas das regiões
+      - name: 17 - Processar estatisticas das regioes
         run: python -u processador_estatistico_m5.py
 
-      - name: 15 - Calcular sequências prováveis
+      - name: 18 - Calcular sequencias provaveis
         run: python -u sequenciador_tabuleiro_m5.py
 
-      - name: 16 - Avaliar resultados dos eventos
+      - name: 19 - Avaliar resultados dos eventos
         run: python -u avaliador_resultados_m5.py
 
-      - name: 17 - Gerar relatório consolidado
+      - name: 20 - Gerar relatorio consolidado
         run: python -u relatorio_tabuleiro_m5.py
 
       # ==========================================
-      # 5 - VALIDAR TODOS OS ARQUIVOS
+      # 6 - VALIDAR ARQUIVOS
       # ==========================================
 
-      - name: 18 - Conferir arquivos produzidos
+      - name: 21 - Conferir arquivos produzidos
         shell: bash
         run: |
           set -e
@@ -189,10 +249,10 @@ jobs:
           done
 
       # ==========================================
-      # 6 - PERSISTÊNCIA FINAL
+      # 7 - PERSISTENCIA FINAL
       # ==========================================
 
-      - name: 19 - Salvar memória, bancos e históricos
+      - name: 22 - Salvar memoria, bancos e historicos
         shell: bash
         run: |
           set -e
@@ -220,14 +280,14 @@ jobs:
             git commit -m "Atualiza central inteligente e tabuleiro XAUUSD"
             git push origin HEAD:main
           else
-            echo "Nenhuma alteração nova para salvar."
+            echo "Nenhuma alteracao nova para salvar."
           fi
 
       # ==========================================
-      # 7 - PUBLICAR RELATÓRIOS
+      # 8 - PUBLICAR RELATORIOS
       # ==========================================
 
-      - name: 20 - Publicar relatórios
+      - name: 23 - Publicar relatorios
         if: always()
         uses: actions/upload-artifact@v4
         with:
