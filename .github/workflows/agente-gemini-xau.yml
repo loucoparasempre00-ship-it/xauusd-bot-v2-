@@ -99,12 +99,16 @@ jobs:
             printf '{"peso_tecnico":75,"peso_gemini":25,"limiar":40,"stop_atr":1.5,"rr":1.5}\n' > data/parametros_adaptativos.json
           fi
 
-      - name: Localizar ultima selecao bem-sucedida
+      - name: Selecionar modelo com fallback para o ultimo usado
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          RUN_ID=$(gh run list \
+          mkdir -p data/selecao_testador data/modelo_anterior
+          SELECAO_OK=""
+
+          # 1) Prioridade: ultima selecao bem-sucedida do Testador.
+          TESTADOR_RUN=$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow testador-gemini.yml \
             --status success \
@@ -112,17 +116,92 @@ jobs:
             --json databaseId \
             --jq '.[0].databaseId // empty')
 
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::Nenhuma execucao bem-sucedida do testador foi encontrada."
+          if [ -n "$TESTADOR_RUN" ]; then
+            echo "Testador encontrado: $TESTADOR_RUN"
+            gh run download "$TESTADOR_RUN" \
+              --repo "$GITHUB_REPOSITORY" \
+              --name selecao-modelo-gemini \
+              --dir data/selecao_testador || true
+          else
+            echo "Testador sem execucao bem-sucedida. Tentarei recuperar o ultimo modelo usado pelo agente."
+          fi
+
+          # Valida a selecao do Testador antes de usa-la.
+          if [ -f data/selecao_testador/modelo_gemini.json ]; then
+            if python - <<'PYVALIDA'
+          import json
+          from pathlib import Path
+          p = Path("data/selecao_testador/modelo_gemini.json")
+          try:
+              d = json.loads(p.read_text(encoding="utf-8"))
+              m = d.get("modelo_escolhido", "")
+              ok = d.get("status") == "pronto" and isinstance(m, str) and m.startswith("models/gemini-")
+          except Exception:
+              ok = False
+          raise SystemExit(0 if ok else 1)
+          PYVALIDA
+            then
+              cp data/selecao_testador/modelo_gemini.json data/modelo_gemini.json
+              SELECAO_OK="testador"
+              echo "Modelo selecionado pela ultima execucao valida do Testador."
+            fi
+          fi
+
+          # 2) Fallback: resultado da ultima execucao bem-sucedida do proprio agente.
+          if [ -z "$SELECAO_OK" ]; then
+            echo "Tentando recuperar o modelo utilizado pelo ultimo agente bem-sucedido..."
+            AGENTE_RUN=$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow agente-gemini-xau.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')
+
+            if [ -n "$AGENTE_RUN" ]; then
+              gh run download "$AGENTE_RUN" \
+                --repo "$GITHUB_REPOSITORY" \
+                --name resultado-agente-gemini \
+                --dir data/modelo_anterior || true
+            fi
+
+            if [ -f data/modelo_anterior/decisao_gemini.json ]; then
+              python - <<'PYFALLBACK'
+          import json
+          from pathlib import Path
+
+          origem = Path("data/modelo_anterior/decisao_gemini.json")
+          try:
+              resultado = json.loads(origem.read_text(encoding="utf-8"))
+              modelo = resultado.get("modelo_utilizado", "")
+          except Exception as erro:
+              raise SystemExit(f"Nao foi possivel ler o modelo anterior: {erro}")
+
+          if not isinstance(modelo, str) or not modelo.startswith("models/gemini-"):
+              raise SystemExit("O ultimo resultado do agente nao contem um modelo valido.")
+
+          selecao = {
+              "status": "pronto",
+              "modelo_escolhido": modelo,
+              "origem": "fallback_ultimo_modelo_do_agente"
+          }
+          Path("data/modelo_gemini.json").write_text(
+              json.dumps(selecao, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+          print("Modelo recuperado do ultimo resultado do agente:", modelo)
+          PYFALLBACK
+              SELECAO_OK="memoria_agente"
+            fi
+          fi
+
+          if [ -z "$SELECAO_OK" ] || [ ! -f data/modelo_gemini.json ]; then
+            echo "::error::Nao existe selecao valida no Testador nem modelo anterior valido no historico do agente."
             exit 1
           fi
 
-          mkdir -p data
-          gh run download "$RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name selecao-modelo-gemini \
-            --dir data
-          test -f data/modelo_gemini.json
+          echo "Origem final do modelo: $SELECAO_OK"
+          cat data/modelo_gemini.json
 
       - name: Receber candles para acompanhamento e ATR
         env:
