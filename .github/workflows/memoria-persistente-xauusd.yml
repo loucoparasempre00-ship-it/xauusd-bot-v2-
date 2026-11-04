@@ -84,12 +84,15 @@ jobs:
                   memoria = json.loads(
                       anterior_path.read_text(encoding="utf-8")
                   )
-              except (OSError, json.JSONDecodeError):
-                  print("Memória anterior inválida; será reiniciada.")
+              except (OSError, json.JSONDecodeError) as erro:
+                  raise SystemExit(
+                      f"Memória anterior inválida: {erro}"
+                  )
 
           historico = memoria.get("historico", [])
+
           if not isinstance(historico, list):
-              historico = []
+              raise SystemExit("Formato de memória anterior inválido.")
 
           chaves = {
               (
@@ -99,38 +102,79 @@ jobs:
               for x in historico
           }
 
+          adicionados = 0
+
           for arquivo in (base / "entrada").rglob("decisao_gemini.json"):
               try:
                   resultado = json.loads(
                       arquivo.read_text(encoding="utf-8")
                   )
-              except (OSError, json.JSONDecodeError):
+              except (OSError, json.JSONDecodeError) as erro:
+                  raise SystemExit(
+                      f"Resultado do agente inválido: {erro}"
+                  )
+
+              candle = str(resultado.get("candle_utc", "")).strip()
+
+              # O agente grava a direção final neste campo.
+              decisao = str(
+                  resultado.get(
+                      "decisao_gemini",
+                      resultado.get("decisao", resultado.get("sinal", "SEM_SINAL"))
+                  )
+              ).strip().upper()
+
+              if decisao not in ("COMPRA", "VENDA", "SEM_SINAL"):
+                  decisao = "SEM_SINAL"
+
+              if not candle:
+                  print("Registro ignorado: candle_utc ausente.")
                   continue
 
-              candle = str(resultado.get("candle_utc", ""))
-              decisao = str(
-                  resultado.get("decisao", resultado.get("sinal", "SEM_SINAL"))
-              )
+              chave = (candle, decisao)
 
-              if not candle or (candle, decisao) in chaves:
+              if chave in chaves:
+                  print("Registro já existente:", candle, decisao)
                   continue
 
               historico.append({
                   "candle_utc": candle,
-                  "sinal": resultado.get("sinal", "SEM_SINAL"),
+                  "sinal": decisao,
                   "decisao": decisao,
-                  "entrada": resultado.get("entrada"),
-                  "stop": resultado.get("stop"),
-                  "gain": resultado.get("gain"),
-                  "confianca": resultado.get("confianca"),
+                  "decisao_ia_original": resultado.get(
+                      "decisao_ia_original", ""
+                  ),
+                  "entrada": resultado.get("entrada", ""),
+                  "stop": resultado.get(
+                      "stop_loss", resultado.get("stop", "")
+                  ),
+                  "gain": resultado.get(
+                      "take_profit",
+                      resultado.get("gain", resultado.get("alvo", ""))
+                  ),
+                  "confianca": resultado.get(
+                      "confianca_declarada",
+                      resultado.get("confianca", "")
+                  ),
+                  "pontuacao_final": resultado.get(
+                      "pontuacao_final", ""
+                  ),
+                  "modelo_utilizado": resultado.get(
+                      "modelo_utilizado", ""
+                  ),
                   "justificativa": resultado.get("justificativa", ""),
                   "registrado_utc": datetime.now(
                       timezone.utc
                   ).isoformat()
               })
-              chaves.add((candle, decisao))
+
+              chaves.add(chave)
+              adicionados += 1
+
+              print("Novo sinal registrado:", candle, decisao)
 
           historico = historico[-2000:]
+
           memoria = {
               "atualizado_utc": datetime.now(timezone.utc).isoformat(),
               "total_registros": len(historico),
@@ -142,7 +186,8 @@ jobs:
               encoding="utf-8"
           )
 
-          print("Histórico preservado:", len(historico))
+          print("Novos registros:", adicionados)
+          print("Total preservado:", len(historico))
           PY
 
       - name: Publicar memória
