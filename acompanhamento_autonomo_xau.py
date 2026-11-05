@@ -1,9 +1,26 @@
+
 import os
 import re
 import json
+import zipfile
+import io
 import requests
+
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
+# =========================================================
+# CONFIGURAÇÃO
+# =========================================================
+
+TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+CHAT_ID = str(os.environ["TELEGRAM_CHAT_ID"])
+API_KEY = os.environ["TWELVE_DATA_API_KEY"]
+GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+REPO = os.environ["GITHUB_REPOSITORY"]
+
+TELEGRAM = f"https://api.telegram.org/bot{TOKEN}"
+GITHUB = "https://api.github.com"
 
 PASTA = Path("data")
 PASTA.mkdir(exist_ok=True)
@@ -11,36 +28,54 @@ PASTA.mkdir(exist_ok=True)
 ARQUIVO_ESTADO = PASTA / "acompanhamento_autonomo_estado.json"
 ARQUIVO_HISTORICO = PASTA / "resultados_operacoes.json"
 
-TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-CHAT_ID = str(os.environ["TELEGRAM_CHAT_ID"])
-API_KEY = os.environ["TWELVE_DATA_API_KEY"]
+estado = {
+    "ultimo_update_id": 0,
+    "aguardando_entrada": False,
+    "operacao": None
+}
 
-TELEGRAM = f"https://api.telegram.org/bot{TOKEN}"
+historico = []
 
 
-def carregar(caminho, padrao):
-    if caminho.exists():
+# =========================================================
+# PERSISTÊNCIA
+# =========================================================
+
+def carregar():
+    global estado, historico
+
+    if ARQUIVO_ESTADO.exists():
         try:
-            return json.loads(caminho.read_text(encoding="utf-8"))
+            estado.update(
+                json.loads(ARQUIVO_ESTADO.read_text(encoding="utf-8"))
+            )
         except Exception:
             pass
-    return padrao
+
+    if ARQUIVO_HISTORICO.exists():
+        try:
+            historico = json.loads(
+                ARQUIVO_HISTORICO.read_text(encoding="utf-8")
+            )
+        except Exception:
+            historico = []
 
 
-def salvar(caminho, dados):
-    caminho.write_text(
-        json.dumps(dados, ensure_ascii=False, indent=2),
+def salvar():
+    ARQUIVO_ESTADO.write_text(
+        json.dumps(estado, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+    ARQUIVO_HISTORICO.write_text(
+        json.dumps(historico, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
 
 
-estado = carregar(ARQUIVO_ESTADO, {
-    "ultimo_update_id": 0,
-    "operacao": None
-})
-
-historico = carregar(ARQUIVO_HISTORICO, [])
-
+# =========================================================
+# TELEGRAM
+# =========================================================
 
 def enviar(texto):
     resposta = requests.post(
@@ -54,81 +89,6 @@ def enviar(texto):
     resposta.raise_for_status()
 
 
-def numero(texto):
-    valor = str(texto).strip().replace(" ", "")
-
-    if "," in valor and "." in valor:
-        valor = valor.replace(",", "")
-    elif "," in valor:
-        partes = valor.split(",")
-        if len(partes[-1]) == 3:
-            valor = valor.replace(",", "")
-        else:
-            valor = valor.replace(",", ".")
-
-    return float(valor)
-
-
-def extrair_nivel(texto, rotulos):
-    for rotulo in rotulos:
-        padrao = (
-            rf"(?:{rotulo})\s*[:=\-]?\s*"
-            rf"(?:US\$|\$)?\s*([\d.,]+)"
-        )
-        encontrado = re.search(padrao, texto, re.IGNORECASE)
-
-        if encontrado:
-            try:
-                return numero(encontrado.group(1))
-            except ValueError:
-                pass
-
-    return None
-
-
-def interpretar_sinal(texto):
-    texto = re.sub(r"<[^>]+>", " ", texto or "")
-    texto = texto.upper()
-
-    if "COMPRA" in texto or "BUY" in texto:
-        direcao = "COMPRA"
-    elif "VENDA" in texto or "SELL" in texto:
-        direcao = "VENDA"
-    else:
-        return None
-
-    entrada_sinal = extrair_nivel(
-        texto, [r"ENTRADA", r"ENTRY"]
-    )
-
-    stop = extrair_nivel(
-        texto, [
-            r"STOP[\s-]*LOSS",
-            r"STOP",
-            r"\bSL\b"
-        ]
-    )
-
-    alvo = extrair_nivel(
-        texto, [
-            r"TAKE[\s-]*PROFIT",
-            r"ALVO",
-            r"TARGET",
-            r"\bTP\b"
-        ]
-    )
-
-    if stop is None or alvo is None:
-        return None
-
-    return {
-        "direcao": direcao,
-        "entrada_sinal": entrada_sinal,
-        "stop": stop,
-        "alvo": alvo
-    }
-
-
 def buscar_atualizacoes():
     resposta = requests.get(
         f"{TELEGRAM}/getUpdates",
@@ -139,94 +99,213 @@ def buscar_atualizacoes():
         },
         timeout=20
     )
+
     resposta.raise_for_status()
     dados = resposta.json()
 
     if not dados.get("ok"):
-        raise RuntimeError(f"Telegram retornou erro: {dados}")
+        raise RuntimeError(f"Erro Telegram: {dados}")
 
     return dados.get("result", [])
 
 
-def processar_mensagem(mensagem):
-    chat = mensagem.get("chat", {})
-    if str(chat.get("id")) != CHAT_ID:
-        return
+# =========================================================
+# BUSCAR O ÚLTIMO SINAL DO AGENTE GEMINI
+# =========================================================
 
-    texto = (mensagem.get("text") or "").strip()
-    resposta = mensagem.get("reply_to_message")
+def github_get(url):
+    resposta = requests.get(
+        url,
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        },
+        timeout=30
+    )
+    resposta.raise_for_status()
+    return resposta
 
-    comando = re.match(
-        r"^ENTREI\s+([\d.,]+)\s*$",
-        texto,
-        re.IGNORECASE
+
+def ultimo_sinal():
+    # Busca a execução bem-sucedida mais recente do agente.
+    url = (
+        f"{GITHUB}/repos/{REPO}/actions/workflows/"
+        "agente-gemini-xau.yml/runs"
     )
 
-    if not comando:
-        return
+    dados = github_get(url + "?status=success&per_page=10").json()
+    execucoes = dados.get("workflow_runs", [])
 
-    if estado.get("operacao"):
-        enviar(
-            "Já existe uma operação em acompanhamento. "
-            "Aguarde o encerramento dela antes de ativar outra."
+    if not execucoes:
+        raise RuntimeError(
+            "Não encontrei execução bem-sucedida do Agente Gemini."
         )
-        return
 
-    if not resposta or not resposta.get("text"):
-        enviar(
-            "Para ativar, responda diretamente à mensagem original "
-            "do sinal com: ENTREI 4065.250"
+    # Percorre execuções recentes até encontrar o artefato esperado.
+    for execucao in execucoes:
+        run_id = execucao["id"]
+
+        artefatos = github_get(
+            f"{GITHUB}/repos/{REPO}/actions/runs/"
+            f"{run_id}/artifacts"
+        ).json().get("artifacts", [])
+
+        artefato = next(
+            (
+                item for item in artefatos
+                if item["name"] == "resultado-agente-gemini"
+                and not item.get("expired", False)
+            ),
+            None
         )
-        return
 
-    sinal = interpretar_sinal(resposta["text"])
+        if not artefato:
+            continue
 
-    if not sinal:
-        enviar(
-            "Não consegui identificar COMPRA/VENDA, stop e alvo "
-            "na mensagem original. Nenhuma operação foi ativada."
+        conteudo = github_get(
+            f"{GITHUB}/repos/{REPO}/actions/artifacts/"
+            f"{artefato['id']}/zip"
+        ).content
+
+        with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo:
+            nomes = arquivo.namelist()
+
+            caminho = next(
+                (
+                    nome for nome in nomes
+                    if nome.endswith("decisao_gemini.json")
+                ),
+                None
+            )
+
+            if not caminho:
+                continue
+
+            sinal = json.loads(
+                arquivo.read(caminho).decode("utf-8")
+            )
+
+            return sinal
+
+    raise RuntimeError(
+        "Não encontrei decisao_gemini.json no artefato "
+        "resultado-agente-gemini."
+    )
+
+
+def campo(dados, nomes):
+    for nome in nomes:
+        if nome in dados and dados[nome] is not None:
+            return dados[nome]
+    return None
+
+
+def preparar_sinal(dados):
+    direcao = campo(
+        dados,
+        ["decisao_gemini", "direcao", "decisao", "sinal"]
+    )
+
+    entrada = campo(
+        dados,
+        ["entrada", "preco_entrada", "entry"]
+    )
+
+    stop = campo(
+        dados,
+        ["stop_loss", "stop", "sl"]
+    )
+
+    alvo = campo(
+        dados,
+        ["take_profit", "alvo", "target", "tp"]
+    )
+
+    if not direcao or stop is None or alvo is None:
+        raise RuntimeError(
+            "O último sinal não contém direção, stop e alvo "
+            "nos campos esperados."
         )
-        return
 
-    try:
-        entrada_real = numero(comando.group(1))
-    except ValueError:
-        enviar("Preço de entrada inválido.")
-        return
+    direcao = str(direcao).upper()
 
-    estado["operacao"] = {
-        "direcao": sinal["direcao"],
-        "entrada_real": entrada_real,
-        "entrada_sinal": sinal["entrada_sinal"],
-        "stop": sinal["stop"],
-        "alvo": sinal["alvo"],
-        "ativada_em": datetime.now(timezone.utc).isoformat(),
-        "status": "ATIVA",
-        "ultima_vela": None
+    if "COMPRA" in direcao or "BUY" in direcao:
+        direcao = "COMPRA"
+    elif "VENDA" in direcao or "SELL" in direcao:
+        direcao = "VENDA"
+    else:
+        raise RuntimeError(f"Direção não reconhecida: {direcao}")
+
+    return {
+        "direcao": direcao,
+        "entrada_sinal": float(entrada) if entrada is not None else None,
+        "stop": float(stop),
+        "alvo": float(alvo)
     }
 
-    enviar(
-        "ACOMPANHAMENTO ATIVADO\n\n"
-        f"Direção: {sinal['direcao']}\n"
-        f"Sua entrada: {entrada_real}\n"
-        f"Stop original: {sinal['stop']}\n"
-        f"Alvo original: {sinal['alvo']}\n\n"
-        "Vou acompanhar a operação. Nenhuma ordem será enviada."
-    )
+
+# =========================================================
+# INDICADORES M5
+# =========================================================
+
+def ema(valores, periodo):
+    if len(valores) < periodo:
+        return None
+
+    fator = 2 / (periodo + 1)
+    resultado = sum(valores[:periodo]) / periodo
+
+    for valor in valores[periodo:]:
+        resultado = valor * fator + resultado * (1 - fator)
+
+    return resultado
 
 
-def buscar_vela_fechada():
+def rsi(valores, periodo=14):
+    if len(valores) <= periodo:
+        return None
+
+    ganhos = []
+    perdas = []
+
+    for i in range(1, len(valores)):
+        variacao = valores[i] - valores[i - 1]
+        ganhos.append(max(variacao, 0))
+        perdas.append(max(-variacao, 0))
+
+    media_ganho = sum(ganhos[:periodo]) / periodo
+    media_perda = sum(perdas[:periodo]) / periodo
+
+    for i in range(periodo, len(ganhos)):
+        media_ganho = (
+            media_ganho * (periodo - 1) + ganhos[i]
+        ) / periodo
+
+        media_perda = (
+            media_perda * (periodo - 1) + perdas[i]
+        ) / periodo
+
+    if media_perda == 0:
+        return 100.0
+
+    forca = media_ganho / media_perda
+    return 100 - (100 / (1 + forca))
+
+
+def buscar_velas():
     resposta = requests.get(
         "https://api.twelvedata.com/time_series",
         params={
             "symbol": "XAU/USD",
             "interval": "5min",
-            "outputsize": 5,
+            "outputsize": 100,
             "apikey": API_KEY,
             "timezone": "UTC"
         },
-        timeout=25
+        timeout=30
     )
+
     resposta.raise_for_status()
     dados = resposta.json()
 
@@ -241,35 +320,145 @@ def buscar_vela_fechada():
             item["datetime"], "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=timezone.utc)
 
+        # Só utiliza candles já fechados.
         if horario + timedelta(minutes=5) <= agora:
             velas.append({
                 "horario": horario,
+                "open": float(item["open"]),
                 "high": float(item["high"]),
                 "low": float(item["low"]),
                 "close": float(item["close"])
             })
 
-    if not velas:
-        return None
-
     velas.sort(key=lambda x: x["horario"])
-    return velas[-1]
+    return velas
 
 
-def acompanhar():
+# =========================================================
+# ATIVAÇÃO DA OPERAÇÃO
+# =========================================================
+
+def ativar_operacao(preco):
+    dados = ultimo_sinal()
+    sinal = preparar_sinal(dados)
+
+    operacao = {
+        **sinal,
+        "entrada_real": preco,
+        "ativada_em": datetime.now(timezone.utc).isoformat(),
+        "ultima_vela": None,
+        "alertas": [],
+        "status": "ATIVA"
+    }
+
+    estado["operacao"] = operacao
+    estado["aguardando_entrada"] = False
+
+    enviar(
+        "ACOMPANHAMENTO ATIVADO\n\n"
+        f"Direção: {operacao['direcao']}\n"
+        f"Sua entrada: {preco:.3f}\n"
+        f"Entrada do sinal: {operacao['entrada_sinal']}\n"
+        f"Stop original: {operacao['stop']:.3f}\n"
+        f"Alvo original: {operacao['alvo']:.3f}\n\n"
+        "A condução inteligente M5 está ativa.\n"
+        "Vou avisar sobre perda de força, possível reversão, "
+        "stop ou alvo."
+    )
+
+
+# =========================================================
+# RECEBER ENTREI E PREÇO
+# =========================================================
+
+def processar_mensagem(mensagem):
+    chat = mensagem.get("chat", {})
+
+    if str(chat.get("id")) != CHAT_ID:
+        return
+
+    texto = (mensagem.get("text") or "").strip()
+    texto_upper = texto.upper()
+
+    if texto_upper == "CANCELAR":
+        if estado["aguardando_entrada"]:
+            estado["aguardando_entrada"] = False
+            enviar("Ativação cancelada.")
+        return
+
+    if texto_upper == "ENCERRAR":
+        if estado.get("operacao"):
+            operacao = estado["operacao"]
+            operacao["status"] = "ENCERRADA MANUALMENTE"
+            operacao["encerrada_em"] = datetime.now(
+                timezone.utc
+            ).isoformat()
+
+            historico.append(operacao.copy())
+            estado["operacao"] = None
+            enviar("Acompanhamento encerrado manualmente.")
+        else:
+            enviar("Não existe operação ativa.")
+        return
+
+    if texto_upper == "ENTREI":
+        if estado.get("operacao"):
+            enviar("Já existe uma operação em acompanhamento.")
+            return
+
+        estado["aguardando_entrada"] = True
+        enviar(
+            "ENTRADA REGISTRADA COMO PENDENTE.\n\n"
+            "Qual foi seu preço real de entrada?\n"
+            "Exemplo: 4095.212\n\n"
+            "Para cancelar, envie CANCELAR."
+        )
+        return
+
+    if estado.get("aguardando_entrada"):
+        if not re.fullmatch(r"\d+(?:[.,]\d+)?", texto):
+            enviar("Envie somente o preço. Exemplo: 4095.212")
+            return
+
+        preco = float(texto.replace(",", "."))
+
+        try:
+            ativar_operacao(preco)
+        except Exception as erro:
+            enviar(
+                "Não consegui ativar o acompanhamento.\n"
+                f"Motivo: {erro}\n\n"
+                "Sua solicitação continua pendente. "
+                "Tente novamente ou envie CANCELAR."
+            )
+        return
+
+
+# =========================================================
+# CONDUÇÃO INTELIGENTE
+# =========================================================
+
+def avisar_uma_vez(chave, mensagem):
+    operacao = estado["operacao"]
+
+    if chave not in operacao["alertas"]:
+        enviar(mensagem)
+        operacao["alertas"].append(chave)
+
+
+def conduzir(velas):
     operacao = estado.get("operacao")
 
-    if not operacao or operacao.get("status") != "ATIVA":
+    if not operacao or operacao["status"] != "ATIVA":
         return
 
-    vela = buscar_vela_fechada()
-
-    if not vela:
+    if len(velas) < 30:
         return
 
+    vela = velas[-1]
     horario = vela["horario"].isoformat()
 
-    if operacao.get("ultima_vela") == horario:
+    if operacao["ultima_vela"] == horario:
         return
 
     operacao["ultima_vela"] = horario
@@ -278,8 +467,15 @@ def acompanhar():
     stop = operacao["stop"]
     alvo = operacao["alvo"]
 
-    tocou_stop = False
-    tocou_alvo = False
+    fechamentos = [v["close"] for v in velas]
+
+    ema9 = ema(fechamentos, 9)
+    ema21 = ema(fechamentos, 21)
+    valor_rsi = rsi(fechamentos, 14)
+
+    # -----------------------------------------
+    # STOP E ALVO ORIGINAIS
+    # -----------------------------------------
 
     if direcao == "COMPRA":
         tocou_stop = vela["low"] <= stop
@@ -288,36 +484,8 @@ def acompanhar():
         tocou_stop = vela["high"] >= stop
         tocou_alvo = vela["low"] <= alvo
 
-    resultado = None
-
     if tocou_stop and tocou_alvo:
-        resultado = "AMBIGUO"
-        mensagem = (
-            "OPERAÇÃO COM RESULTADO AMBÍGUO\n"
-            "A mesma vela tocou stop e alvo. "
-            "Não é possível saber qual foi atingido primeiro."
-        )
-
-    elif tocou_stop:
-        resultado = "STOP"
-        mensagem = (
-            "STOP ATINGIDO\n"
-            f"Direção: {direcao}\n"
-            f"Entrada real: {operacao['entrada_real']}\n"
-            f"Stop: {stop}"
-        )
-
-    elif tocou_alvo:
-        resultado = "ALVO"
-        mensagem = (
-            "ALVO ATINGIDO\n"
-            f"Direção: {direcao}\n"
-            f"Entrada real: {operacao['entrada_real']}\n"
-            f"Alvo: {alvo}"
-        )
-
-    if resultado:
-        operacao["status"] = resultado
+        operacao["status"] = "AMBIGUO"
         operacao["encerrada_em"] = datetime.now(
             timezone.utc
         ).isoformat()
@@ -325,26 +493,108 @@ def acompanhar():
         historico.append(operacao.copy())
         estado["operacao"] = None
 
-        enviar(mensagem)
+        enviar(
+            "ATENÇÃO: RESULTADO AMBÍGUO.\n"
+            "A mesma vela M5 tocou stop e alvo. "
+            "Não é possível determinar qual ocorreu primeiro."
+        )
+        return
 
+    if tocou_stop:
+        operacao["status"] = "STOP"
+        operacao["encerrada_em"] = datetime.now(
+            timezone.utc
+        ).isoformat()
 
-def main():
-    atualizacoes = buscar_atualizacoes()
+        historico.append(operacao.copy())
+        estado["operacao"] = None
 
-    for atualizacao in atualizacoes:
-        estado["ultimo_update_id"] = max(
-            estado["ultimo_update_id"],
-            atualizacao["update_id"]
+        enviar(
+            "STOP ORIGINAL ATINGIDO.\n"
+            f"Entrada real: {operacao['entrada_real']:.3f}\n"
+            f"Stop: {stop:.3f}"
+        )
+        return
+
+    if tocou_alvo:
+        operacao["status"] = "ALVO"
+        operacao["encerrada_em"] = datetime.now(
+            timezone.utc
+        ).isoformat()
+
+        historico.append(operacao.copy())
+        estado["operacao"] = None
+
+        enviar(
+            "ALVO ORIGINAL ATINGIDO.\n"
+            f"Entrada real: {operacao['entrada_real']:.3f}\n"
+            f"Alvo: {alvo:.3f}"
+        )
+        return
+
+    # -----------------------------------------
+    # ALERTAS DE CONDUÇÃO
+    # -----------------------------------------
+
+    preco = vela["close"]
+
+    if direcao == "COMPRA":
+        cruzamento_contrario = preco < ema21 and ema9 < ema21
+        perda_forca = valor_rsi is not None and valor_rsi < 45 and preco < ema9
+    else:
+        cruzamento_contrario = preco > ema21 and ema9 > ema21
+        perda_forca = valor_rsi is not None and valor_rsi > 55 and preco > ema9
+
+    if cruzamento_contrario:
+        avisar_uma_vez(
+            "possivel_reversao",
+            "ALERTA DE POSSÍVEL REVERSÃO\n\n"
+            f"Operação: {direcao}\n"
+            f"Preço M5: {preco:.3f}\n"
+            f"EMA9: {ema9:.3f}\n"
+            f"EMA21: {ema21:.3f}\n"
+            "A estrutura curta está contra a operação. "
+            "Avalie proteger o resultado."
         )
 
-        mensagem = atualizacao.get("message")
-        if mensagem:
-            processar_mensagem(mensagem)
+    elif perda_forca:
+        avisar_uma_vez(
+            "perda_forca",
+            "ALERTA DE PERDA DE FORÇA\n\n"
+            f"Operação: {direcao}\n"
+            f"Preço M5: {preco:.3f}\n"
+            f"RSI: {valor_rsi:.2f}\n"
+            "O momentum está enfraquecendo. "
+            "Observe a próxima vela."
+        )
 
-    acompanhar()
 
-    salvar(ARQUIVO_ESTADO, estado)
-    salvar(ARQUIVO_HISTORICO, historico)
+# =========================================================
+# EXECUÇÃO
+# =========================================================
+
+def main():
+    carregar()
+
+    try:
+        atualizacoes = buscar_atualizacoes()
+
+        for atualizacao in atualizacoes:
+            estado["ultimo_update_id"] = max(
+                estado["ultimo_update_id"],
+                atualizacao["update_id"]
+            )
+
+            mensagem = atualizacao.get("message")
+            if mensagem:
+                processar_mensagem(mensagem)
+
+        if estado.get("operacao"):
+            velas = buscar_velas()
+            conduzir(velas)
+
+    finally:
+        salvar()
 
 
 if __name__ == "__main__":
