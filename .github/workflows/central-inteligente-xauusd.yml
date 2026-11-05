@@ -33,10 +33,6 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      # ==========================================
-      # 1 - PREPARACAO
-      # ==========================================
-
       - name: 1 - Baixar repositorio
         uses: actions/checkout@v4
         with:
@@ -57,7 +53,7 @@ jobs:
           echo "Ambiente preparado."
 
       # ==========================================
-      # 2 - RECUPERAR MEMORIA DO GEMINI
+      # RECUPERAR MEMORIA DO GEMINI
       # ==========================================
 
       - name: 4 - Localizar execucao da memoria
@@ -108,7 +104,7 @@ jobs:
           echo "Memoria do Gemini recebida."
 
       # ==========================================
-      # 3 - LOCALIZAR INTEGRACAO DE VELAS
+      # LOCALIZAR INTEGRACAO DE VELAS
       # ==========================================
 
       - name: 7 - Localizar integracao de velas
@@ -161,17 +157,15 @@ jobs:
           wc -l data/historico_velas_m5.csv
 
       # ==========================================
-      # 4 - COORDENADOR
+      # COORDENADOR
       # ==========================================
 
       - name: 10 - Verificar arquivos necessarios
         shell: bash
         run: |
           set -e
-
           test -s data/memoria_agente.json
           test -s data/historico_velas_m5.csv
-
           echo "Memoria e historico encontrados."
 
       - name: 11 - Acompanhar sinais e resultados
@@ -184,14 +178,12 @@ jobs:
         shell: bash
         run: |
           set -e
-
           test -s data/resultados_operacoes.csv
           test -s data/memoria_agente.csv
-
           echo "Memoria e resultados atualizados."
 
       # ==========================================
-      # 5 - TABULEIRO INTELIGENTE
+      # TABULEIRO INTELIGENTE ORIGINAL
       # ==========================================
 
       - name: 14 - Construir historico do tabuleiro
@@ -216,10 +208,17 @@ jobs:
         run: python -u relatorio_tabuleiro_m5.py
 
       # ==========================================
-      # 6 - VALIDAR ARQUIVOS
+      # NOVO TABULEIRO DE REGIOES ESTAVEIS
       # ==========================================
 
-      - name: 21 - Conferir arquivos produzidos
+      - name: 21 - Construir tabuleiro estavel M5
+        run: python -u tabuleiro_estavel_m5.py
+
+      # ==========================================
+      # VALIDAR ARQUIVOS
+      # ==========================================
+
+      - name: 22 - Conferir arquivos produzidos
         shell: bash
         run: |
           set -e
@@ -238,7 +237,11 @@ jobs:
             data/resultados_eventos_m5.csv \
             data/resumo_resultados_m5.csv \
             data/relatorio_tabuleiro_m5.json \
-            data/relatorio_geral_tabuleiro_m5.csv
+            data/relatorio_geral_tabuleiro_m5.csv \
+            data/tabuleiro_estavel_m5.csv \
+            data/regioes_estaveis_m5.csv \
+            data/transicoes_estaveis_m5.csv \
+            data/contexto_tabuleiro_m5.json
           do
             if [ -s "$arquivo" ]; then
               echo "OK: $arquivo"
@@ -249,10 +252,10 @@ jobs:
           done
 
       # ==========================================
-      # 7 - PERSISTENCIA FINAL
+      # PERSISTENCIA FINAL
       # ==========================================
 
-      - name: 22 - Salvar memoria, bancos e historicos
+      - name: 23 - Salvar memoria, bancos e historicos
         shell: bash
         run: |
           set -e
@@ -274,20 +277,24 @@ jobs:
             data/resultados_eventos_m5.csv \
             data/resumo_resultados_m5.csv \
             data/relatorio_tabuleiro_m5.json \
-            data/relatorio_geral_tabuleiro_m5.csv
+            data/relatorio_geral_tabuleiro_m5.csv \
+            data/tabuleiro_estavel_m5.csv \
+            data/regioes_estaveis_m5.csv \
+            data/transicoes_estaveis_m5.csv \
+            data/contexto_tabuleiro_m5.json
 
           if ! git diff --cached --quiet; then
-            git commit -m "Atualiza central inteligente e tabuleiro XAUUSD"
+            git commit -m "Atualiza central inteligente e tabuleiro estavel XAUUSD"
             git push origin HEAD:main
           else
             echo "Nenhuma alteracao nova para salvar."
           fi
 
       # ==========================================
-      # 8 - PUBLICAR RELATORIOS
+      # PUBLICAR RELATORIOS
       # ==========================================
 
-      - name: 23 - Publicar relatorios
+      - name: 24 - Publicar relatorios
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -297,14 +304,18 @@ jobs:
             data/relatorio_geral_tabuleiro_m5.csv
             data/proximas_regioes_m5.json
             data/resumo_resultados_m5.csv
+            data/tabuleiro_estavel_m5.csv
+            data/regioes_estaveis_m5.csv
+            data/transicoes_estaveis_m5.csv
+            data/contexto_tabuleiro_m5.json
           if-no-files-found: warn
           retention-days: 30
 
-                # ==========================================
-      # 9 - TESTADOR GEMINI PARA O PROXIMO CICLO
+      # ==========================================
+      # TESTADOR GEMINI PARA O PROXIMO CICLO
       # ==========================================
 
-      - name: 24 - Acionar Testador Gemini com limite de 24 horas
+      - name: 25 - Acionar Testador Gemini com limite de 24 horas
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
