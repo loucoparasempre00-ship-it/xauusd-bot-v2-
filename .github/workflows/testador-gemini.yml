@@ -1,30 +1,309 @@
 
+name: Testador e Seletor Gemini
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 10 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: testador-gemini
+  cancel-in-progress: false
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Baixar repositorio e historico
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Testar conexoes e calcular ranking
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p data
+
+          python - <<'PY'
+          import os
+          import sys
+          import json
+          import time
+          import urllib.request
+          import urllib.error
+          from datetime import datetime, timezone
+
+          BASE = "https://generativelanguage.googleapis.com/v1beta"
+          KEY = os.getenv("GEMINI_API_KEY", "").strip()
+          OUTPUT = "data/modelo_gemini.json"
+          HISTORICO = "data/historico_conexoes_gemini.json"
+
+          agora = datetime.now(timezone.utc).isoformat()
+
+          resultado = {
+              "status": "iniciado",
+              "modelo_escolhido": None,
+              "modelos_testados": [],
+              "ranking": [],
+              "criterio": "Confiabilidade historica (90%) e velocidade media (10%).",
+              "motivo": "",
+              "atualizado_utc": agora
+          }
+
+          historico = {
+              "versao": 1,
+              "atualizado_utc": agora,
+              "modelos": {},
+              "eventos_api": []
+          }
+
+          if os.path.exists(HISTORICO):
+              try:
+                  with open(HISTORICO, "r", encoding="utf-8") as f:
+                      salvo = json.load(f)
+
+                  if isinstance(salvo, dict):
+                      if isinstance(salvo.get("modelos"), dict):
+                          historico = salvo
+
+              except Exception as e:
+                  print("Historico anterior invalido:", str(e))
+
+          historico.setdefault("versao", 1)
+          historico.setdefault("modelos", {})
+          historico.setdefault("eventos_api", [])
+
+          def salvar_arquivos():
+              agora_local = datetime.now(timezone.utc).isoformat()
+              resultado["atualizado_utc"] = agora_local
+              historico["atualizado_utc"] = agora_local
+
+              with open(OUTPUT, "w", encoding="utf-8") as f:
+                  json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+              with open(HISTORICO, "w", encoding="utf-8") as f:
+                  json.dump(historico, f, ensure_ascii=False, indent=2)
+
+          def registrar_evento_api(modelo, codigo, detalhe):
+              historico.setdefault("eventos_api", [])
+
+              historico["eventos_api"].append({
+                  "modelo": modelo,
+                  "http": codigo,
+                  "tipo": "erro_api_ou_cota",
+                  "detalhe": str(detalhe)[:500],
+                  "registrado_utc": datetime.now(
+                      timezone.utc
+                  ).isoformat()
+              })
+
+              historico["eventos_api"] = (
+                  historico["eventos_api"][-100:]
+              )
+
+          def requisicao(url, body=None):
+              headers = {"x-goog-api-key": KEY}
+              data = None
+
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+                  data = json.dumps(body).encode("utf-8")
+
+              req = urllib.request.Request(
+                  url,
+                  data=data,
+                  headers=headers,
+                  method="POST" if body is not None else "GET"
+              )
+
+              inicio = time.monotonic()
+
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as resp:
+                      conteudo = json.loads(
+                          resp.read().decode("utf-8")
+                      )
+
+                  return conteudo, time.monotonic() - inicio, None
+
+              except urllib.error.HTTPError as e:
+                  texto = e.read().decode("utf-8", "replace")
+
+                  try:
+                      detalhe = json.loads(texto)
+                  except Exception:
+                      detalhe = {"message": texto[:500]}
+
+                  return None, time.monotonic() - inicio, {
+                      "code": e.code,
+                      "detail": detalhe
+                  }
+
+              except Exception as e:
+                  return None, time.monotonic() - inicio, {
+                      "code": 0,
+                      "detail": {"message": str(e)[:300]}
+                  }
+
+          if not KEY:
+              resultado["status"] = "erro"
+              resultado["motivo"] = (
+                  "Secret GEMINI_API_KEY ausente ou vazio."
+              )
+              salvar_arquivos()
+              sys.exit(1)
+
+          print("1/4 - Consultando modelos Gemini...")
+
+          dados, segundos_lista, erro = requisicao(
+              BASE + "/models?pageSize=100"
+          )
+
+          if erro:
+              codigo = erro["code"]
+
+              if codigo in (400, 401, 403, 429):
+                  registrar_evento_api(
+                      "__listagem_modelos__",
+                      codigo,
+                      erro["detail"]
+                  )
+                  resultado["status"] = "erro_api_ou_cota"
+              else:
+                  resultado["status"] = "erro_api"
+
+              resultado["motivo"] = (
+                  "Consulta de modelos falhou. HTTP "
+                  + str(codigo)
+                  + ". "
+                  + json.dumps(
+                      erro["detail"],
+                      ensure_ascii=False
+                  )[:700]
+              )
+
+              salvar_arquivos()
+              print(resultado["motivo"])
+              sys.exit(1)
+
+          elegiveis = []
+
+          for item in dados.get("models", []):
+              nome = item.get("name", "")
+              metodos = item.get(
+                  "supportedGenerationMethods", []
+              )
+
+              if (
+                  nome.startswith("models/gemini-")
+                  and "generateContent" in metodos
+                  and "embedding" not in nome.lower()
+              ):
+                  elegiveis.append(nome)
+
+          def prioridade_nome(nome):
+              n = nome.lower()
+
+              if "flash-lite" in n:
+                  return (0, n)
+
+              if "flash" in n:
+                  return (1, n)
+
+              return (2, n)
+
+          elegiveis = sorted(
+              set(elegiveis),
+              key=prioridade_nome
+          )[:3]
+
+          if not elegiveis:
+              resultado["status"] = "sem_modelos_compativeis"
+              resultado["motivo"] = (
+                  "Nenhum modelo com generateContent foi encontrado."
+              )
+              salvar_arquivos()
+              sys.exit(1)
+
+          print("2/4 - Testando", len(elegiveis), "modelos...")
+
+          testes_atuais = []
+
+          for nome in elegiveis:
+              corpo = {
+                  "contents": [
+                      {
+                          "parts": [
+                              {"text": "Responda somente: OK"}
+                          ]
+                      }
+                  ],
+                  "generationConfig": {
+                      "temperature": 0,
+                      "maxOutputTokens": 5
+                  }
+              }
+
+              resposta, segundos, falha = requisicao(
+                  BASE + "/" + nome + ":generateContent",
+                  corpo
+              )
+
+              codigo = falha["code"] if falha else 200
+              partes = []
+
+              if not falha:
+                  partes = (
+                      resposta.get("candidates", [{}])[0]
+                      .get("content", {})
+                      .get("parts", [])
+                  )
+
+              texto = "".join(
+                  p.get("text", "") for p in partes
+              ).strip()
+
+              sucesso = bool(texto)
+
+              item = {
+                  "modelo": nome,
+                  "segundos": round(segundos, 3),
+                  "resultado": (
+                      "sucesso" if sucesso else "falha"
+                  ),
+                  "http": codigo
+              }
+
               if falha:
                   item["detalhe"] = json.dumps(
                       falha["detail"],
                       ensure_ascii=False
                   )[:400]
+
               elif not texto:
                   item["resultado"] = "resposta_vazia"
 
-              # Erros globais de chave, permissao ou cota
-              # nao devem penalizar a confiabilidade do modelo.
+              # Erros globais nao penalizam o modelo.
               if codigo in (400, 401, 403, 429):
-                  historico.setdefault("eventos_api", [])
-                  historico["eventos_api"].append({
-                      "modelo": nome,
-                      "http": codigo,
-                      "tipo": "erro_api_ou_cota",
-                      "detalhe": item.get("detalhe", ""),
-                      "registrado_utc": datetime.now(
-                          timezone.utc
-                      ).isoformat()
-                  })
-                  historico["eventos_api"] = (
-                      historico["eventos_api"][-100:]
+                  registrar_evento_api(
+                      nome,
+                      codigo,
+                      item.get("detalhe", "")
                   )
 
                   testes_atuais.append(item)
+
                   resultado["status"] = "erro_api_ou_cota"
                   resultado["motivo"] = (
                       "Testes interrompidos por HTTP "
@@ -32,9 +311,14 @@
                       + ". Ocorrencia registrada separadamente, "
                       "sem penalizar a confiabilidade do modelo."
                   )
-                  print("Teste interrompido por erro global:", codigo)
+
+                  print(
+                      "Teste interrompido por erro global:",
+                      codigo
+                  )
                   break
 
+              # Somente respostas individuais entram nas estatisticas.
               testes_atuais.append(item)
 
               registro = historico["modelos"].setdefault(
@@ -57,16 +341,22 @@
                   registro["sucessos"] = (
                       int(registro.get("sucessos", 0)) + 1
                   )
+
                   registro["tempo_total_segundos"] = (
-                      float(registro.get("tempo_total_segundos", 0.0))
-                      + segundos
+                      float(
+                          registro.get(
+                              "tempo_total_segundos", 0.0
+                          )
+                      ) + segundos
                   )
+
               else:
                   registro["falhas"] = (
                       int(registro.get("falhas", 0)) + 1
                   )
 
               registro["ultimo_http"] = codigo
+
               registro["ultima_tentativa_utc"] = (
                   datetime.now(timezone.utc).isoformat()
               )
@@ -79,3 +369,178 @@
                   round(segundos, 2),
                   "segundos"
               )
+
+          print("3/4 - Calculando ranking historico...")
+
+          medias = {}
+
+          for nome, reg in historico["modelos"].items():
+              sucessos = int(reg.get("sucessos", 0))
+
+              media = (
+                  float(
+                      reg.get("tempo_total_segundos", 0.0)
+                  ) / sucessos
+                  if sucessos else None
+              )
+
+              medias[nome] = media
+
+          tempos_validos = [
+              v for v in medias.values()
+              if v is not None
+          ]
+
+          menor_tempo = (
+              min(tempos_validos)
+              if tempos_validos else 1.0
+          )
+
+          maior_tempo = (
+              max(tempos_validos)
+              if tempos_validos else 1.0
+          )
+
+          ranking = []
+
+          for nome, reg in historico["modelos"].items():
+              tentativas = int(reg.get("tentativas", 0))
+              sucessos = int(reg.get("sucessos", 0))
+              falhas = int(reg.get("falhas", 0))
+              media = medias[nome]
+
+              if media is None:
+                  nota_velocidade = 0.0
+
+              elif maior_tempo == menor_tempo:
+                  nota_velocidade = 100.0
+
+              else:
+                  nota_velocidade = 100.0 * (
+                      (maior_tempo - media)
+                      / (maior_tempo - menor_tempo)
+                  )
+
+              confiabilidade = (
+                  (sucessos + 1)
+                  / (tentativas + 2)
+                  * 100
+              )
+
+              nota = (
+                  0.90 * confiabilidade
+                  + 0.10 * nota_velocidade
+              )
+
+              ranking.append({
+                  "modelo": nome,
+                  "nota": round(nota, 2),
+                  "confiabilidade_pct": round(
+                      confiabilidade, 2
+                  ),
+                  "tentativas": tentativas,
+                  "sucessos": sucessos,
+                  "falhas": falhas,
+                  "tempo_medio_segundos": (
+                      round(media, 3)
+                      if media is not None else None
+                  ),
+                  "amostra_suficiente": tentativas >= 5
+              })
+
+          ranking.sort(
+              key=lambda x: (
+                  x["nota"],
+                  x["confiabilidade_pct"],
+                  x["sucessos"],
+                  -(x["tempo_medio_segundos"] or 999999)
+              ),
+              reverse=True
+          )
+
+          resultado["ranking"] = ranking
+
+          posicao = {
+              item["modelo"]: i
+              for i, item in enumerate(ranking)
+          }
+
+          testes_atuais.sort(
+              key=lambda x: posicao.get(
+                  x["modelo"], 9999
+              )
+          )
+
+          resultado["modelos_testados"] = testes_atuais
+
+          sucessos_atuais = [
+              item for item in testes_atuais
+              if item["resultado"] == "sucesso"
+          ]
+
+          if sucessos_atuais:
+              escolhido = sucessos_atuais[0]["modelo"]
+
+              resultado["modelo_escolhido"] = escolhido
+
+              if resultado["status"] == "erro_api_ou_cota":
+                  resultado["status"] = "pronto_com_aviso_api"
+              else:
+                  resultado["status"] = "pronto"
+
+              resultado["motivo"] = (
+                  "Selecionado o modelo mais bem classificado "
+                  "entre os que responderam nesta execucao. "
+                  "Ranking baseado em confiabilidade historica "
+                  "(90%) e velocidade (10%). "
+                  "Amostra minima indicativa: 5 testes por modelo."
+              )
+
+          elif resultado["status"] == "iniciado":
+              resultado["status"] = (
+                  "nenhum_modelo_testado_com_sucesso"
+              )
+
+              resultado["motivo"] = (
+                  "Nenhum modelo respondeu corretamente."
+              )
+
+          salvar_arquivos()
+
+          print("4/4 - Resultado e historico gravados.")
+
+          print(
+              json.dumps(
+                  resultado,
+                  ensure_ascii=False,
+                  indent=2
+              )
+          )
+
+          if not resultado["modelo_escolhido"]:
+              sys.exit(1)
+          PY
+
+      - name: Salvar historico no repositorio
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/historico_conexoes_gemini.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza historico de conexoes Gemini"
+            git push
+          else
+            echo "Sem alteracoes no historico."
+          fi
+
+      - name: Publicar resultado do testador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selecao-modelo-gemini
+          path: data/modelo_gemini.json
+          if-no-files-found: ignore
+          retention-days: 7
