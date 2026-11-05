@@ -1,4 +1,3 @@
-
 name: Acompanhamento Autônomo XAUUSD
 
 on:
@@ -36,7 +35,7 @@ jobs:
 
       - name: Executar acompanhamento
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
