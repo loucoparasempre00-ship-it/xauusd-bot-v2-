@@ -385,21 +385,88 @@ jobs:
                   "responseMimeType":"application/json"
               }
           }
-          pedido = urllib.request.Request(
-              BASE + "/" + modelo + ":generateContent",
-              data=json.dumps(corpo).encode(),
-              headers={"Content-Type":"application/json","x-goog-api-key":chave},
-              method="POST"
-          )
-          try:
-              with urllib.request.urlopen(pedido, timeout=60) as resp:
-                  resposta = json.loads(resp.read().decode())
-              decisao = json.loads(resposta["candidates"][0]["content"]["parts"][0]["text"])
-          except urllib.error.HTTPError as e:
-              sys.exit("Erro HTTP Gemini " + str(e.code) + ": " + e.read().decode("utf-8","replace")[:1500])
-          except Exception as e:
-              sys.exit("Falha ao interpretar resposta Gemini: " + str(e))
+                    # Modelo principal escolhido pelo Testador.
+          # Se houver HTTP 503, tenta novamente e depois usa
+          # outro modelo que o Testador já confirmou como funcional.
+          candidatos = [modelo]
 
+          for item in selecao.get("modelos_testados", []):
+              nome = item.get("modelo")
+              if (
+                  item.get("resultado") == "sucesso"
+                  and isinstance(nome, str)
+                  and nome.startswith("models/gemini-")
+                  and nome not in candidatos
+              ):
+                  candidatos.append(nome)
+
+          decisao = None
+          erros = []
+
+          for nome_modelo in candidatos:
+              pedido = urllib.request.Request(
+                  BASE + "/" + nome_modelo + ":generateContent",
+                  data=json.dumps(corpo).encode(),
+                  headers={
+                      "Content-Type": "application/json",
+                      "x-goog-api-key": chave
+                  },
+                  method="POST"
+              )
+
+              for tentativa in range(2):
+                  try:
+                      with urllib.request.urlopen(
+                          pedido, timeout=60
+                      ) as resp:
+                          resposta = json.loads(
+                              resp.read().decode()
+                          )
+
+                      decisao = json.loads(
+                          resposta["candidates"][0]
+                          ["content"]["parts"][0]["text"]
+                      )
+
+                      modelo = nome_modelo
+                      break
+
+                  except urllib.error.HTTPError as e:
+                      detalhe = e.read().decode(
+                          "utf-8", "replace"
+                      )[:1000]
+
+                      erros.append(
+                          f"{nome_modelo} HTTP {e.code}: {detalhe}"
+                      )
+
+                      if e.code == 503 and tentativa == 0:
+                          import time
+                          time.sleep(2)
+                          continue
+
+                      if e.code == 503:
+                          break
+
+                      sys.exit(
+                          "Erro HTTP Gemini "
+                          + str(e.code) + ": " + detalhe
+                      )
+
+                  except Exception as e:
+                      erros.append(
+                          f"{nome_modelo}: {str(e)[:500]}"
+                      )
+                      break
+
+              if decisao is not None:
+                  break
+
+          if decisao is None:
+              sys.exit(
+                  "Todos os modelos Gemini falharam. "
+                  + " | ".join(erros[:4])
+              )
           lado = decisao.get("decisao")
           if lado not in ("COMPRA","VENDA","SEM_SINAL"):
               sys.exit("Decisao da IA invalida.")
