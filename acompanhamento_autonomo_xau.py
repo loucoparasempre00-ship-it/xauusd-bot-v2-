@@ -498,7 +498,6 @@ def aguardar_preco_por_um_minuto():
                 return False
 
             if upper == "ENTREI":
-                # Evita repetir a solicitação de preço.
                 continue
 
             if re.fullmatch(
@@ -567,7 +566,6 @@ def processar_mensagem(mensagem):
 
     upper = texto.upper()
 
-    # CANCELAR: entrada pendente ou operação ativa.
     if upper == "CANCELAR":
 
         if estado.get("aguardando_entrada"):
@@ -594,7 +592,6 @@ def processar_mensagem(mensagem):
 
         return
 
-    # ENCERRAR também continua disponível.
     if upper in ("ENCERRAR", "FECHAR"):
 
         if estado.get("operacao"):
@@ -610,7 +607,6 @@ def processar_mensagem(mensagem):
 
         return
 
-    # Iniciar acompanhamento.
     if upper == "ENTREI":
 
         if estado.get("operacao"):
@@ -692,10 +688,6 @@ def conduzir(velas):
 
     valor_rsi = rsi(fechamentos, 14)
 
-    # -----------------------------------------
-    # STOP E ALVO ORIGINAIS
-    # -----------------------------------------
-
     if direcao == "COMPRA":
 
         tocou_stop = vela["low"] <= stop
@@ -766,10 +758,6 @@ def conduzir(velas):
 
         return
 
-    # -----------------------------------------
-    # ALERTAS DE CONDUÇÃO
-    # -----------------------------------------
-
     preco = vela["close"]
 
     if direcao == "COMPRA":
@@ -831,8 +819,9 @@ def main():
 
     try:
 
+        # Aguarda até 60 segundos por mensagens do Telegram.
         atualizacoes = buscar_atualizacoes(
-            timeout_segundos=0
+            timeout_segundos=60
         )
 
         for atualizacao in atualizacoes:
