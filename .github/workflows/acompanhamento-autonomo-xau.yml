@@ -1,3 +1,4 @@
+
 name: Acompanhamento Autônomo XAUUSD
 
 on:
@@ -8,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: acompanhamento-autonomo-xau
@@ -16,7 +18,7 @@ concurrency:
 jobs:
   acompanhar:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
 
     steps:
       - name: Baixar repositório
@@ -37,6 +39,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: python acompanhamento_autonomo_xau.py
 
       - name: Salvar estado e histórico
