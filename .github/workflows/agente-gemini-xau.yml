@@ -135,7 +135,7 @@ jobs:
           try:
               d = json.loads(p.read_text(encoding="utf-8"))
               m = d.get("modelo_escolhido", "")
-              ok = d.get("status") == "pronto" and isinstance(m, str) and m.startswith("models/gemini-")
+              ok = d.get("status") in ("pronto", "pronto_com_aviso_api") and isinstance(m, str) and m.startswith("models/gemini-")
           except Exception:
               ok = False
           raise SystemExit(0 if ok else 1)
@@ -249,7 +249,7 @@ jobs:
 
           if not isinstance(analise, dict) or not analise:
               raise SystemExit("Analise tecnica vazia ou invalida.")
-          if selecao.get("status") != "pronto":
+          if selecao.get("status") not in ("pronto", "pronto_com_aviso_api"):
               raise SystemExit("A selecao de modelo nao esta pronta.")
           modelo = selecao.get("modelo_escolhido", "")
           if not isinstance(modelo, str) or not modelo.startswith("models/gemini-"):
@@ -322,7 +322,7 @@ jobs:
           modelo = selecao.get("modelo_escolhido")
           if not chave:
               sys.exit("Secret GEMINI_API_KEY ausente.")
-          if selecao.get("status") != "pronto" or not modelo:
+          if selecao.get("status") not in ("pronto", "pronto_com_aviso_api") or not modelo:
               sys.exit("Nenhum modelo validado.")
 
           parametros_anteriores = memoria.get("parametros_anteriores") or {}
@@ -385,10 +385,26 @@ jobs:
                   "responseMimeType":"application/json"
               }
           }
-                    # Modelo principal escolhido pelo Testador.
-          # Se houver HTTP 503, tenta novamente e depois usa
-          # outro modelo que o Testador já confirmou como funcional.
+
+          # O Testador escolhe o principal. O ranking historico define
+          # a ordem dos reservas; modelos ja aprovados no teste atual
+          # entram depois, sem duplicar nomes.
+          modelo_solicitado = modelo
           candidatos = [modelo]
+
+          for item in selecao.get("ranking", []):
+              nome = item.get("modelo")
+              try:
+                  sucessos = int(item.get("sucessos", 0))
+              except (TypeError, ValueError):
+                  sucessos = 0
+              if (
+                  sucessos > 0
+                  and isinstance(nome, str)
+                  and nome.startswith("models/gemini-")
+                  and nome not in candidatos
+              ):
+                  candidatos.append(nome)
 
           for item in selecao.get("modelos_testados", []):
               nome = item.get("modelo")
@@ -402,32 +418,33 @@ jobs:
 
           decisao = None
           erros = []
+          fallback_acionado = False
 
-          for nome_modelo in candidatos:
-              pedido = urllib.request.Request(
-                  BASE + "/" + nome_modelo + ":generateContent",
-                  data=json.dumps(corpo).encode(),
-                  headers={
-                      "Content-Type": "application/json",
-                      "x-goog-api-key": chave
-                  },
-                  method="POST"
-              )
+          for indice, nome_modelo in enumerate(candidatos):
+              if indice > 0:
+                  fallback_acionado = True
+                  print("Tentando modelo reserva:", nome_modelo)
 
               for tentativa in range(2):
+                  pedido = urllib.request.Request(
+                      BASE + "/" + nome_modelo + ":generateContent",
+                      data=json.dumps(corpo).encode(),
+                      headers={
+                          "Content-Type": "application/json",
+                          "x-goog-api-key": chave
+                      },
+                      method="POST"
+                  )
                   try:
                       with urllib.request.urlopen(
                           pedido, timeout=60
                       ) as resp:
-                          resposta = json.loads(
-                              resp.read().decode()
-                          )
+                          resposta = json.loads(resp.read().decode())
 
                       decisao = json.loads(
                           resposta["candidates"][0]
                           ["content"]["parts"][0]["text"]
                       )
-
                       modelo = nome_modelo
                       break
 
@@ -435,28 +452,38 @@ jobs:
                       detalhe = e.read().decode(
                           "utf-8", "replace"
                       )[:1000]
-
                       erros.append(
                           f"{nome_modelo} HTTP {e.code}: {detalhe}"
                       )
 
-                      if e.code == 503 and tentativa == 0:
+                      # Quota (429), modelo inexistente (404) e
+                      # indisponibilidade (5xx/408): passa ao reserva.
+                      # Falhas temporarias recebem uma segunda tentativa.
+                      if e.code in (408, 500, 502, 503, 504) and tentativa == 0:
                           import time
                           time.sleep(2)
                           continue
 
-                      if e.code == 503:
-                          break
+                      if e.code in (400, 401, 403):
+                          sys.exit(
+                              "Erro Gemini que nao se resolve trocando modelo. "
+                              + "HTTP " + str(e.code) + ": " + detalhe
+                          )
 
-                      sys.exit(
-                          "Erro HTTP Gemini "
-                          + str(e.code) + ": " + detalhe
+                      print(
+                          f"Modelo {nome_modelo} indisponivel nesta tentativa "
+                          f"(HTTP {e.code}); seguindo para o proximo."
                       )
+                      break
 
                   except Exception as e:
                       erros.append(
                           f"{nome_modelo}: {str(e)[:500]}"
                       )
+                      if tentativa == 0:
+                          import time
+                          time.sleep(2)
+                          continue
                       break
 
               if decisao is not None:
@@ -464,9 +491,12 @@ jobs:
 
           if decisao is None:
               sys.exit(
-                  "Todos os modelos Gemini falharam. "
-                  + " | ".join(erros[:4])
+                  "Todos os modelos Gemini disponiveis falharam. "
+                  + " | ".join(erros[:5])
               )
+          print("Modelo efetivamente utilizado:", modelo)
+          print("Fallback acionado:", fallback_acionado)
+
           lado = decisao.get("decisao")
           if lado not in ("COMPRA","VENDA","SEM_SINAL"):
               sys.exit("Decisao da IA invalida.")
@@ -538,6 +568,9 @@ jobs:
               "candle_utc":analise.get("candle_utc"),
               "decisao_motor":analise.get("decisao"),
               "modelo_utilizado":modelo,
+              "modelo_solicitado_pelo_testador":modelo_solicitado,
+              "fallback_modelo_acionado":fallback_acionado,
+              "erros_modelos_anteriores":erros[:5],
               "decisao_ia_original":lado,
               "decisao_gemini":lado_final,
               "confianca_declarada":confianca,
