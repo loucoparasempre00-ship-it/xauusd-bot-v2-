@@ -1,9 +1,9 @@
-
 import os
 import re
 import json
 import zipfile
 import io
+import time
 import requests
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 # CONFIGURAÇÃO
 # =========================================================
 
-TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TOKEN = os.environ["TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN"]
 CHAT_ID = str(os.environ["TELEGRAM_CHAT_ID"])
 API_KEY = os.environ["TWELVE_DATA_API_KEY"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
@@ -47,7 +47,9 @@ def carregar():
     if ARQUIVO_ESTADO.exists():
         try:
             estado.update(
-                json.loads(ARQUIVO_ESTADO.read_text(encoding="utf-8"))
+                json.loads(
+                    ARQUIVO_ESTADO.read_text(encoding="utf-8")
+                )
             )
         except Exception:
             pass
@@ -86,27 +88,67 @@ def enviar(texto):
         },
         timeout=20
     )
+
     resposta.raise_for_status()
 
+    dados = resposta.json()
 
-def buscar_atualizacoes():
+    if not dados.get("ok"):
+        raise RuntimeError(
+            f"Erro ao enviar mensagem ao Telegram: {dados}"
+        )
+
+
+def buscar_atualizacoes(timeout_segundos=0):
     resposta = requests.get(
         f"{TELEGRAM}/getUpdates",
         params={
-            "offset": estado["ultimo_update_id"] + 1,
-            "timeout": 0,
+            "offset": int(estado["ultimo_update_id"]) + 1,
+            "timeout": timeout_segundos,
             "allowed_updates": json.dumps(["message"])
         },
-        timeout=20
+        timeout=max(20, timeout_segundos + 10)
     )
 
     resposta.raise_for_status()
+
     dados = resposta.json()
 
     if not dados.get("ok"):
         raise RuntimeError(f"Erro Telegram: {dados}")
 
     return dados.get("result", [])
+
+
+def atualizar_offset(atualizacao):
+    estado["ultimo_update_id"] = max(
+        int(estado.get("ultimo_update_id", 0)),
+        int(atualizacao["update_id"])
+    )
+
+
+# =========================================================
+# ENCERRAR OPERAÇÃO
+# =========================================================
+
+def fechar_operacao(status, mensagem):
+    operacao = estado.get("operacao")
+
+    if not operacao:
+        enviar("Não existe operação ativa no momento.")
+        return
+
+    operacao["status"] = status
+
+    operacao["encerrada_em"] = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    historico.append(operacao.copy())
+
+    estado["operacao"] = None
+
+    enviar(mensagem)
 
 
 # =========================================================
@@ -123,18 +165,22 @@ def github_get(url):
         },
         timeout=30
     )
+
     resposta.raise_for_status()
+
     return resposta
 
 
 def ultimo_sinal():
-    # Busca a execução bem-sucedida mais recente do agente.
     url = (
         f"{GITHUB}/repos/{REPO}/actions/workflows/"
         "agente-gemini-xau.yml/runs"
     )
 
-    dados = github_get(url + "?status=success&per_page=10").json()
+    dados = github_get(
+        url + "?status=success&per_page=10"
+    ).json()
+
     execucoes = dados.get("workflow_runs", [])
 
     if not execucoes:
@@ -142,8 +188,8 @@ def ultimo_sinal():
             "Não encontrei execução bem-sucedida do Agente Gemini."
         )
 
-    # Percorre execuções recentes até encontrar o artefato esperado.
     for execucao in execucoes:
+
         run_id = execucao["id"]
 
         artefatos = github_get(
@@ -168,12 +214,13 @@ def ultimo_sinal():
             f"{artefato['id']}/zip"
         ).content
 
-        with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo:
-            nomes = arquivo.namelist()
+        with zipfile.ZipFile(
+            io.BytesIO(conteudo)
+        ) as arquivo:
 
             caminho = next(
                 (
-                    nome for nome in nomes
+                    nome for nome in arquivo.namelist()
                     if nome.endswith("decisao_gemini.json")
                 ),
                 None
@@ -182,11 +229,9 @@ def ultimo_sinal():
             if not caminho:
                 continue
 
-            sinal = json.loads(
+            return json.loads(
                 arquivo.read(caminho).decode("utf-8")
             )
-
-            return sinal
 
     raise RuntimeError(
         "Não encontrei decisao_gemini.json no artefato "
@@ -196,8 +241,10 @@ def ultimo_sinal():
 
 def campo(dados, nomes):
     for nome in nomes:
+
         if nome in dados and dados[nome] is not None:
             return dados[nome]
+
     return None
 
 
@@ -224,7 +271,7 @@ def preparar_sinal(dados):
 
     if not direcao or stop is None or alvo is None:
         raise RuntimeError(
-            "O último sinal não contém direção, stop e alvo "
+            "O sinal não contém direção, stop e alvo "
             "nos campos esperados."
         )
 
@@ -232,14 +279,20 @@ def preparar_sinal(dados):
 
     if "COMPRA" in direcao or "BUY" in direcao:
         direcao = "COMPRA"
+
     elif "VENDA" in direcao or "SELL" in direcao:
         direcao = "VENDA"
+
     else:
-        raise RuntimeError(f"Direção não reconhecida: {direcao}")
+        raise RuntimeError(
+            f"Direção não reconhecida: {direcao}"
+        )
 
     return {
         "direcao": direcao,
-        "entrada_sinal": float(entrada) if entrada is not None else None,
+        "entrada_sinal": (
+            float(entrada) if entrada is not None else None
+        ),
         "stop": float(stop),
         "alvo": float(alvo)
     }
@@ -254,10 +307,15 @@ def ema(valores, periodo):
         return None
 
     fator = 2 / (periodo + 1)
+
     resultado = sum(valores[:periodo]) / periodo
 
     for valor in valores[periodo:]:
-        resultado = valor * fator + resultado * (1 - fator)
+
+        resultado = (
+            valor * fator
+            + resultado * (1 - fator)
+        )
 
     return resultado
 
@@ -270,7 +328,9 @@ def rsi(valores, periodo=14):
     perdas = []
 
     for i in range(1, len(valores)):
+
         variacao = valores[i] - valores[i - 1]
+
         ganhos.append(max(variacao, 0))
         perdas.append(max(-variacao, 0))
 
@@ -278,18 +338,25 @@ def rsi(valores, periodo=14):
     media_perda = sum(perdas[:periodo]) / periodo
 
     for i in range(periodo, len(ganhos)):
+
         media_ganho = (
-            media_ganho * (periodo - 1) + ganhos[i]
+            media_ganho * (periodo - 1)
+            + ganhos[i]
         ) / periodo
 
         media_perda = (
-            media_perda * (periodo - 1) + perdas[i]
+            media_perda * (periodo - 1)
+            + perdas[i]
         ) / periodo
 
     if media_perda == 0:
         return 100.0
 
+    if media_ganho == 0:
+        return 0.0
+
     forca = media_ganho / media_perda
+
     return 100 - (100 / (1 + forca))
 
 
@@ -307,21 +374,28 @@ def buscar_velas():
     )
 
     resposta.raise_for_status()
+
     dados = resposta.json()
 
     if "values" not in dados:
-        raise RuntimeError(f"Erro Twelve Data: {dados}")
+        raise RuntimeError(
+            f"Erro Twelve Data: {dados}"
+        )
 
     agora = datetime.now(timezone.utc)
+
     velas = []
 
     for item in dados["values"]:
+
         horario = datetime.strptime(
-            item["datetime"], "%Y-%m-%d %H:%M:%S"
+            item["datetime"],
+            "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=timezone.utc)
 
-        # Só utiliza candles já fechados.
+        # Utiliza somente candles já fechados.
         if horario + timedelta(minutes=5) <= agora:
+
             velas.append({
                 "horario": horario,
                 "open": float(item["open"]),
@@ -331,6 +405,7 @@ def buscar_velas():
             })
 
     velas.sort(key=lambda x: x["horario"])
+
     return velas
 
 
@@ -339,13 +414,14 @@ def buscar_velas():
 # =========================================================
 
 def ativar_operacao(preco):
-    dados = ultimo_sinal()
-    sinal = preparar_sinal(dados)
+    sinal = preparar_sinal(ultimo_sinal())
 
     operacao = {
         **sinal,
         "entrada_real": preco,
-        "ativada_em": datetime.now(timezone.utc).isoformat(),
+        "ativada_em": datetime.now(
+            timezone.utc
+        ).isoformat(),
         "ultima_vela": None,
         "alertas": [],
         "status": "ATIVA"
@@ -353,6 +429,8 @@ def ativar_operacao(preco):
 
     estado["operacao"] = operacao
     estado["aguardando_entrada"] = False
+
+    salvar()
 
     enviar(
         "ACOMPANHAMENTO ATIVADO\n\n"
@@ -363,75 +441,208 @@ def ativar_operacao(preco):
         f"Alvo original: {operacao['alvo']:.3f}\n\n"
         "A condução inteligente M5 está ativa.\n"
         "Vou avisar sobre perda de força, possível reversão, "
-        "stop ou alvo."
+        "stop ou alvo.\n"
+        "Não envio nem executo ordens."
     )
 
 
 # =========================================================
-# RECEBER ENTREI E PREÇO
+# AGUARDAR O PREÇO POR ATÉ 1 MINUTO
+# =========================================================
+
+def aguardar_preco_por_um_minuto():
+    prazo = time.monotonic() + 60
+
+    while time.monotonic() < prazo:
+
+        restantes = max(
+            1,
+            int(prazo - time.monotonic())
+        )
+
+        atualizacoes = buscar_atualizacoes(
+            timeout_segundos=min(5, restantes)
+        )
+
+        for atualizacao in atualizacoes:
+
+            atualizar_offset(atualizacao)
+
+            mensagem = atualizacao.get("message")
+
+            if not mensagem:
+                continue
+
+            if str(
+                mensagem.get("chat", {}).get("id")
+            ) != CHAT_ID:
+                continue
+
+            texto = (
+                mensagem.get("text") or ""
+            ).strip()
+
+            upper = texto.upper()
+
+            if upper == "CANCELAR":
+
+                estado["aguardando_entrada"] = False
+
+                salvar()
+
+                enviar(
+                    "Entrada cancelada. "
+                    "Nenhuma operação foi ativada."
+                )
+
+                return False
+
+            if upper == "ENTREI":
+                # Evita repetir a solicitação de preço.
+                continue
+
+            if re.fullmatch(
+                r"\d+(?:[.,]\d+)?",
+                texto
+            ):
+
+                preco = float(
+                    texto.replace(",", ".")
+                )
+
+                estado["aguardando_entrada"] = False
+
+                salvar()
+
+                try:
+                    ativar_operacao(preco)
+
+                except Exception as erro:
+
+                    enviar(
+                        "Não consegui ativar o acompanhamento.\n"
+                        f"Motivo: {erro}\n"
+                        "Envie ENTREI novamente quando quiser tentar."
+                    )
+
+                return estado.get("operacao") is not None
+
+            if texto:
+
+                enviar(
+                    "Ainda estou aguardando seu preço. "
+                    "Exemplo: 4095.212"
+                )
+
+        salvar()
+
+    estado["aguardando_entrada"] = False
+
+    salvar()
+
+    enviar(
+        "TEMPO ESGOTADO.\n\n"
+        "Não recebi o preço em 1 minuto. "
+        "A solicitação foi cancelada e nenhuma operação "
+        "foi ativada.\n"
+        "Para tentar novamente, envie ENTREI."
+    )
+
+    return False
+
+
+# =========================================================
+# RECEBER COMANDOS
 # =========================================================
 
 def processar_mensagem(mensagem):
-    chat = mensagem.get("chat", {})
-
-    if str(chat.get("id")) != CHAT_ID:
+    if str(
+        mensagem.get("chat", {}).get("id")
+    ) != CHAT_ID:
         return
 
-    texto = (mensagem.get("text") or "").strip()
-    texto_upper = texto.upper()
+    texto = (
+        mensagem.get("text") or ""
+    ).strip()
 
-    if texto_upper == "CANCELAR":
-        if estado["aguardando_entrada"]:
+    upper = texto.upper()
+
+    # CANCELAR: entrada pendente ou operação ativa.
+    if upper == "CANCELAR":
+
+        if estado.get("aguardando_entrada"):
+
             estado["aguardando_entrada"] = False
-            enviar("Ativação cancelada.")
-        return
 
-    if texto_upper == "ENCERRAR":
-        if estado.get("operacao"):
-            operacao = estado["operacao"]
-            operacao["status"] = "ENCERRADA MANUALMENTE"
-            operacao["encerrada_em"] = datetime.now(
-                timezone.utc
-            ).isoformat()
+            enviar(
+                "Solicitação de entrada cancelada."
+            )
 
-            historico.append(operacao.copy())
-            estado["operacao"] = None
-            enviar("Acompanhamento encerrado manualmente.")
+        elif estado.get("operacao"):
+
+            fechar_operacao(
+                "CANCELADA MANUALMENTE",
+                "ACOMPANHAMENTO CANCELADO.\n"
+                "A operação foi retirada do monitoramento."
+            )
+
         else:
-            enviar("Não existe operação ativa.")
+
+            enviar(
+                "Não há entrada pendente nem operação ativa."
+            )
+
         return
 
-    if texto_upper == "ENTREI":
+    # ENCERRAR também continua disponível.
+    if upper in ("ENCERRAR", "FECHAR"):
+
         if estado.get("operacao"):
-            enviar("Já existe uma operação em acompanhamento.")
+
+            fechar_operacao(
+                "ENCERRADA MANUALMENTE",
+                "Acompanhamento encerrado manualmente."
+            )
+
+        else:
+
+            enviar("Não existe operação ativa.")
+
+        return
+
+    # Iniciar acompanhamento.
+    if upper == "ENTREI":
+
+        if estado.get("operacao"):
+
+            enviar(
+                "Já existe uma operação em acompanhamento. "
+                "Envie CANCELAR para encerrar."
+            )
+
+            return
+
+        if estado.get("aguardando_entrada"):
+
+            enviar(
+                "Já estou aguardando seu preço de entrada."
+            )
+
             return
 
         estado["aguardando_entrada"] = True
+
+        salvar()
+
         enviar(
-            "ENTRADA REGISTRADA COMO PENDENTE.\n\n"
+            "ENTRADA RECEBIDA.\n\n"
             "Qual foi seu preço real de entrada?\n"
             "Exemplo: 4095.212\n\n"
-            "Para cancelar, envie CANCELAR."
+            "Você tem 1 minuto para responder.\n"
+            "Envie CANCELAR se desistir."
         )
-        return
 
-    if estado.get("aguardando_entrada"):
-        if not re.fullmatch(r"\d+(?:[.,]\d+)?", texto):
-            enviar("Envie somente o preço. Exemplo: 4095.212")
-            return
-
-        preco = float(texto.replace(",", "."))
-
-        try:
-            ativar_operacao(preco)
-        except Exception as erro:
-            enviar(
-                "Não consegui ativar o acompanhamento.\n"
-                f"Motivo: {erro}\n\n"
-                "Sua solicitação continua pendente. "
-                "Tente novamente ou envie CANCELAR."
-            )
-        return
+        aguardar_preco_por_um_minuto()
 
 
 # =========================================================
@@ -442,20 +653,24 @@ def avisar_uma_vez(chave, mensagem):
     operacao = estado["operacao"]
 
     if chave not in operacao["alertas"]:
+
         enviar(mensagem)
+
         operacao["alertas"].append(chave)
 
 
 def conduzir(velas):
     operacao = estado.get("operacao")
 
-    if not operacao or operacao["status"] != "ATIVA":
-        return
-
-    if len(velas) < 30:
+    if (
+        not operacao
+        or operacao["status"] != "ATIVA"
+        or len(velas) < 30
+    ):
         return
 
     vela = velas[-1]
+
     horario = vela["horario"].isoformat()
 
     if operacao["ultima_vela"] == horario:
@@ -464,13 +679,17 @@ def conduzir(velas):
     operacao["ultima_vela"] = horario
 
     direcao = operacao["direcao"]
+
     stop = operacao["stop"]
     alvo = operacao["alvo"]
 
-    fechamentos = [v["close"] for v in velas]
+    fechamentos = [
+        v["close"] for v in velas
+    ]
 
     ema9 = ema(fechamentos, 9)
     ema21 = ema(fechamentos, 21)
+
     valor_rsi = rsi(fechamentos, 14)
 
     # -----------------------------------------
@@ -478,19 +697,25 @@ def conduzir(velas):
     # -----------------------------------------
 
     if direcao == "COMPRA":
+
         tocou_stop = vela["low"] <= stop
         tocou_alvo = vela["high"] >= alvo
+
     else:
+
         tocou_stop = vela["high"] >= stop
         tocou_alvo = vela["low"] <= alvo
 
     if tocou_stop and tocou_alvo:
+
         operacao["status"] = "AMBIGUO"
+
         operacao["encerrada_em"] = datetime.now(
             timezone.utc
         ).isoformat()
 
         historico.append(operacao.copy())
+
         estado["operacao"] = None
 
         enviar(
@@ -498,15 +723,19 @@ def conduzir(velas):
             "A mesma vela M5 tocou stop e alvo. "
             "Não é possível determinar qual ocorreu primeiro."
         )
+
         return
 
     if tocou_stop:
+
         operacao["status"] = "STOP"
+
         operacao["encerrada_em"] = datetime.now(
             timezone.utc
         ).isoformat()
 
         historico.append(operacao.copy())
+
         estado["operacao"] = None
 
         enviar(
@@ -514,15 +743,19 @@ def conduzir(velas):
             f"Entrada real: {operacao['entrada_real']:.3f}\n"
             f"Stop: {stop:.3f}"
         )
+
         return
 
     if tocou_alvo:
+
         operacao["status"] = "ALVO"
+
         operacao["encerrada_em"] = datetime.now(
             timezone.utc
         ).isoformat()
 
         historico.append(operacao.copy())
+
         estado["operacao"] = None
 
         enviar(
@@ -530,6 +763,7 @@ def conduzir(velas):
             f"Entrada real: {operacao['entrada_real']:.3f}\n"
             f"Alvo: {alvo:.3f}"
         )
+
         return
 
     # -----------------------------------------
@@ -539,13 +773,31 @@ def conduzir(velas):
     preco = vela["close"]
 
     if direcao == "COMPRA":
-        cruzamento_contrario = preco < ema21 and ema9 < ema21
-        perda_forca = valor_rsi is not None and valor_rsi < 45 and preco < ema9
+
+        cruzamento_contrario = (
+            preco < ema21 and ema9 < ema21
+        )
+
+        perda_forca = (
+            valor_rsi is not None
+            and valor_rsi < 45
+            and preco < ema9
+        )
+
     else:
-        cruzamento_contrario = preco > ema21 and ema9 > ema21
-        perda_forca = valor_rsi is not None and valor_rsi > 55 and preco > ema9
+
+        cruzamento_contrario = (
+            preco > ema21 and ema9 > ema21
+        )
+
+        perda_forca = (
+            valor_rsi is not None
+            and valor_rsi > 55
+            and preco > ema9
+        )
 
     if cruzamento_contrario:
+
         avisar_uma_vez(
             "possivel_reversao",
             "ALERTA DE POSSÍVEL REVERSÃO\n\n"
@@ -558,6 +810,7 @@ def conduzir(velas):
         )
 
     elif perda_forca:
+
         avisar_uma_vez(
             "perda_forca",
             "ALERTA DE PERDA DE FORÇA\n\n"
@@ -577,23 +830,28 @@ def main():
     carregar()
 
     try:
-        atualizacoes = buscar_atualizacoes()
+
+        atualizacoes = buscar_atualizacoes(
+            timeout_segundos=0
+        )
 
         for atualizacao in atualizacoes:
-            estado["ultimo_update_id"] = max(
-                estado["ultimo_update_id"],
-                atualizacao["update_id"]
-            )
+
+            atualizar_offset(atualizacao)
 
             mensagem = atualizacao.get("message")
+
             if mensagem:
                 processar_mensagem(mensagem)
 
         if estado.get("operacao"):
+
             velas = buscar_velas()
+
             conduzir(velas)
 
     finally:
+
         salvar()
 
 
