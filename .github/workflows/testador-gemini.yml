@@ -436,7 +436,10 @@ jobs:
           if sucessos_atuais:
               escolhido = sucessos_atuais[0]["modelo"]
 
-              resultado["status"] = "pronto"
+                            if resultado["status"] == "erro_api_ou_cota":
+                  resultado["status"] = "pronto_com_aviso_api"
+              else:
+                  resultado["status"] = "pronto"
               resultado["modelo_escolhido"] = escolhido
               resultado["motivo"] = (
                   "Selecionado o modelo mais bem classificado "
