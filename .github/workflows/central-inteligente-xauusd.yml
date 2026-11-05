@@ -299,3 +299,37 @@ jobs:
             data/resumo_resultados_m5.csv
           if-no-files-found: warn
           retention-days: 30
+
+                # ==========================================
+      # 9 - TESTADOR GEMINI PARA O PROXIMO CICLO
+      # ==========================================
+
+      - name: 24 - Acionar Testador Gemini com limite de 24 horas
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ARQUIVO="data/historico_conexoes_gemini.json"
+          AGORA=$(date +%s)
+          ULTIMO=0
+
+          if git cat-file -e "HEAD:$ARQUIVO" 2>/dev/null; then
+            ULTIMO=$(git log -1 --format=%ct -- "$ARQUIVO" || echo 0)
+          fi
+
+          DECORRIDO=$((AGORA - ULTIMO))
+
+          if [ "$ULTIMO" -gt 0 ] && [ "$DECORRIDO" -lt 86400 ]; then
+            echo "Testador já executado nas últimas 24 horas."
+            echo "Nenhuma chamada adicional ao Gemini será feita."
+            exit 0
+          fi
+
+          echo "Limite de 24 horas atingido. Acionando Testador..."
+
+          gh workflow run testador-gemini.yml --ref main
+
+          echo "Testador acionado para selecionar o modelo do próximo ciclo."
