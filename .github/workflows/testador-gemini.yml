@@ -244,6 +244,34 @@ jobs:
               elif not texto:
                   item["resultado"] = "resposta_vazia"
 
+                                # Erros de chave, permissão ou cota não medem
+              # a confiabilidade individual do modelo.
+              if codigo in (400, 401, 403, 429):
+                  historico.setdefault("eventos_api", [])
+                  historico["eventos_api"].append({
+                      "modelo": nome,
+                      "http": codigo,
+                      "tipo": "erro_api_ou_cota",
+                      "detalhe": item.get("detalhe", ""),
+                      "registrado_utc": datetime.now(
+                          timezone.utc
+                      ).isoformat()
+                  })
+                  historico["eventos_api"] = (
+                      historico["eventos_api"][-100:]
+                  )
+
+                  testes_atuais.append(item)
+                  resultado["status"] = "erro_api_ou_cota"
+                  resultado["motivo"] = (
+                      "Testes interrompidos por HTTP "
+                      + str(codigo)
+                      + ". Ocorrencia registrada separadamente, "
+                      "sem penalizar a confiabilidade do modelo."
+                  )
+                  print("Teste interrompido por erro global:", codigo)
+                  break
+
               testes_atuais.append(item)
 
               registro = historico["modelos"].setdefault(
@@ -289,7 +317,6 @@ jobs:
                   "segundos"
               )
 
-              # Erros globais de chave ou cota não devem
               # penalizar indevidamente os outros modelos.
               if codigo in (400, 401, 403, 429):
                   resultado["status"] = "erro_api_ou_cota"
