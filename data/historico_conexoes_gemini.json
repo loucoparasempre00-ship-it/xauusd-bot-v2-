@@ -1,22 +1,22 @@
 {
   "versao": 1,
-  "atualizado_utc": "2026-11-05T12:08:50.069387+00:00",
+  "atualizado_utc": "2026-11-05T19:14:43.698968+00:00",
   "modelos": {
     "models/gemini-2.5-flash-lite": {
-      "tentativas": 1,
+      "tentativas": 2,
       "sucessos": 0,
-      "falhas": 1,
+      "falhas": 2,
       "tempo_total_segundos": 0.0,
       "ultimo_http": 404,
-      "ultima_tentativa_utc": "2026-11-05T12:08:49.455253+00:00"
+      "ultima_tentativa_utc": "2026-11-05T19:14:42.548107+00:00"
     },
     "models/gemini-3.1-flash-lite": {
-      "tentativas": 1,
-      "sucessos": 1,
+      "tentativas": 2,
+      "sucessos": 2,
       "falhas": 0,
-      "tempo_total_segundos": 0.47707336500002384,
+      "tempo_total_segundos": 1.4932248620000195,
       "ultimo_http": 200,
-      "ultima_tentativa_utc": "2026-11-05T12:08:49.932454+00:00"
+      "ultima_tentativa_utc": "2026-11-05T19:14:43.564363+00:00"
     },
     "models/gemini-3.1-flash-lite-image": {
       "tentativas": 1,
@@ -26,5 +26,14 @@
       "ultimo_http": 429,
       "ultima_tentativa_utc": "2026-11-05T12:08:50.069073+00:00"
     }
-  }
+  },
+  "eventos_api": [
+    {
+      "modelo": "models/gemini-3.1-flash-lite-image",
+      "http": 429,
+      "tipo": "erro_api_ou_cota",
+      "detalhe": "{\"error\": {\"code\": 429, \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemin",
+      "registrado_utc": "2026-11-05T19:14:43.698894+00:00"
+    }
+  ]
 }
