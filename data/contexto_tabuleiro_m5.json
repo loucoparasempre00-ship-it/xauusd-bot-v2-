@@ -1,0 +1,98 @@
+{
+    "versao": "1.0",
+    "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+    "metodo": {
+        "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+        "eixo_y": "Faixas fixas de preço",
+        "largura_regiao": 1.5,
+        "ancoragem": 0,
+        "atr": "Medida de volatilidade, sem alterar regiões",
+        "volume": "Não utilizado"
+    },
+    "diagnostico": {
+        "total_velas": 5000,
+        "total_regioes": 188,
+        "total_transicoes": 1045,
+        "minimo_amostras": 10
+    },
+    "mercado_atual": {
+        "timestamp": "2026-11-05 22:05:00",
+        "eixo_x": 4999,
+        "preco": 4089.45446,
+        "atr": 3.50642,
+        "direcao_vela": "ALTA",
+        "regiao": 2726,
+        "limite_inferior": 4089.0,
+        "limite_superior": 4090.5,
+        "visitas_regiao": 24
+    },
+    "transicoes_historicas_da_regiao": [
+        {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+        }
+    ],
+    "transicoes_com_amostra_minima": [
+        {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+        }
+    ],
+    "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+}

@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-05T17:36:16.029687+00:00",
-  "total_registros": 78,
+  "atualizado_utc": "2026-11-05T22:11:29.492364+00:00",
+  "total_registros": 85,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -928,6 +928,104 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "O mercado apresenta uma divergência técnica: enquanto o M5 e o M15 indicam um impulso vendedor com rompimento de mínima recente, o H1 mantém viés de alta. O RSI em 45.27 está em zona neutra, permitindo continuidade do movimento de baixa de curto prazo. A pontuação de venda (4) supera a de compra (2), validando a entrada técnica seguindo o fluxo imediato de M5/M15, apesar do conflito macro.",
       "registrado_utc": "2026-11-05T17:36:16.029651+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T18:10:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4104.333,
+      "stop": 4112.643,
+      "gain": 4091.868,
+      "confianca": 65,
+      "pontuacao_final": 53.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta um rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando impulso vendedor de curto prazo. Embora M15 e H1 ainda indiquem tendência de alta, o RSI em 45.27 está em zona neutra, permitindo continuidade do movimento de baixa de curto prazo. A pontuação de venda (4) supera a de compra (2), validando a entrada técnica seguindo o fluxo imediato de M5/M15, apesar do conflito macro.",
+      "registrado_utc": "2026-11-05T18:16:26.673570+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T18:35:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4104.017,
+      "stop": 4111.712,
+      "gain": 4092.473,
+      "confianca": 60,
+      "pontuacao_final": 52.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém o rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando o momentum vendedor de curto prazo. Embora o H1 ainda apresente viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 46.69 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora. A pontuação de venda (3) é superior à de compra (1), validando a continuidade do fluxo imediato.",
+      "registrado_utc": "2026-11-05T18:41:18.199809+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T19:05:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4100.879,
+      "stop": 4108.846,
+      "gain": 4088.929,
+      "confianca": 65,
+      "pontuacao_final": 53.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta um rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando impulso vendedor de curto prazo. Embora o H1 mantenha viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 44.26 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora seguindo o fluxo imediato. A pontuação de venda (3) supera a de compra (1), validando a continuidade do movimento de curto prazo.",
+      "registrado_utc": "2026-11-05T19:11:31.730300+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T19:55:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4113.904,
+      "stop": 4121.375,
+      "gain": 4102.696,
+      "confianca": 60,
+      "pontuacao_final": 40.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém o rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando o momentum vendedor de curto prazo. Embora o H1 ainda apresente viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 44.26 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora. A pontuação de venda (3) é superior à de compra (1), validando a continuidade do fluxo imediato.",
+      "registrado_utc": "2026-11-05T20:01:10.402016+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T20:35:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4103.323,
+      "stop": 4110.805,
+      "gain": 4092.1,
+      "confianca": 65,
+      "pontuacao_final": 53.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta um rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando impulso vendedor de curto prazo. Embora o H1 mantenha viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 44.26 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora seguindo o fluxo imediato. A pontuação de venda (3) supera a de compra (1), validando a continuidade do movimento de curto prazo.",
+      "registrado_utc": "2026-11-05T20:41:18.957460+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T21:20:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4089.348,
+      "stop": 4097.053,
+      "gain": 4077.792,
+      "confianca": 65,
+      "pontuacao_final": 53.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém um rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando o momentum vendedor de curto prazo. Embora o H1 ainda apresente viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 44.26 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora. A pontuação de venda (3) é superior à de compra (1), validando a continuidade do fluxo imediato.",
+      "registrado_utc": "2026-11-05T21:25:59.934467+00:00"
+    },
+    {
+      "candle_utc": "2026-11-05T22:05:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4089.454,
+      "stop": 4094.714,
+      "gain": 4081.565,
+      "confianca": 65,
+      "pontuacao_final": 53.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém o rompimento de mínima recente no M5 com EMA9 abaixo da EMA21, confirmando o momentum vendedor de curto prazo. Embora o H1 ainda apresente viés de alta, o alinhamento baixista no M5 e M15, somado ao RSI em 44.26 (zona neutra com espaço para queda), justifica a entrada na ponta vendedora. A pontuação de venda (3) é superior à de compra (1), validando a continuidade do fluxo imediato.",
+      "registrado_utc": "2026-11-05T22:11:29.492328+00:00"
     }
   ]
 }
