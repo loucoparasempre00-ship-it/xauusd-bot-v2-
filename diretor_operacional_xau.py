@@ -1,3 +1,4 @@
+
 from leitor_central_autonomo_xau import (
     identificar_pressao_contraria
 )
@@ -5,26 +6,20 @@ from leitor_central_autonomo_xau import (
 
 def numero(valor):
     try:
-        if valor is None:
-            return None
-
-        return float(valor)
-
+        return None if valor is None else float(valor)
     except (ValueError, TypeError):
         return None
 
 
-def distancia_favoravel(preco, entrada, direcao):
+def movimento_favoravel(preco, entrada, direcao):
     if direcao == "COMPRA":
         return preco - entrada
-
     return entrada - preco
 
 
 def stop_mais_protetor(novo, atual, direcao):
     if direcao == "COMPRA":
         return novo > atual
-
     return novo < atual
 
 
@@ -37,139 +32,86 @@ def calcular_decisao(
     atr,
     leitura_central=None
 ):
-    """
-    Diretor operacional inicial.
-
-    Regras:
-    - Nunca afrouxa o stop.
-    - Ao atingir 1R, sugere stop no preço de entrada.
-    - Acima de 1.25R, passa a acompanhar o preço por ATR.
-    - Exige duas velas consecutivas de confirmação para
-      recomendar encerramento por reversão.
-    - A Central é contexto complementar, não um voto
-      automático para fechar a operação.
-    """
-
-    direcao = str(
-        operacao.get("direcao", "")
-    ).upper()
+    direcao = str(operacao.get("direcao", "")).upper()
 
     if direcao not in ("COMPRA", "VENDA"):
         raise ValueError("Direção inválida.")
 
-    entrada = numero(
-        operacao.get("entrada_real")
-    )
+    entrada = numero(operacao.get("entrada_real"))
+    stop_atual = numero(operacao.get("stop"))
+    stop_original = numero(operacao.get("stop_original"))
+    alvo = numero(operacao.get("alvo"))
+    preco = numero(vela.get("close"))
 
-    stop_atual = numero(
-        operacao.get("stop")
-    )
-
-    alvo = numero(
-        operacao.get("alvo")
-    )
-
-    preco = numero(
-        vela.get("close")
-    )
-
-    atr = numero(atr)
     ema9 = numero(ema9)
     ema21 = numero(ema21)
     valor_rsi = numero(valor_rsi)
+    atr = numero(atr)
 
-    if None in (
-        entrada,
-        stop_atual,
-        alvo,
-        preco,
-        atr
-    ):
-        raise ValueError(
-            "Dados insuficientes para decisão operacional."
-        )
+    if None in (entrada, stop_atual, alvo, preco, atr):
+        raise ValueError("Dados insuficientes.")
 
-    risco_inicial = abs(
-        entrada - numero(
-            operacao.get("stop_original", stop_atual)
-        )
-    )
+    if stop_original is None:
+        stop_original = stop_atual
+
+    risco_inicial = abs(entrada - stop_original)
 
     if risco_inicial <= 0 or atr <= 0:
-        raise ValueError(
-            "Risco inicial ou ATR inválido."
-        )
+        raise ValueError("Risco inicial ou ATR inválido.")
 
-    movimento = distancia_favoravel(
-        preco,
-        entrada,
-        direcao
+    movimento = movimento_favoravel(
+        preco, entrada, direcao
     )
 
     resultado_r = movimento / risco_inicial
 
     novo_stop = stop_atual
-    acao_stop = None
     motivo_stop = None
+    acao_stop = None
 
-    # Primeiro nível: proteger o capital ao alcançar 1R.
+    # Ao atingir 1R, proteger o capital.
     if resultado_r >= 1.0:
-
         candidato = entrada
 
         if stop_mais_protetor(
-            candidato,
-            novo_stop,
-            direcao
+            candidato, novo_stop, direcao
         ):
             novo_stop = candidato
             acao_stop = "MUDA_STOP"
             motivo_stop = (
                 "O preço alcançou 1R. "
-                "Stop sugerido no preço de entrada."
+                "Proteger a entrada no zero a zero."
             )
 
-    # Segundo nível: trailing stop após avanço adicional.
+    # A partir de 1.25R, acompanhar o preço com ATR.
     if resultado_r >= 1.25:
-
-        distancia_trailing = max(
-            atr * 0.80,
-            0.10
-        )
+        distancia = max(atr * 0.80, 0.10)
 
         if direcao == "COMPRA":
-            candidato = preco - distancia_trailing
+            candidato = preco - distancia
         else:
-            candidato = preco + distancia_trailing
+            candidato = preco + distancia
 
         if stop_mais_protetor(
-            candidato,
-            novo_stop,
-            direcao
+            candidato, novo_stop, direcao
         ):
             novo_stop = candidato
             acao_stop = "MUDA_STOP"
             motivo_stop = (
-                "O preço avançou mais de 1.25R. "
+                "Movimento favorável acima de 1.25R. "
                 "Stop móvel calculado por 0.80 ATR."
             )
 
-    # Confirmação de reversão.
+    # Verificação de enfraquecimento estrutural.
     reversao = False
 
-    if (
-        ema9 is not None
-        and ema21 is not None
-        and valor_rsi is not None
-    ):
-
+    if None not in (ema9, ema21, valor_rsi):
         if direcao == "COMPRA":
             reversao = (
                 preco < ema21
                 and ema9 < ema21
                 and valor_rsi < 45
             )
-
         else:
             reversao = (
                 preco > ema21
@@ -191,36 +133,51 @@ def calcular_decisao(
             "acao": "FECHA",
             "motivo": (
                 "Duas velas M5 consecutivas confirmaram "
-                "perda estrutural a favor da direção contrária."
+                "estrutura contrária à operação."
             ),
             "preco_referencia": preco,
-            "novo_stop": novo_stop,
+            "novo_stop": round(novo_stop, 3),
             "resultado_r": round(resultado_r, 2),
             "sequencia_reversao": sequencia,
             "central": leitura_central
         }
 
+    # Central só sugere proteção quando existe lucro
+    # suficiente para tornar o stop mais protetor.
     pressao = identificar_pressao_contraria(
-        leitura_central,
-        direcao
+        leitura_central, direcao
     )
 
-    if pressao.get("pressao_contraria"):
-        return {
-            "acao": "REDUZ_RISCO",
-            "motivo": (
-                "As transições históricas confiáveis da região "
-                "indicam maior frequência de deslocamento "
-                "contrário à operação. Isso é um alerta, "
-                "não uma previsão."
-            ),
-            "preco_referencia": preco,
-            "novo_stop": novo_stop,
-            "resultado_r": round(resultado_r, 2),
-            "sequencia_reversao": sequencia,
-            "central": leitura_central,
-            "estatistica_central": pressao
-        }
+    if (
+        pressao.get("pressao_contraria")
+        and resultado_r >= 0.50
+    ):
+        distancia = max(atr * 0.50, 0.10)
+
+        if direcao == "COMPRA":
+            candidato = preco - distancia
+        else:
+            candidato = preco + distancia
+
+        if stop_mais_protetor(
+            candidato, novo_stop, direcao
+        ):
+            novo_stop = candidato
+
+            return {
+                "acao": "REDUZ_RISCO",
+                "motivo": (
+                    "A Central identificou pressão histórica "
+                    "contrária na região atual. O stop pode "
+                    "ser aproximado para proteger o resultado."
+                ),
+                "preco_referencia": preco,
+                "novo_stop": round(novo_stop, 3),
+                "resultado_r": round(resultado_r, 2),
+                "sequencia_reversao": sequencia,
+                "central": leitura_central,
+                "estatistica_central": pressao
+            }
 
     if acao_stop:
         return {
@@ -236,8 +193,9 @@ def calcular_decisao(
     return {
         "acao": "CONTINUA",
         "motivo": (
-            "Não houve confirmação suficiente para encerrar "
-            "nem condição para elevar o stop nesta vela."
+            "A operação mantém condições para continuar. "
+            "Não há confirmação suficiente para fechar "
+            "nem novo nível de proteção nesta vela."
         ),
         "preco_referencia": preco,
         "novo_stop": round(novo_stop, 3),
@@ -257,21 +215,21 @@ def formatar_mensagem(decisao, operacao):
         "MUDA_STOP": "MUDA STOP"
     }
 
-    direcao = operacao.get("direcao", "")
-    preco = decisao.get("preco_referencia")
-    stop = decisao.get("novo_stop")
-    alvo = operacao.get("alvo")
+    preco = float(decisao["preco_referencia"])
+    stop = float(decisao["novo_stop"])
+    alvo = float(operacao["alvo"])
 
     linhas = [
         f"XAUUSD | {titulos.get(acao, acao)}",
         "",
-        f"Operação: {direcao}",
+        f"Operação: {operacao['direcao']}",
         f"Preço atual: {preco:.3f}",
-        f"Stop atual/sugerido: {stop:.3f}",
-        f"Alvo: {float(alvo):.3f}",
+        f"Stop de referência: {float(operacao['stop']):.3f}",
+        f"Stop recomendado: {stop:.3f}",
+        f"Alvo: {alvo:.3f}",
         f"Resultado: {decisao.get('resultado_r', 0):.2f}R",
         "",
-        f"Por quê: {decisao.get('motivo', '')}"
+        f"POR QUÊ: {decisao.get('motivo', '')}"
     ]
 
     central = decisao.get("central") or {}
@@ -281,10 +239,8 @@ def formatar_mensagem(decisao, operacao):
             "",
             f"Região atual: {central.get('regiao')}",
             (
-                "Faixa: "
-                f"{central.get('limite_inferior'):.3f} "
-                "até "
-                f"{central.get('limite_superior'):.3f}"
+                f"Faixa: {central.get('limite_inferior'):.3f} "
+                f"a {central.get('limite_superior'):.3f}"
             )
         ])
 
@@ -292,12 +248,27 @@ def formatar_mensagem(decisao, operacao):
 
         if idade is not None:
             linhas.append(
-                f"Idade dos dados da Central: {idade:.1f} min"
+                f"Idade da Central: {idade:.1f} minutos"
             )
 
-    linhas.extend([
-        "",
-        "Orientação calculada; execução manual."
-    ])
+    if acao in ("MUDA_STOP", "REDUZ_RISCO"):
+        linhas.extend([
+            "",
+            "ATENÇÃO: stop apenas recomendado.",
+            "Para confirmar após alterar na corretora, envie STOP OK.",
+            "O robô manterá o stop anterior até sua confirmação."
+        ])
+
+    elif acao == "FECHA":
+        linhas.extend([
+            "",
+            "RECOMENDAÇÃO DE SAÍDA.",
+            "Para registrar o encerramento manual, envie FECHAR."
+        ])
+
+    else:
+        linhas.append(
+            "Acompanhamento por candle M5 fechado."
+        )
 
     return "\n".join(linhas)
