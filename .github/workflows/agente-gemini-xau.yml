@@ -238,6 +238,66 @@ jobs:
             exit 1
           }
 
+      - name: Receber contexto publicado pela Central Inteligente
+        run: |
+          set -euo pipefail
+          mkdir -p data
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          origem = Path("data/contexto_tabuleiro_m5.json")
+          destino = Path("data/contexto_central_para_gemini.json")
+
+          pacote = {
+              "status": "INDISPONIVEL",
+              "contexto": None,
+              "motivo": "Arquivo da Central Inteligente nao encontrado no repositorio."
+          }
+
+          if origem.exists():
+              try:
+                  contexto = json.loads(
+                      origem.read_text(encoding="utf-8")
+                  )
+
+                  if not isinstance(contexto, dict):
+                      raise ValueError("O arquivo da Central nao contem um objeto JSON.")
+
+                  if not isinstance(contexto.get("mercado_atual"), dict):
+                      raise ValueError("O contexto nao possui mercado_atual valido.")
+
+                  pacote = {
+                      "status": "RECEBIDO",
+                      "contexto": contexto,
+                      "motivo": None
+                  }
+
+                  print("Central Inteligente recebida.")
+                  print("Regiao atual:", contexto["mercado_atual"].get("regiao"))
+
+              except Exception as erro:
+                  pacote = {
+                      "status": "ARQUIVO_INVALIDO",
+                      "contexto": None,
+                      "motivo": str(erro)
+                  }
+
+                  print("Aviso: arquivo da Central invalido:", erro)
+
+          else:
+              print("Aviso: contexto da Central ainda indisponivel.")
+              print("O Agente continuara com a analise tecnica e a memoria.")
+
+          destino.write_text(
+              json.dumps(pacote, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print("Status da Central:", pacote["status"])
+          PY
+
       - name: Validar arquivos recebidos
         run: |
           python - <<'PY'
@@ -315,24 +375,74 @@ jobs:
           from pathlib import Path
 
           BASE = "https://generativelanguage.googleapis.com/v1beta"
-          analise = json.loads(Path("data/analise_tecnica_contexto.json").read_text(encoding="utf-8"))
-          selecao = json.loads(Path("data/modelo_gemini.json").read_text(encoding="utf-8"))
-          memoria = json.loads(Path("data/memoria_para_gemini.json").read_text(encoding="utf-8"))
+
+          analise = json.loads(
+              Path("data/analise_tecnica_contexto.json").read_text(encoding="utf-8")
+          )
+
+          selecao = json.loads(
+              Path("data/modelo_gemini.json").read_text(encoding="utf-8")
+          )
+
+          memoria = json.loads(
+              Path("data/memoria_para_gemini.json").read_text(encoding="utf-8")
+          )
+
+          pacote_central = json.loads(
+              Path("data/contexto_central_para_gemini.json").read_text(encoding="utf-8")
+          )
+
+          central_status = pacote_central.get("status", "INDISPONIVEL")
+          contexto_central = pacote_central.get("contexto")
+
+          if central_status != "RECEBIDO" or not isinstance(contexto_central, dict):
+              central_status = "INDISPONIVEL"
+              contexto_central = None
+
           chave = os.getenv("GEMINI_API_KEY", "").strip()
           modelo = selecao.get("modelo_escolhido")
+
           if not chave:
               sys.exit("Secret GEMINI_API_KEY ausente.")
+
           if selecao.get("status") not in ("pronto", "pronto_com_aviso_api") or not modelo:
               sys.exit("Nenhum modelo validado.")
 
           parametros_anteriores = memoria.get("parametros_anteriores") or {}
+
           prompt = """
           Voce e o agente decisor e aprendiz autonomo de XAUUSD M5.
+
           Interprete o mercado com liberdade analitica. Nao fique preso
           a alinhamento perfeito de tempos graficos nem a uma lista fixa
           de padroes. Pese contexto, estrutura, impulso, volatilidade,
           continuacao, reversao, esgotamento, rompimentos e contradicoes
           conforme fizer sentido nos dados recebidos.
+
+          CONTEXTO DA CENTRAL INTELIGENTE:
+          A Central Inteligente e uma fonte complementar de contexto
+          historico e estrutural do mercado. Ela organiza regioes de
+          preco estaveis, limites, visitas anteriores e transicoes
+          observadas entre regioes.
+
+          Use esse contexto para compreender onde o preco esta,
+          quais regioes foram visitadas, como o mercado se comportou
+          nas bordas e quais transicoes apareceram no historico.
+
+          IMPORTANTE:
+          - A Central nao e um segundo motor de sinais.
+          - O contexto da Central nao e um segundo voto.
+          - Nao some uma pontuacao da Central a pontuacao tecnica.
+          - Nao altere nem substitua a pontuacao do motor tecnico.
+          - Nao force COMPRA ou VENDA apenas porque uma regiao
+            historicamente teve determinada frequencia.
+          - Nao cancele uma decisao tecnica apenas por uma estatistica
+            isolada da Central.
+          - Frequencias historicas nao garantem movimentos futuros.
+          - Considere o tamanho da amostra e seja cauteloso quando
+            houver poucas observacoes.
+          - Se o contexto da Central estiver indisponivel, prossiga
+            normalmente com os demais dados.
 
           CICLO DE APRENDIZADO:
           Examine o historico e os resultados de operacoes. Separe
@@ -374,6 +484,12 @@ jobs:
           DADOS TECNICOS ATUAIS:
           """ + json.dumps(analise, ensure_ascii=False) + """
 
+          CONTEXTO RECEBIDO DA CENTRAL INTELIGENTE:
+          """ + json.dumps({
+              "status": central_status,
+              "contexto": contexto_central
+          }, ensure_ascii=False) + """
+
           MEMORIA, RESULTADOS E PARAMETROS ANTERIORES:
           """ + json.dumps(memoria, ensure_ascii=False)
 
@@ -398,6 +514,7 @@ jobs:
                   sucessos = int(item.get("sucessos", 0))
               except (TypeError, ValueError):
                   sucessos = 0
+
               if (
                   sucessos > 0
                   and isinstance(nome, str)
@@ -435,6 +552,7 @@ jobs:
                       },
                       method="POST"
                   )
+
                   try:
                       with urllib.request.urlopen(
                           pedido, timeout=60
@@ -445,6 +563,7 @@ jobs:
                           resposta["candidates"][0]
                           ["content"]["parts"][0]["text"]
                       )
+
                       modelo = nome_modelo
                       break
 
@@ -452,6 +571,7 @@ jobs:
                       detalhe = e.read().decode(
                           "utf-8", "replace"
                       )[:1000]
+
                       erros.append(
                           f"{nome_modelo} HTTP {e.code}: {detalhe}"
                       )
@@ -480,10 +600,12 @@ jobs:
                       erros.append(
                           f"{nome_modelo}: {str(e)[:500]}"
                       )
+
                       if tentativa == 0:
                           import time
                           time.sleep(2)
                           continue
+
                       break
 
               if decisao is not None:
@@ -494,159 +616,271 @@ jobs:
                   "Todos os modelos Gemini disponiveis falharam. "
                   + " | ".join(erros[:5])
               )
+
           print("Modelo efetivamente utilizado:", modelo)
           print("Fallback acionado:", fallback_acionado)
+          print("Status da Central Inteligente:", central_status)
 
           lado = decisao.get("decisao")
-          if lado not in ("COMPRA","VENDA","SEM_SINAL"):
+
+          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
               sys.exit("Decisao da IA invalida.")
+
           try:
-              confianca = int(decisao.get("confianca",0))
-          except (ValueError,TypeError):
+              confianca = int(decisao.get("confianca", 0))
+          except (ValueError, TypeError):
               sys.exit("Confianca invalida.")
+
           if not 0 <= confianca <= 100:
               sys.exit("Confianca fora do intervalo.")
 
           def num(x, padrao):
               try:
-                  y=float(x)
+                  y = float(x)
                   return y if math.isfinite(y) else padrao
-              except (ValueError,TypeError):
+              except (ValueError, TypeError):
                   return padrao
 
           p = decisao.get("parametros") or {}
           anterior = memoria.get("parametros_anteriores") or {}
-          peso_t = num(p.get("peso_tecnico"), num(anterior.get("peso_tecnico"),75))
-          peso_g = num(p.get("peso_gemini"), num(anterior.get("peso_gemini"),25))
+
+          peso_t = num(
+              p.get("peso_tecnico"),
+              num(anterior.get("peso_tecnico"), 75)
+          )
+
+          peso_g = num(
+              p.get("peso_gemini"),
+              num(anterior.get("peso_gemini"), 25)
+          )
+
           if peso_t <= 0 or peso_g <= 0:
               peso_t, peso_g = 75.0, 25.0
+
           total = peso_t + peso_g
-          peso_t, peso_g = peso_t*100/total, peso_g*100/total
-          limiar = num(p.get("limiar"), num(anterior.get("limiar"),40))
-          stop_atr = num(p.get("stop_atr"), num(anterior.get("stop_atr"),1.5))
-          rr = num(p.get("rr"), num(anterior.get("rr"),1.5))
+          peso_t, peso_g = peso_t * 100 / total, peso_g * 100 / total
+
+          limiar = num(
+              p.get("limiar"),
+              num(anterior.get("limiar"), 40)
+          )
+
+          stop_atr = num(
+              p.get("stop_atr"),
+              num(anterior.get("stop_atr"), 1.5)
+          )
+
+          rr = num(
+              p.get("rr"),
+              num(anterior.get("rr"), 1.5)
+          )
+
           # Limites de seguranca para evitar parametros absurdos ou erros de formato.
-          limiar = max(1.0,min(95.0,limiar))
-          stop_atr = max(0.5,min(4.0,stop_atr))
-          rr = max(0.5,min(5.0,rr))
+          limiar = max(1.0, min(95.0, limiar))
+          stop_atr = max(0.5, min(4.0, stop_atr))
+          rr = max(0.5, min(5.0, rr))
 
           def pontuacao_tecnica(lado):
-              novo = "pontuacao_tecnica_compra" if lado=="COMPRA" else "pontuacao_tecnica_venda"
-              antigo = "pontuacao_compra" if lado=="COMPRA" else "pontuacao_venda"
+              novo = (
+                  "pontuacao_tecnica_compra"
+                  if lado == "COMPRA"
+                  else "pontuacao_tecnica_venda"
+              )
+
+              antigo = (
+                  "pontuacao_compra"
+                  if lado == "COMPRA"
+                  else "pontuacao_venda"
+              )
+
               v = analise.get(novo)
+
               if v is not None:
-                  return max(0.0,min(75.0,float(v))), "campo_tecnico_75"
+                  return max(0.0, min(75.0, float(v))), "campo_tecnico_75"
+
               v = analise.get(antigo)
+
               if v is not None:
-                  return max(0.0,min(75.0,float(v)*75.0/6.0)), "campo_antigo_normalizado"
+                  return (
+                      max(0.0, min(75.0, float(v) * 75.0 / 6.0)),
+                      "campo_antigo_normalizado"
+                  )
+
               return None, "pontuacao_tecnica_ausente"
 
           tc, fc = pontuacao_tecnica("COMPRA")
           tv, fv = pontuacao_tecnica("VENDA")
-          tecnico = tc if lado=="COMPRA" else tv if lado=="VENDA" else None
-          fonte = fc if lado=="COMPRA" else fv if lado=="VENDA" else "sem_direcao_da_ia"
+
+          tecnico = (
+              tc if lado == "COMPRA"
+              else tv if lado == "VENDA"
+              else None
+          )
+
+          fonte = (
+              fc if lado == "COMPRA"
+              else fv if lado == "VENDA"
+              else "sem_direcao_da_ia"
+          )
+
           contribuicao = confianca * peso_g / 100.0
-          if lado=="SEM_SINAL" or tecnico is None:
+
+          if lado == "SEM_SINAL" or tecnico is None:
               final, lado_final = None, "SEM_SINAL"
           else:
-              # Normaliza o motor tecnico original (escala 0-75) para o peso adaptado.
-              final = round((tecnico/75.0)*peso_t + contribuicao,2)
+              # Normaliza o motor tecnico original (escala 0-75)
+              # para o peso adaptado.
+              final = round((tecnico / 75.0) * peso_t + contribuicao, 2)
               lado_final = lado if final >= limiar else "SEM_SINAL"
 
           parametros = {
-              "peso_tecnico":round(peso_t,2),
-              "peso_gemini":round(peso_g,2),
-              "limiar":round(limiar,2),
-              "stop_atr":round(stop_atr,3),
-              "rr":round(rr,3)
+              "peso_tecnico": round(peso_t, 2),
+              "peso_gemini": round(peso_g, 2),
+              "limiar": round(limiar, 2),
+              "stop_atr": round(stop_atr, 3),
+              "rr": round(rr, 3)
           }
+
           Path("data/parametros_adaptativos.json").write_text(
-              json.dumps(parametros,ensure_ascii=False,indent=2),encoding="utf-8"
+              json.dumps(parametros, ensure_ascii=False, indent=2),
+              encoding="utf-8"
           )
+
           resultado = {
-              "ativo":"XAUUSD","timeframe":"M5",
-              "candle_utc":analise.get("candle_utc"),
-              "decisao_motor":analise.get("decisao"),
-              "modelo_utilizado":modelo,
-              "modelo_solicitado_pelo_testador":modelo_solicitado,
-              "fallback_modelo_acionado":fallback_acionado,
-              "erros_modelos_anteriores":erros[:5],
-              "decisao_ia_original":lado,
-              "decisao_gemini":lado_final,
-              "confianca_declarada":confianca,
-              "pontuacao_tecnica_compra":tc,
-              "pontuacao_tecnica_venda":tv,
-              "fonte_pontuacao_tecnica":fonte,
-              "pontuacao_tecnica_direcao":tecnico,
-              "contribuicao_gemini":round(contribuicao,2),
-              "pontuacao_final":final,
-              "parametros_adaptativos":parametros,
-              "aprendizado":str(decisao.get("aprendizado",""))[:1500],
-              "justificativa":str(decisao.get("justificativa",""))[:1500],
-              "gerado_utc":datetime.now(timezone.utc).isoformat(),
-              "modo_teste":True,"envio_telegram":False,"execucao_ordens":False
+              "ativo": "XAUUSD",
+              "timeframe": "M5",
+              "candle_utc": analise.get("candle_utc"),
+              "decisao_motor": analise.get("decisao"),
+              "modelo_utilizado": modelo,
+              "modelo_solicitado_pelo_testador": modelo_solicitado,
+              "fallback_modelo_acionado": fallback_acionado,
+              "erros_modelos_anteriores": erros[:5],
+              "decisao_ia_original": lado,
+              "decisao_gemini": lado_final,
+              "confianca_declarada": confianca,
+              "pontuacao_tecnica_compra": tc,
+              "pontuacao_tecnica_venda": tv,
+              "fonte_pontuacao_tecnica": fonte,
+              "pontuacao_tecnica_direcao": tecnico,
+              "contribuicao_gemini": round(contribuicao, 2),
+              "pontuacao_final": final,
+              "parametros_adaptativos": parametros,
+              "aprendizado": str(decisao.get("aprendizado", ""))[:1500],
+              "justificativa": str(decisao.get("justificativa", ""))[:1500],
+              "central_status": central_status,
+              "contexto_central": contexto_central,
+              "gerado_utc": datetime.now(timezone.utc).isoformat(),
+              "modo_teste": True,
+              "envio_telegram": False,
+              "execucao_ordens": False
           }
+
           Path("data/decisao_gemini.json").write_text(
-              json.dumps(resultado,ensure_ascii=False,indent=2),encoding="utf-8"
+              json.dumps(resultado, ensure_ascii=False, indent=2),
+              encoding="utf-8"
           )
-          print(json.dumps(resultado,ensure_ascii=False,indent=2))
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
           PY
 
       - name: Calcular entrada stop e alvo com parametros aprendidos
         run: |
           python - <<'PY'
-          import csv,json,math
+          import csv, json, math
           from pathlib import Path
 
-          csv_path=Path("data/candles/xauusd_m5_fechados.csv")
-          path=Path("data/decisao_gemini.json")
-          d=json.loads(path.read_text(encoding="utf-8"))
-          if d.get("decisao_gemini") not in ("COMPRA","VENDA"):
+          csv_path = Path("data/candles/xauusd_m5_fechados.csv")
+          path = Path("data/decisao_gemini.json")
+
+          d = json.loads(path.read_text(encoding="utf-8"))
+
+          if d.get("decisao_gemini") not in ("COMPRA", "VENDA"):
               print("SEM_SINAL: calculo dispensado.")
               raise SystemExit(0)
 
-          with csv_path.open(encoding="utf-8-sig",newline="") as f:
-              reader=csv.DictReader(f)
-              def norm(s): return "".join(c.lower() for c in s.strip() if c.isalnum())
-              cols={norm(x):x for x in (reader.fieldnames or [])}
+          with csv_path.open(encoding="utf-8-sig", newline="") as f:
+              reader = csv.DictReader(f)
+
+              def norm(s):
+                  return "".join(c.lower() for c in s.strip() if c.isalnum())
+
+              cols = {
+                  norm(x): x
+                  for x in (reader.fieldnames or [])
+              }
+
               def col(*names):
                   for n in names:
-                      if norm(n) in cols: return cols[norm(n)]
-                  raise SystemExit("Coluna ausente: "+", ".join(names))
-              hi,lo,cl=col("high","max","maximum"),col("low","min","minimum"),col("close","fechamento","last")
-              rows=list(reader)
-          if len(rows)<15: raise SystemExit("Sao necessarios pelo menos 15 candles.")
-          def value(row,key):
-              x=float(row[key])
-              if not math.isfinite(x): raise ValueError("Preco invalido")
+                      if norm(n) in cols:
+                          return cols[norm(n)]
+                  raise SystemExit("Coluna ausente: " + ", ".join(names))
+
+              hi = col("high", "max", "maximum")
+              lo = col("low", "min", "minimum")
+              cl = col("close", "fechamento", "last")
+              rows = list(reader)
+
+          if len(rows) < 15:
+              raise SystemExit("Sao necessarios pelo menos 15 candles.")
+
+          def value(row, key):
+              x = float(row[key])
+              if not math.isfinite(x):
+                  raise ValueError("Preco invalido")
               return x
-          candles=[(value(r,hi),value(r,lo),value(r,cl)) for r in rows]
-          trs=[]
-          for i in range(len(candles)-14,len(candles)):
-              h,l,c=candles[i]
-              prev=candles[i-1][2]
-              trs.append(max(h-l,abs(h-prev),abs(l-prev)))
-          atr=sum(trs)/14
-          entrada=candles[-1][2]
-          p=d["parametros_adaptativos"]
-          distancia=atr*float(p["stop_atr"])
-          alvo_dist=distancia*float(p["rr"])
-          if atr<=0 or not math.isfinite(atr): raise SystemExit("ATR invalido.")
-          if d["decisao_gemini"]=="COMPRA":
-              stop,alvo=entrada-distancia,entrada+alvo_dist
+
+          candles = [
+              (value(r, hi), value(r, lo), value(r, cl))
+              for r in rows
+          ]
+
+          trs = []
+
+          for i in range(len(candles) - 14, len(candles)):
+              h, l, c = candles[i]
+              prev = candles[i - 1][2]
+              trs.append(max(h - l, abs(h - prev), abs(l - prev)))
+
+          atr = sum(trs) / 14
+          entrada = candles[-1][2]
+
+          p = d["parametros_adaptativos"]
+          distancia = atr * float(p["stop_atr"])
+          alvo_dist = distancia * float(p["rr"])
+
+          if atr <= 0 or not math.isfinite(atr):
+              raise SystemExit("ATR invalido.")
+
+          if d["decisao_gemini"] == "COMPRA":
+              stop = entrada - distancia
+              alvo = entrada + alvo_dist
           else:
-              stop,alvo=entrada+distancia,entrada-alvo_dist
+              stop = entrada + distancia
+              alvo = entrada - alvo_dist
+
           d.update({
-              "entrada":round(entrada,3),"atr14":round(atr,5),
-              "distancia_stop":round(distancia,3),
-              "stop_loss":round(stop,3),"take_profit":round(alvo,3),
-              "distancia_alvo":round(alvo_dist,3),
-              "relacao_risco_retorno":f"1:{p['rr']}",
-              "metodo_stop":f"ATR(14) x {p['stop_atr']}",
-              "metodo_alvo":f"Distancia do stop x {p['rr']}"
+              "entrada": round(entrada, 3),
+              "atr14": round(atr, 5),
+              "distancia_stop": round(distancia, 3),
+              "stop_loss": round(stop, 3),
+              "take_profit": round(alvo, 3),
+              "distancia_alvo": round(alvo_dist, 3),
+              "relacao_risco_retorno": f"1:{p['rr']}",
+              "metodo_stop": f"ATR(14) x {p['stop_atr']}",
+              "metodo_alvo": f"Distancia do stop x {p['rr']}"
           })
-          path.write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding="utf-8")
-          print("Niveis calculados:",d["entrada"],d["stop_loss"],d["take_profit"])
+
+          path.write_text(
+              json.dumps(d, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print(
+              "Niveis calculados:",
+              d["entrada"],
+              d["stop_loss"],
+              d["take_profit"]
+          )
           PY
 
       - name: Verificar sinal repetido
@@ -656,6 +890,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data/historico_anterior
+
           RUN_ID=$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow agente-gemini-xau.yml \
@@ -663,6 +898,7 @@ jobs:
             --limit 1 \
             --json databaseId \
             --jq '.[0].databaseId // empty')
+
           if [ -n "$RUN_ID" ]; then
             gh run download "$RUN_ID" \
               --repo "$GITHUB_REPOSITORY" \
@@ -673,23 +909,47 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          atual=json.loads(Path("data/decisao_gemini.json").read_text(encoding="utf-8"))
-          arquivo=Path("data/historico_anterior/historico_sinais.json")
-          historico=[]
+
+          atual = json.loads(
+              Path("data/decisao_gemini.json").read_text(encoding="utf-8")
+          )
+
+          arquivo = Path("data/historico_anterior/historico_sinais.json")
+          historico = []
+
           if arquivo.exists():
-              try: historico=json.loads(arquivo.read_text(encoding="utf-8"))
-              except Exception: historico=[]
-          if not isinstance(historico,list): historico=[]
-          lado,candle=atual.get("decisao_gemini"),atual.get("candle_utc")
-          duplicado=bool(lado in ("COMPRA","VENDA") and candle and any(
-              x.get("candle_utc")==candle and
-              x.get("decisao_gemini")==lado and
-              x.get("envio_telegram") is True
-              for x in historico if isinstance(x,dict)
-          ))
-          Path("data/duplicidade.json").write_text(json.dumps({"duplicado":duplicado}))
-          print("Sinal repetido:",duplicado)
+              try:
+                  historico = json.loads(
+                      arquivo.read_text(encoding="utf-8")
+                  )
+              except Exception:
+                  historico = []
+
+          if not isinstance(historico, list):
+              historico = []
+
+          lado = atual.get("decisao_gemini")
+          candle = atual.get("candle_utc")
+
+          duplicado = bool(
+              lado in ("COMPRA", "VENDA")
+              and candle
+              and any(
+                  x.get("candle_utc") == candle
+                  and x.get("decisao_gemini") == lado
+                  and x.get("envio_telegram") is True
+                  for x in historico
+                  if isinstance(x, dict)
+              )
+          )
+
+          Path("data/duplicidade.json").write_text(
+              json.dumps({"duplicado": duplicado})
+          )
+
+          print("Sinal repetido:", duplicado)
           PY
+
           DUPLICADO=$(python -c "import json; print(str(json.load(open('data/duplicidade.json'))['duplicado']).lower())")
           echo "duplicado=$DUPLICADO" >> "$GITHUB_OUTPUT"
 
@@ -700,35 +960,69 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python - <<'PY'
-          import os,json,sys,urllib.request,urllib.parse
+          import os, json, sys, urllib.request, urllib.parse
           from pathlib import Path
-          from datetime import datetime,timezone,timedelta
+          from datetime import datetime, timezone, timedelta
           from zoneinfo import ZoneInfo
 
-          d=json.loads(Path("data/decisao_gemini.json").read_text(encoding="utf-8"))
-          lado=d.get("decisao_gemini","SEM_SINAL")
-          if lado not in ("COMPRA","VENDA"):
+          d = json.loads(
+              Path("data/decisao_gemini.json").read_text(encoding="utf-8")
+          )
+
+          lado = d.get("decisao_gemini", "SEM_SINAL")
+
+          if lado not in ("COMPRA", "VENDA"):
               print("SEM_SINAL: nenhuma mensagem enviada.")
               raise SystemExit(0)
-          token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
-          chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
-          if not token or not chat: sys.exit("Configure os Secrets do Telegram.")
-          for k in ("entrada","stop_loss","take_profit","distancia_stop","pontuacao_final"):
-              if d.get(k) is None: sys.exit("Dados obrigatorios ausentes: "+k)
-          utc=datetime.now(timezone.utc)
-          candle=d.get("candle_utc") or "Nao informado"
+
+          token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+          chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+          if not token or not chat:
+              sys.exit("Configure os Secrets do Telegram.")
+
+          for k in (
+              "entrada",
+              "stop_loss",
+              "take_profit",
+              "distancia_stop",
+              "pontuacao_final"
+          ):
+              if d.get(k) is None:
+                  sys.exit("Dados obrigatorios ausentes: " + k)
+
+          utc = datetime.now(timezone.utc)
+          candle = d.get("candle_utc") or "Nao informado"
+
           try:
-              abertura=datetime.fromisoformat(str(candle).replace("Z","+00:00"))
-              if abertura.tzinfo is None: abertura=abertura.replace(tzinfo=timezone.utc)
-              fechamento=abertura.astimezone(timezone.utc)+timedelta(minutes=5)
-              atraso=(utc-fechamento).total_seconds()/60
-              fechamento_txt=fechamento.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M:%S")
-              atraso_txt=f"{atraso:.1f} min"
+              abertura = datetime.fromisoformat(
+                  str(candle).replace("Z", "+00:00")
+              )
+
+              if abertura.tzinfo is None:
+                  abertura = abertura.replace(tzinfo=timezone.utc)
+
+              fechamento = (
+                  abertura.astimezone(timezone.utc)
+                  + timedelta(minutes=5)
+              )
+
+              atraso = (utc - fechamento).total_seconds() / 60
+
+              fechamento_txt = fechamento.astimezone(
+                  ZoneInfo("America/Sao_Paulo")
+              ).strftime("%H:%M:%S")
+
+              atraso_txt = f"{atraso:.1f} min"
+
           except Exception:
-              fechamento_txt="Nao calculado"; atraso_txt="Nao calculado"
-          emoji="🟢" if lado=="COMPRA" else "🔴"
-          p=d["parametros_adaptativos"]
-          msg=(
+              fechamento_txt = "Nao calculado"
+              atraso_txt = "Nao calculado"
+
+          emoji = "🟢" if lado == "COMPRA" else "🔴"
+          p = d["parametros_adaptativos"]
+
+          msg = (
               f"🥇 <b>XAUUSD · OURO</b>\n⏱ Timeframe: M5\n\n"
               f"{emoji} <b>{lado}</b>\n\n"
               f"💰 Entrada: <code>{d['entrada']:.3f}</code>\n"
@@ -739,33 +1033,58 @@ jobs:
               f"📊 Pontuação final: <b>{d['pontuacao_final']}/100</b>\n"
               f"🧠 Confiança IA: <b>{d['confianca_declarada']}%</b>\n"
               f"⚖️ Pesos técnico/IA: {p['peso_tecnico']}/{p['peso_gemini']} · Limiar: {p['limiar']}\n\n"
-              f"📝 {str(d.get('justificativa',''))[:700]}\n\n"
+              f"📝 {str(d.get('justificativa', ''))[:700]}\n\n"
               f"🕯️ Abertura candle UTC: {candle}\n"
               f"🔔 Fechamento candle (Brasília): {fechamento_txt}\n"
               f"⏱️ Atraso após fechamento: {atraso_txt}\n"
               f"⚠️ Sinal experimental. Não é garantia de lucro."
           )
-          req=urllib.request.Request(
+
+          req = urllib.request.Request(
               f"https://api.telegram.org/bot{token}/sendMessage",
               data=urllib.parse.urlencode({
-                  "chat_id":chat,"text":msg,"parse_mode":"HTML",
-                  "disable_web_page_preview":"true"
+                  "chat_id": chat,
+                  "text": msg,
+                  "parse_mode": "HTML",
+                  "disable_web_page_preview": "true"
               }).encode(),
-              headers={"Content-Type":"application/x-www-form-urlencoded"},
+              headers={
+                  "Content-Type": "application/x-www-form-urlencoded"
+              },
               method="POST"
           )
+
           try:
-              with urllib.request.urlopen(req,timeout=20) as r:
-                  retorno=json.loads(r.read().decode())
-              if not retorno.get("ok"): sys.exit("Telegram nao confirmou o envio.")
-              d["envio_telegram"]=True
-              d["horario_sinal_utc"]=utc.isoformat()
-              d["fechamento_candle_utc"]=fechamento.isoformat() if "fechamento" in locals() else None
-              d["atraso_apos_fechamento_minutos"]=round(atraso,2) if "atraso" in locals() else None
-              Path("data/decisao_gemini.json").write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding="utf-8")
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  retorno = json.loads(r.read().decode())
+
+              if not retorno.get("ok"):
+                  sys.exit("Telegram nao confirmou o envio.")
+
+              d["envio_telegram"] = True
+              d["horario_sinal_utc"] = utc.isoformat()
+
+              d["fechamento_candle_utc"] = (
+                  fechamento.isoformat()
+                  if "fechamento" in locals()
+                  else None
+              )
+
+              d["atraso_apos_fechamento_minutos"] = (
+                  round(atraso, 2)
+                  if "atraso" in locals()
+                  else None
+              )
+
+              Path("data/decisao_gemini.json").write_text(
+                  json.dumps(d, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
+              )
+
               print("Mensagem enviada ao Telegram.")
+
           except Exception as e:
-              sys.exit("Falha no envio ao Telegram: "+str(e))
+              sys.exit("Falha no envio ao Telegram: " + str(e))
           PY
 
       - name: Registrar decisao no historico
@@ -774,24 +1093,57 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          atual=Path("data/decisao_gemini.json")
-          anterior=Path("data/historico_anterior/historico_sinais.json")
-          historico=[]
+
+          atual = Path("data/decisao_gemini.json")
+          anterior = Path("data/historico_anterior/historico_sinais.json")
+
+          historico = []
+
           if anterior.exists():
-              try: historico=json.loads(anterior.read_text(encoding="utf-8"))
-              except Exception: historico=[]
-          if not isinstance(historico,list): historico=[]
+              try:
+                  historico = json.loads(
+                      anterior.read_text(encoding="utf-8")
+                  )
+              except Exception:
+                  historico = []
+
+          if not isinstance(historico, list):
+              historico = []
+
           if atual.exists():
               try:
-                  novo=json.loads(atual.read_text(encoding="utf-8"))
-                  chave=(novo.get("candle_utc"),novo.get("decisao_gemini"))
-                  if not any((x.get("candle_utc"),x.get("decisao_gemini"))==chave for x in historico if isinstance(x,dict)):
+                  novo = json.loads(
+                      atual.read_text(encoding="utf-8")
+                  )
+
+                  chave = (
+                      novo.get("candle_utc"),
+                      novo.get("decisao_gemini")
+                  )
+
+                  if not any(
+                      (
+                          x.get("candle_utc"),
+                          x.get("decisao_gemini")
+                      ) == chave
+                      for x in historico
+                      if isinstance(x, dict)
+                  ):
                       historico.append(novo)
-              except Exception as e: print("Falha ao registrar decisao:",e)
+
+              except Exception as e:
+                  print("Falha ao registrar decisao:", e)
+
           Path("data/historico_sinais.json").write_text(
-              json.dumps(historico[-500:],ensure_ascii=False,indent=2),encoding="utf-8"
+              json.dumps(
+                  historico[-500:],
+                  ensure_ascii=False,
+                  indent=2
+              ),
+              encoding="utf-8"
           )
-          print("Historico preparado:",len(historico[-500:]))
+
+          print("Historico preparado:", len(historico[-500:]))
           PY
 
       - name: Guardar historico do agente
