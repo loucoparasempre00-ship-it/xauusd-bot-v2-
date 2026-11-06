@@ -1,4 +1,3 @@
-
 from leitor_central_autonomo_xau import (
     identificar_pressao_contraria
 )
@@ -255,7 +254,8 @@ def formatar_mensagem(decisao, operacao):
         linhas.extend([
             "",
             "ATENÇÃO: stop apenas recomendado.",
-            "Para confirmar após alterar na corretora, envie STOP OK.",
+            "Altere manualmente na corretora.",
+            "Depois envie STOP OK para confirmar.",
             "O robô manterá o stop anterior até sua confirmação."
         ])
 
@@ -263,7 +263,8 @@ def formatar_mensagem(decisao, operacao):
         linhas.extend([
             "",
             "RECOMENDAÇÃO DE SAÍDA.",
-            "Para registrar o encerramento manual, envie FECHAR."
+            "Se fechar manualmente na corretora, envie CANCELA.",
+            "O robô não executa ordens."
         ])
 
     else:
