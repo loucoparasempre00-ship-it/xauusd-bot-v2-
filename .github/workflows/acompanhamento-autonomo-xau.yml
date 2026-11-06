@@ -25,7 +25,7 @@ jobs:
   acompanhar:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
 
     steps:
       - name: Baixar repositório
@@ -49,7 +49,16 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python acompanhamento_autonomo_xau.py
 
-      - name: Salvar estado e histórico
+      - name: Executar agente operacional Gemini
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python integrar_agente_operacional_xau.py
+
+      - name: Salvar estado, contexto e decisões
         if: always()
         run: |
           git config user.name "github-actions[bot]"
@@ -58,7 +67,11 @@ jobs:
           git add -f data/acompanhamento_autonomo_estado.json
           git add -f data/resultados_operacoes.json
 
+          git add -f data/contexto_inteligente_acompanhador.json 2>/dev/null || true
+          git add -f data/pacote_agente_operacional.json 2>/dev/null || true
+          git add -f data/decisao_agente_operacional.json 2>/dev/null || true
+
           if ! git diff --cached --quiet; then
-            git commit -m "Atualiza acompanhamento autonomo XAUUSD"
+            git commit -m "Atualiza acompanhamento e agente operacional XAUUSD"
             git push
           fi
