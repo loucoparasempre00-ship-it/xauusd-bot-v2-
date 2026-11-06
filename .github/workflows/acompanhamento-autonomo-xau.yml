@@ -6,10 +6,7 @@ on:
       - "Central Inteligente XAUUSD"
     types:
       - completed
-
-  schedule:
-    - cron: "*/5 * * * *"
-
+      
   workflow_dispatch:
 
 permissions:
