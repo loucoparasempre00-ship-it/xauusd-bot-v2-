@@ -1,4 +1,3 @@
-
 name: Acompanhamento Autônomo XAUUSD
 
 on:
@@ -24,11 +23,13 @@ concurrency:
 jobs:
   acompanhar:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 8
 
     steps:
-      - name: Baixar repositório
+      # CAMADA 1 — PREPARAR AMBIENTE
+      - name: Preparar ambiente
         uses: actions/checkout@v4
         with:
           persist-credentials: true
@@ -38,10 +39,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Instalar dependência
+      - name: Instalar dependências
         run: pip install requests
 
-      - name: Executar acompanhamento autônomo
+      # CAMADA 2 — TELEGRAM E IDENTIFICAÇÃO
+      # O Python existente lê Telegram e verifica a operação.
+      # Sem operação ativa, ele encerra sem buscar candles.
+      - name: Ler Telegram e identificar operação
         env:
           TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -49,16 +53,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python acompanhamento_autonomo_xau.py
 
-      - name: Executar agente operacional Gemini
-        env:
-          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python integrar_agente_operacional_xau.py
+      # CAMADA 3 — INTEGRAÇÃO
+      # A integração de candles, indicadores e Central
+      # é realizada pelo acompanhamento existente.
+      # Não executar novamente o Gemini operacional.
 
-      - name: Salvar estado, contexto e decisões
+      # CAMADA 4 — OPINIÃO E DECISÃO
+      # Diretor operacional determinístico:
+      # manter/subir stop e manter/fechar.
+      # Nenhuma ordem é enviada à corretora.
+
+      # CAMADA 5 — PERSISTÊNCIA
+      - name: Salvar estado e histórico
         if: always()
         run: |
           git config user.name "github-actions[bot]"
@@ -68,10 +74,8 @@ jobs:
           git add -f data/resultados_operacoes.json
 
           git add -f data/contexto_inteligente_acompanhador.json 2>/dev/null || true
-          git add -f data/pacote_agente_operacional.json 2>/dev/null || true
-          git add -f data/decisao_agente_operacional.json 2>/dev/null || true
 
           if ! git diff --cached --quiet; then
-            git commit -m "Atualiza acompanhamento e agente operacional XAUUSD"
+            git commit -m "Atualiza acompanhamento operacional XAUUSD"
             git push
           fi
