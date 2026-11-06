@@ -396,8 +396,8 @@
         ],
         "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
       },
-      "total_ciclos": 1,
-      "ultima_observacao": "2026-11-06T03:45:00+00:00",
+      "total_ciclos": 2,
+      "ultima_observacao": "2026-11-06T04:40:00+00:00",
       "observacoes": [
         {
           "timestamp": "2026-11-06T03:45:00+00:00",
@@ -447,11 +447,60 @@
             }
           },
           "registrada_em": "2026-11-06T04:23:37.224594+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T04:40:00+00:00",
+          "preco": 4043.5128,
+          "maxima": 4046.24244,
+          "minima": 4043.34465,
+          "ema9": 4043.7918477623007,
+          "ema21": 4047.7417377294973,
+          "rsi14": 39.7054641142219,
+          "atr14": 3.6714942857142887,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4043.5128,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 400.0,
+            "central_desatualizada": true,
+            "regiao": 2695,
+            "limite_inferior": 4042.5,
+            "limite_superior": 4044.0,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4043.5128,
+            "novo_stop": 4053.562,
+            "resultado_r": 0.1,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4043.5128,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 400.0,
+              "central_desatualizada": true,
+              "regiao": 2695,
+              "limite_inferior": 4042.5,
+              "limite_superior": 4044.0,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T05:26:46.882080+00:00"
         }
       ]
     },
     "ativada_em": "2026-11-06T04:17:45.125893+00:00",
-    "ultima_vela": "2026-11-06T03:45:00+00:00",
+    "ultima_vela": "2026-11-06T04:40:00+00:00",
     "alertas": [],
     "sequencia_reversao": 0,
     "status": "ATIVA"
