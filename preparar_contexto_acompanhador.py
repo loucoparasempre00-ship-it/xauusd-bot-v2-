@@ -26,6 +26,24 @@ def numero_seguro(valor):
     return None
 
 
+def converter_data(valor):
+    if not valor:
+        return None
+
+    try:
+        data = datetime.fromisoformat(
+            str(valor).strip().replace("Z", "+00:00")
+        )
+
+        if data.tzinfo is None:
+            data = data.replace(tzinfo=timezone.utc)
+
+        return data.astimezone(timezone.utc)
+
+    except (ValueError, TypeError):
+        return None
+
+
 def resumir_estrutura(estrutura, preco):
     topos = estrutura.get("topos", [])
     fundos = estrutura.get("fundos", [])
@@ -97,9 +115,7 @@ def resumir_matematica(candles):
             leitura.get("estrutura", {}),
             float(leitura["preco"])
         ),
-        "status": (
-            "LEITURA_MATEMATICA_ESTRUTURAL"
-        ),
+        "status": "LEITURA_MATEMATICA_ESTRUTURAL",
         "decisao_final": leitura.get(
             "decisao_final",
             "PENDENTE_DE_VALIDACAO"
@@ -109,6 +125,32 @@ def resumir_matematica(candles):
             "É uma fonte independente de contexto."
         )
     }
+
+
+def calcular_serie_ema(valores, periodo):
+    if len(valores) < periodo:
+        return [None] * len(valores)
+
+    fator = 2 / (periodo + 1)
+    resultado = None
+    serie = []
+
+    for indice, valor in enumerate(valores):
+        if indice + 1 < periodo:
+            serie.append(None)
+            continue
+
+        if resultado is None:
+            resultado = sum(valores[:periodo]) / periodo
+        else:
+            resultado = (
+                valor * fator
+                + resultado * (1 - fator)
+            )
+
+        serie.append(round(resultado, 5))
+
+    return serie
 
 
 def carregar_tabuleiro():
@@ -125,23 +167,13 @@ def carregar_tabuleiro():
 
 
 def validar_horarios(candle_tecnico, candle_tabuleiro):
-    if not candle_tecnico or not candle_tabuleiro:
+    data_tecnica = converter_data(candle_tecnico)
+    data_tabuleiro = converter_data(candle_tabuleiro)
+
+    if data_tecnica is None or data_tabuleiro is None:
         return False
 
-    try:
-        data_tecnica = datetime.fromisoformat(
-            candle_tecnico.replace("Z", "+00:00")
-        )
-
-        data_tabuleiro = datetime.fromisoformat(
-            candle_tabuleiro.replace(" ", "T")
-            + "+00:00"
-        )
-
-        return data_tecnica == data_tabuleiro
-
-    except (ValueError, TypeError):
-        return False
+    return data_tecnica == data_tabuleiro
 
 
 def main():
@@ -173,8 +205,46 @@ def main():
         candle_tabuleiro
     )
 
+    # 4. Reconstrução cronológica do gráfico M5.
+    fechamentos = [c["close"] for c in candles]
+
+    ema9_serie = calcular_serie_ema(fechamentos, 9)
+    ema21_serie = calcular_serie_ema(fechamentos, 21)
+
+    serie_grafico = []
+    inicio_grafico = max(0, len(candles) - 240)
+
+    for indice in range(inicio_grafico, len(candles)):
+        candle = candles[indice]
+
+        serie_grafico.append({
+            "timestamp": candle["tempo"].isoformat(),
+            "open": numero_seguro(candle["open"]),
+            "high": numero_seguro(candle["high"]),
+            "low": numero_seguro(candle["low"]),
+            "close": numero_seguro(candle["close"]),
+            "ema9": ema9_serie[indice],
+            "ema21": ema21_serie[indice]
+        })
+
+    # 5. Idade e sincronização da Central.
+    data_central = converter_data(
+        tabuleiro.get("atualizado_em")
+    )
+
+    idade_central = None
+
+    if data_central is not None:
+        idade_central = max(
+            0.0,
+            (
+                datetime.now(timezone.utc) - data_central
+            ).total_seconds() / 60
+        )
+
     contexto = {
-        "versao": "1.0",
+        "versao": "2.0",
+
         "gerado_utc": datetime.now(
             timezone.utc
         ).isoformat(),
@@ -196,6 +266,29 @@ def main():
         "contexto_tecnico": tecnico,
 
         "contexto_matematico": matematico,
+
+        "grafico_m5": {
+            "eixo_x": "tempo_utc_crescente",
+            "eixo_y": "preco_xauusd",
+            "total_candles_historico": len(candles),
+            "candles_exibidos": len(serie_grafico),
+            "serie": serie_grafico
+        },
+
+        "estado_central": {
+            "disponivel": bool(mercado),
+            "atualizado_em": tabuleiro.get("atualizado_em"),
+            "idade_minutos": (
+                round(idade_central, 1)
+                if idade_central is not None
+                else None
+            ),
+            "desatualizada": (
+                idade_central is None
+                or idade_central > 30
+            ),
+            "horario_igual_ao_candle_atual": horarios_coincidem
+        },
 
         "tabuleiro_estavel": {
             "metodo": tabuleiro.get("metodo", {}),
@@ -228,6 +321,16 @@ def main():
             "não coincidem."
         )
 
+    if idade_central is None:
+        avisos.append(
+            "Não foi possível validar a data de atualização da Central."
+        )
+
+    elif idade_central > 30:
+        avisos.append(
+            "A Central está desatualizada há mais de 30 minutos."
+        )
+
     transicoes = tabuleiro.get(
         "transicoes_historicas_da_regiao", []
     )
@@ -243,9 +346,7 @@ def main():
                 "ainda é pequena."
             )
 
-    if matematico.get("indicadores", {}).get(
-        "vwap"
-    ) is None:
+    if matematico.get("indicadores", {}).get("vwap") is None:
         avisos.append(
             "VWAP indisponível nesta leitura matemática."
         )
@@ -265,31 +366,36 @@ def main():
 
     print("Contexto produzido com sucesso.")
     print("Candles analisados:", len(candles))
+    print("Candles no gráfico:", len(serie_grafico))
     print("Candle:", candle_tecnico)
+
     print(
         "Tendência M5:",
         tecnico.get("tendencia_m5")
     )
+
     print(
         "Tendência M15:",
         tecnico.get("tendencia_m15")
     )
+
     print(
         "Tendência H1:",
         tecnico.get("tendencia_h1")
     )
+
     print(
         "Estrutura matemática:",
         matematico["estrutura"]["tendencia_estrutural"]
     )
+
     print(
         "Região estável:",
         mercado.get("regiao")
     )
-    print(
-        "Horários coincidem:",
-        horarios_coincidem
-    )
+
+    print("Horários coincidem:", horarios_coincidem)
+    print("Idade da Central:", idade_central)
     print("Avisos:", len(avisos))
     print("Arquivo:", ARQUIVO_SAIDA)
 
