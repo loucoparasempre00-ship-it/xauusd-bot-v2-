@@ -1,6 +1,6 @@
-
 import os
 import re
+import csv
 import json
 import zipfile
 import io
@@ -33,7 +33,7 @@ from diretor_operacional_xau import (
 
 TOKEN = os.environ["TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN"]
 CHAT_ID = str(os.environ["TELEGRAM_CHAT_ID"])
-API_KEY = os.environ["TWELVE_DATA_API_KEY"]
+
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 REPO = os.environ["GITHUB_REPOSITORY"]
 
@@ -45,6 +45,9 @@ PASTA.mkdir(exist_ok=True)
 
 ARQUIVO_ESTADO = PASTA / "acompanhamento_autonomo_estado.json"
 ARQUIVO_HISTORICO = PASTA / "resultados_operacoes.json"
+
+NOME_ARTEFATO_VELAS = "candles-xauusd-m5"
+NOME_WORKFLOW_INTEGRACAO = "integracao-xauusd.yml"
 
 estado = {
     "ultimo_update_id": 0,
@@ -185,7 +188,7 @@ def github_get(url):
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28"
         },
-        timeout=30
+        timeout=40
     )
 
     resposta.raise_for_status()
@@ -332,6 +335,191 @@ def preparar_sinal(dados):
 
 
 # =========================================================
+# LOCALIZAR VELAS VALIDADAS NO GITHUB ACTIONS
+# =========================================================
+
+def localizar_execucao_integracao():
+    url = (
+        f"{GITHUB}/repos/{REPO}/actions/workflows/"
+        f"{NOME_WORKFLOW_INTEGRACAO}/runs"
+    )
+
+    dados = github_get(
+        url + "?status=success&per_page=20"
+    ).json()
+
+    execucoes = dados.get("workflow_runs", [])
+
+    for execucao in execucoes:
+        if execucao.get("conclusion") == "success":
+            return execucao["id"]
+
+    raise RuntimeError(
+        "Não encontrei execução bem-sucedida da integração XAUUSD."
+    )
+
+
+def baixar_artefato_velas(run_id):
+    url = (
+        f"{GITHUB}/repos/{REPO}/actions/runs/"
+        f"{run_id}/artifacts"
+    )
+
+    artefatos = github_get(url).json().get("artifacts", [])
+
+    artefato = next(
+        (
+            item for item in artefatos
+            if item.get("name") == NOME_ARTEFATO_VELAS
+            and not item.get("expired", False)
+        ),
+        None
+    )
+
+    if not artefato:
+        raise RuntimeError(
+            "O artefato de velas validadas não foi encontrado "
+            "na última integração."
+        )
+
+    resposta = github_get(
+        f"{GITHUB}/repos/{REPO}/actions/artifacts/"
+        f"{artefato['id']}/zip"
+    )
+
+    return resposta.content
+
+
+# =========================================================
+# LER CSV DE VELAS FECHADAS
+# =========================================================
+
+def interpretar_horario(valor):
+    instante = datetime.fromisoformat(
+        str(valor).strip().replace("Z", "+00:00")
+    )
+
+    if instante.tzinfo is None:
+        instante = instante.replace(tzinfo=timezone.utc)
+
+    return instante.astimezone(timezone.utc)
+
+
+def buscar_velas():
+    print("Buscando banco de velas validadas no GitHub Actions.")
+
+    run_id = localizar_execucao_integracao()
+
+    conteudo = baixar_artefato_velas(run_id)
+
+    agora = datetime.now(timezone.utc)
+    velas = []
+
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo:
+        caminhos = [
+            nome for nome in arquivo.namelist()
+            if nome.endswith("xauusd_m5_fechados.csv")
+        ]
+
+        if not caminhos:
+            raise RuntimeError(
+                "O artefato não contém xauusd_m5_fechados.csv."
+            )
+
+        with arquivo.open(caminhos[0]) as bruto:
+            texto = io.TextIOWrapper(
+                bruto,
+                encoding="utf-8-sig",
+                newline=""
+            )
+
+            leitor = csv.DictReader(texto)
+
+            if not leitor.fieldnames:
+                raise RuntimeError(
+                    "CSV de velas sem cabeçalho."
+                )
+
+            for item in leitor:
+                horario_texto = (
+                    item.get("timestamp_utc")
+                    or item.get("timestamp")
+                )
+
+                if not horario_texto:
+                    continue
+
+                try:
+                    horario = interpretar_horario(horario_texto)
+
+                    abertura = float(item["open"])
+                    maxima = float(item["high"])
+                    minima = float(item["low"])
+                    fechamento = float(item["close"])
+
+                    precos = [
+                        abertura,
+                        maxima,
+                        minima,
+                        fechamento
+                    ]
+
+                    if not all(
+                        valor > 0 and valor < float("inf")
+                        for valor in precos
+                    ):
+                        continue
+
+                    if maxima < max(abertura, fechamento, minima):
+                        continue
+
+                    if minima > min(abertura, fechamento, maxima):
+                        continue
+
+                    # Confirma que a vela M5 já fechou.
+                    if horario + timedelta(minutes=5) > agora:
+                        continue
+
+                    velas.append({
+                        "horario": horario,
+                        "open": abertura,
+                        "high": maxima,
+                        "low": minima,
+                        "close": fechamento
+                    })
+
+                except (ValueError, TypeError, KeyError):
+                    continue
+
+    velas.sort(key=lambda item: item["horario"])
+
+    # Remove duplicidades de horário.
+    unicas = {}
+
+    for vela in velas:
+        unicas[vela["horario"]] = vela
+
+    velas = sorted(
+        unicas.values(),
+        key=lambda item: item["horario"]
+    )
+
+    if not velas:
+        raise RuntimeError(
+            "O banco de velas não possui candles M5 fechados válidos."
+        )
+
+    print(f"Velas validadas encontradas: {len(velas)}")
+    print(
+        "Última vela fechada:",
+        velas[-1]["horario"].isoformat()
+    )
+
+    # Mantém até 5000 candles para os cálculos.
+    return velas[-5000:]
+
+
+# =========================================================
 # INDICADORES
 # =========================================================
 
@@ -415,54 +603,6 @@ def calcular_atr(velas, periodo=14):
 
 
 # =========================================================
-# VELAS M5 FECHADAS
-# =========================================================
-
-def buscar_velas():
-    resposta = requests.get(
-        "https://api.twelvedata.com/time_series",
-        params={
-            "symbol": "XAU/USD",
-            "interval": "5min",
-            "outputsize": 100,
-            "apikey": API_KEY,
-            "timezone": "UTC"
-        },
-        timeout=30
-    )
-
-    resposta.raise_for_status()
-    dados = resposta.json()
-
-    if "values" not in dados:
-        raise RuntimeError(
-            f"Erro Twelve Data: {dados}"
-        )
-
-    agora = datetime.now(timezone.utc)
-    velas = []
-
-    for item in dados["values"]:
-        horario = datetime.strptime(
-            item["datetime"],
-            "%Y-%m-%d %H:%M:%S"
-        ).replace(tzinfo=timezone.utc)
-
-        if horario + timedelta(minutes=5) <= agora:
-            velas.append({
-                "horario": horario,
-                "open": float(item["open"]),
-                "high": float(item["high"]),
-                "low": float(item["low"]),
-                "close": float(item["close"])
-            })
-
-    velas.sort(key=lambda x: x["horario"])
-
-    return velas
-
-
-# =========================================================
 # ATIVAR OPERAÇÃO
 # =========================================================
 
@@ -507,7 +647,8 @@ def ativar_operacao(preco):
         "Diagnóstico original armazenado.\n"
         "Contexto inicial da Central armazenado.\n\n"
         "O acompanhamento começa na próxima execução M5.\n"
-        "O robô não envia nem executa ordens."
+        "As velas serão consultadas no banco já validado.\n"
+        "Nenhuma ordem será executada pelo robô."
     )
 
 
@@ -516,13 +657,6 @@ def ativar_operacao(preco):
 # =========================================================
 
 def extrair_preco_entrada(texto):
-    """
-    Aceita:
-    ENTREI 4095.212
-    ENTREI+4095.212
-    ENTREI: 4095.212
-    """
-
     padrao = (
         r"^ENTREI\s*(?:\+|:|\s)\s*"
         r"(\d+(?:[.,]\d+)?)$"
@@ -557,7 +691,7 @@ def processar_mensagem(mensagem):
     operacao = estado.get("operacao")
 
     # -----------------------------------------------------
-    # CANCELA: POSIÇÃO FECHADA MANUALMENTE NA CORRETORA
+    # CANCELA
     # -----------------------------------------------------
 
     if upper in ("CANCELA", "CANCELAR"):
@@ -648,7 +782,7 @@ def processar_mensagem(mensagem):
         return False
 
     # -----------------------------------------------------
-    # NOVA ENTRADA: ENTREI + PREÇO
+    # NOVA ENTRADA
     # -----------------------------------------------------
 
     preco = extrair_preco_entrada(texto)
@@ -664,9 +798,6 @@ def processar_mensagem(mensagem):
 
         try:
             ativar_operacao(preco)
-
-            # Informa à execução principal que acabou
-            # de iniciar. A análise começa no próximo ciclo.
             return True
 
         except Exception as erro:
@@ -689,7 +820,7 @@ def processar_mensagem(mensagem):
 
 
 # =========================================================
-# CONTEXTO CENTRAL: ATUAL OU REFERÊNCIA INICIAL
+# CONTEXTO CENTRAL
 # =========================================================
 
 def obter_contexto_central(operacao):
@@ -908,8 +1039,6 @@ def conduzir(velas):
         stop_atual = float(operacao["stop"])
         pendente = operacao.get("stop_pendente")
 
-        # O novo stop precisa ser melhor que o stop
-        # confirmado e também que o pendente anterior.
         referencia = stop_atual
 
         if pendente is not None:
@@ -966,8 +1095,7 @@ def main():
     carregar()
 
     try:
-        # PRIMEIRA E ÚNICA CONSULTA OBRIGATÓRIA:
-        # TELEGRAM.
+        # PRIMEIRO: CONSULTAR TELEGRAM.
         atualizacoes = buscar_atualizacoes()
 
         operacao_antes = estado.get("operacao")
@@ -989,20 +1117,16 @@ def main():
         salvar()
 
         # SEM OPERAÇÃO:
-        # ENCERRA A EXECUÇÃO AQUI.
-        # NÃO CONSULTA TWELVE DATA.
-        # NÃO LÊ A CENTRAL.
-        # NÃO CALCULA INDICADORES.
+        # ENCERRA SEM CONSULTAR VELAS OU CENTRAL.
         if not estado.get("operacao"):
             print(
                 "Nenhuma operação ativa. "
-                "Consulta do Telegram concluída. "
-                "Execução encerrada."
+                "Telegram consultado. Execução encerrada."
             )
             return
 
-        # NOVA ENTRADA:
-        # A análise começa somente na próxima execução M5.
+        # OPERAÇÃO RECÉM-ATIVADA:
+        # COMEÇA NO PRÓXIMO CICLO.
         if entrada_ativada_agora or operacao_antes is None:
             print(
                 "Operação ativada. "
@@ -1010,8 +1134,8 @@ def main():
             )
             return
 
-        # OPERAÇÃO JÁ ATIVA:
-        # AGORA SIM CONSULTA AS VELAS.
+        # OPERAÇÃO ATIVA:
+        # CONSULTA SOMENTE O ARTEFATO DE VELAS VALIDADAS.
         velas = buscar_velas()
 
         conduzir(velas)
