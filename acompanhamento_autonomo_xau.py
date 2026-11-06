@@ -1088,54 +1088,99 @@ def conduzir(velas):
 
 
 # =========================================================
-# EXECUÇÃO PRINCIPAL
+# EXECUÇÃO PRINCIPAL — FILA TELEGRAM CORRIGIDA
 # =========================================================
 
 def main():
     carregar()
 
     try:
-        # PRIMEIRO: CONSULTAR TELEGRAM.
+        # 1. CONSULTAR TELEGRAM
         atualizacoes = buscar_atualizacoes()
 
-        operacao_antes = estado.get("operacao")
-        entrada_ativada_agora = False
+        if not atualizacoes:
+            print("Nenhuma mensagem nova no Telegram.")
+
+        # 2. LOCALIZAR O COMANDO VÁLIDO MAIS RECENTE
+        comandos_validos = []
 
         for atualizacao in atualizacoes:
-            atualizar_offset(atualizacao)
-
             mensagem = atualizacao.get("message")
 
             if not mensagem:
                 continue
 
-            ativou = processar_mensagem(mensagem)
+            if str(
+                mensagem.get("chat", {}).get("id")
+            ) != CHAT_ID:
+                continue
 
-            if ativou:
-                entrada_ativada_agora = True
+            texto = (
+                mensagem.get("text") or ""
+            ).strip()
 
-        salvar()
+            upper = texto.upper()
 
-        # SEM OPERAÇÃO:
-        # ENCERRA SEM CONSULTAR VELAS OU CENTRAL.
+            comando_reconhecido = (
+                upper in (
+                    "CANCELA",
+                    "CANCELAR",
+                    "STOP OK",
+                    "STOP NÃO",
+                    "STATUS"
+                )
+                or extrair_preco_entrada(texto) is not None
+            )
+
+            if comando_reconhecido:
+                comandos_validos.append(mensagem)
+
+        # 3. CONSUMIR TODA A FILA RECEBIDA
+        # Evita que mensagens antigas sejam repetidas.
+        if atualizacoes:
+            maior_id = max(
+                int(item["update_id"])
+                for item in atualizacoes
+            )
+
+            estado["ultimo_update_id"] = max(
+                int(estado.get("ultimo_update_id", 0)),
+                maior_id
+            )
+
+            salvar()
+
+        # 4. PROCESSAR SOMENTE O COMANDO MAIS RECENTE
+        if comandos_validos:
+            mensagem = comandos_validos[-1]
+
+            print(
+                "Processando somente o comando válido "
+                "mais recente do Telegram."
+            )
+
+            processar_mensagem(mensagem)
+
+            salvar()
+
+            # Uma ação por execução.
+            # O acompanhamento continua no próximo ciclo.
+            return
+
+        # 5. SEM OPERAÇÃO ATIVA: ENCERRAR
         if not estado.get("operacao"):
             print(
                 "Nenhuma operação ativa. "
-                "Telegram consultado. Execução encerrada."
+                "Execução encerrada sem consultar velas."
             )
             return
 
-        # OPERAÇÃO RECÉM-ATIVADA:
-        # COMEÇA NO PRÓXIMO CICLO.
-        if entrada_ativada_agora or operacao_antes is None:
-            print(
-                "Operação ativada. "
-                "Acompanhamento começará no próximo ciclo."
-            )
-            return
+        # 6. OPERAÇÃO ATIVA: ACOMPANHAR
+        print(
+            "Operação ativa. Consultando banco "
+            "de velas já validadas."
+        )
 
-        # OPERAÇÃO ATIVA:
-        # CONSULTA SOMENTE O ARTEFATO DE VELAS VALIDADAS.
         velas = buscar_velas()
 
         conduzir(velas)
