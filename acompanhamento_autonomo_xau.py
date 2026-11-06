@@ -691,6 +691,37 @@ def processar_mensagem(mensagem):
     operacao = estado.get("operacao")
 
     # -----------------------------------------------------
+    # DESLIGA — RESET IMEDIATO DO ACOMPANHANTE
+    # -----------------------------------------------------
+
+    if upper == "DESLIGA":
+        ultimo_id = int(
+            estado.get("ultimo_update_id", 0)
+        )
+
+        # Restaura o estado operacional inicial.
+        # Preserva o controle da fila do Telegram.
+        estado.clear()
+
+        estado.update({
+            "ultimo_update_id": ultimo_id,
+            "operacao": None
+        })
+
+        # Salva o estado inicial antes da confirmação.
+        salvar()
+
+        enviar(
+            "ACOMPANHAMENTO DESLIGADO.\n\n"
+            "Estado operacional restaurado ao inicial.\n"
+            "Nenhuma operação será acompanhada.\n"
+            "Histórico anterior preservado.\n\n"
+            "O XP voltou a aguardar novas instruções."
+        )
+
+        return False
+
+    # -----------------------------------------------------
     # CANCELA
     # -----------------------------------------------------
 
@@ -1088,7 +1119,7 @@ def conduzir(velas):
 
 
 # =========================================================
-# EXECUÇÃO PRINCIPAL — FILA TELEGRAM CORRIGIDA
+# EXECUÇÃO PRINCIPAL — FILA TELEGRAM + DESLIGA
 # =========================================================
 
 def main():
@@ -1101,8 +1132,9 @@ def main():
         if not atualizacoes:
             print("Nenhuma mensagem nova no Telegram.")
 
-        # 2. LOCALIZAR O COMANDO VÁLIDO MAIS RECENTE
+        # 2. LOCALIZAR COMANDOS
         comandos_validos = []
+        comandos_desliga = []
 
         for atualizacao in atualizacoes:
             mensagem = atualizacao.get("message")
@@ -1123,6 +1155,7 @@ def main():
 
             comando_reconhecido = (
                 upper in (
+                    "DESLIGA",
                     "CANCELA",
                     "CANCELAR",
                     "STOP OK",
@@ -1135,8 +1168,10 @@ def main():
             if comando_reconhecido:
                 comandos_validos.append(mensagem)
 
+                if upper == "DESLIGA":
+                    comandos_desliga.append(mensagem)
+
         # 3. CONSUMIR TODA A FILA RECEBIDA
-        # Evita que mensagens antigas sejam repetidas.
         if atualizacoes:
             maior_id = max(
                 int(item["update_id"])
@@ -1150,7 +1185,18 @@ def main():
 
             salvar()
 
-        # 4. PROCESSAR SOMENTE O COMANDO MAIS RECENTE
+        # 4. DESLIGA TEM PRIORIDADE ABSOLUTA
+        if comandos_desliga:
+            print("Comando DESLIGA identificado.")
+
+            processar_mensagem(
+                comandos_desliga[-1]
+            )
+
+            salvar()
+            return
+
+        # 5. PROCESSAR SOMENTE O COMANDO VÁLIDO MAIS RECENTE
         if comandos_validos:
             mensagem = comandos_validos[-1]
 
@@ -1162,12 +1208,9 @@ def main():
             processar_mensagem(mensagem)
 
             salvar()
-
-            # Uma ação por execução.
-            # O acompanhamento continua no próximo ciclo.
             return
 
-        # 5. SEM OPERAÇÃO ATIVA: ENCERRAR
+        # 6. SEM OPERAÇÃO ATIVA: AGUARDAR
         if not estado.get("operacao"):
             print(
                 "Nenhuma operação ativa. "
@@ -1175,7 +1218,7 @@ def main():
             )
             return
 
-        # 6. OPERAÇÃO ATIVA: ACOMPANHAR
+        # 7. OPERAÇÃO ATIVA: ACOMPANHAR
         print(
             "Operação ativa. Consultando banco "
             "de velas já validadas."
