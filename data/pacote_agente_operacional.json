@@ -1,0 +1,3435 @@
+{
+  "gerado_utc": "2026-11-06T12:23:36.041314+00:00",
+  "operacao": {
+    "direcao": "VENDA",
+    "entrada_sinal": 4070.727,
+    "stop": 4078.188,
+    "alvo": 4059.534,
+    "entrada_real": 4044.461,
+    "stop_original": 4078.188,
+    "stop_confirmado": 4078.188,
+    "stop_pendente": null,
+    "diagnostico_original": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-06T08:35:00+00:00",
+      "decisao_motor": "SEM_SINAL",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "modelo_solicitado_pelo_testador": "models/gemini-3.1-flash-lite",
+      "fallback_modelo_acionado": false,
+      "erros_modelos_anteriores": [],
+      "decisao_ia_original": "VENDA",
+      "decisao_gemini": "VENDA",
+      "confianca_declarada": 75,
+      "pontuacao_tecnica_compra": 37.5,
+      "pontuacao_tecnica_venda": 25.0,
+      "fonte_pontuacao_tecnica": "campo_antigo_normalizado",
+      "pontuacao_tecnica_direcao": 25.0,
+      "contribuicao_gemini": 18.75,
+      "pontuacao_final": 43.75,
+      "parametros_adaptativos": {
+        "peso_tecnico": 75.0,
+        "peso_gemini": 25.0,
+        "limiar": 40.0,
+        "stop_atr": 1.5,
+        "rr": 1.5
+      },
+      "aprendizado": "A consistência das operações de venda tem sido alta quando o alinhamento macro (M15/H1) coincide com o rompimento de mínimas no M5. O uso do contexto da Central Inteligente como filtro de regiões de transição tem reduzido entradas em zonas de reversão, aumentando a precisão das operações de continuação.",
+      "justificativa": "O ativo mantém alinhamento técnico de baixa em todos os tempos gráficos (M5, M15, H1). A EMA9 abaixo da EMA21 no M5 e o RSI em 46.21 confirmam a continuidade do momentum vendedor. O contexto da Central Inteligente corrobora a estrutura de transição na região 2726, com histórico de saídas para faixas inferiores, reforçando a probabilidade de continuidade do movimento baixista. A ausência de sinais de exaustão e o alinhamento macro validam a entrada técnica.",
+      "central_status": "RECEBIDO",
+      "contexto_central": {
+        "versao": "1.0",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "metodo": {
+          "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+          "eixo_y": "Faixas fixas de preço",
+          "largura_regiao": 1.5,
+          "ancoragem": 0,
+          "atr": "Medida de volatilidade, sem alterar regiões",
+          "volume": "Não utilizado"
+        },
+        "diagnostico": {
+          "total_velas": 5000,
+          "total_regioes": 188,
+          "total_transicoes": 1045,
+          "minimo_amostras": 10
+        },
+        "mercado_atual": {
+          "timestamp": "2026-11-05 22:05:00",
+          "eixo_x": 4999,
+          "preco": 4089.45446,
+          "atr": 3.50642,
+          "direcao_vela": "ALTA",
+          "regiao": 2726,
+          "limite_inferior": 4089.0,
+          "limite_superior": 4090.5,
+          "visitas_regiao": 24
+        },
+        "transicoes_historicas_da_regiao": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "transicoes_com_amostra_minima": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+      },
+      "gerado_utc": "2026-11-06T08:41:23.093758+00:00",
+      "modo_teste": true,
+      "envio_telegram": true,
+      "execucao_ordens": false,
+      "entrada": 4070.727,
+      "atr14": 4.9744,
+      "distancia_stop": 7.462,
+      "stop_loss": 4078.188,
+      "take_profit": 4059.534,
+      "distancia_alvo": 11.192,
+      "relacao_risco_retorno": "1:1.5",
+      "metodo_stop": "ATR(14) x 1.5",
+      "metodo_alvo": "Distancia do stop x 1.5",
+      "horario_sinal_utc": "2026-11-06T08:41:24.232419+00:00",
+      "fechamento_candle_utc": "2026-11-06T08:40:00+00:00",
+      "atraso_apos_fechamento_minutos": 1.4
+    },
+    "memoria_autonoma": {
+      "versao": "1.0",
+      "criada_em": "2026-11-06T09:45:12.106721+00:00",
+      "diagnostico_original": {
+        "ativo": "XAUUSD",
+        "timeframe": "M5",
+        "candle_utc": "2026-11-06T08:35:00+00:00",
+        "decisao_motor": "SEM_SINAL",
+        "modelo_utilizado": "models/gemini-3.1-flash-lite",
+        "modelo_solicitado_pelo_testador": "models/gemini-3.1-flash-lite",
+        "fallback_modelo_acionado": false,
+        "erros_modelos_anteriores": [],
+        "decisao_ia_original": "VENDA",
+        "decisao_gemini": "VENDA",
+        "confianca_declarada": 75,
+        "pontuacao_tecnica_compra": 37.5,
+        "pontuacao_tecnica_venda": 25.0,
+        "fonte_pontuacao_tecnica": "campo_antigo_normalizado",
+        "pontuacao_tecnica_direcao": 25.0,
+        "contribuicao_gemini": 18.75,
+        "pontuacao_final": 43.75,
+        "parametros_adaptativos": {
+          "peso_tecnico": 75.0,
+          "peso_gemini": 25.0,
+          "limiar": 40.0,
+          "stop_atr": 1.5,
+          "rr": 1.5
+        },
+        "aprendizado": "A consistência das operações de venda tem sido alta quando o alinhamento macro (M15/H1) coincide com o rompimento de mínimas no M5. O uso do contexto da Central Inteligente como filtro de regiões de transição tem reduzido entradas em zonas de reversão, aumentando a precisão das operações de continuação.",
+        "justificativa": "O ativo mantém alinhamento técnico de baixa em todos os tempos gráficos (M5, M15, H1). A EMA9 abaixo da EMA21 no M5 e o RSI em 46.21 confirmam a continuidade do momentum vendedor. O contexto da Central Inteligente corrobora a estrutura de transição na região 2726, com histórico de saídas para faixas inferiores, reforçando a probabilidade de continuidade do movimento baixista. A ausência de sinais de exaustão e o alinhamento macro validam a entrada técnica.",
+        "central_status": "RECEBIDO",
+        "contexto_central": {
+          "versao": "1.0",
+          "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+          "metodo": {
+            "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+            "eixo_y": "Faixas fixas de preço",
+            "largura_regiao": 1.5,
+            "ancoragem": 0,
+            "atr": "Medida de volatilidade, sem alterar regiões",
+            "volume": "Não utilizado"
+          },
+          "diagnostico": {
+            "total_velas": 5000,
+            "total_regioes": 188,
+            "total_transicoes": 1045,
+            "minimo_amostras": 10
+          },
+          "mercado_atual": {
+            "timestamp": "2026-11-05 22:05:00",
+            "eixo_x": 4999,
+            "preco": 4089.45446,
+            "atr": 3.50642,
+            "direcao_vela": "ALTA",
+            "regiao": 2726,
+            "limite_inferior": 4089.0,
+            "limite_superior": 4090.5,
+            "visitas_regiao": 24
+          },
+          "transicoes_historicas_da_regiao": [
+            {
+              "origem": 2726,
+              "destino": 2725,
+              "transicoes": 4,
+              "saidas_origem": 12,
+              "probabilidade": 33.33,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2724,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2727,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2729,
+              "transicoes": 2,
+              "saidas_origem": 12,
+              "probabilidade": 16.67,
+              "amostra_suficiente": true
+            }
+          ],
+          "transicoes_com_amostra_minima": [
+            {
+              "origem": 2726,
+              "destino": 2725,
+              "transicoes": 4,
+              "saidas_origem": 12,
+              "probabilidade": 33.33,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2724,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2727,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2729,
+              "transicoes": 2,
+              "saidas_origem": 12,
+              "probabilidade": 16.67,
+              "amostra_suficiente": true
+            }
+          ],
+          "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+        },
+        "gerado_utc": "2026-11-06T08:41:23.093758+00:00",
+        "modo_teste": true,
+        "envio_telegram": true,
+        "execucao_ordens": false,
+        "entrada": 4070.727,
+        "atr14": 4.9744,
+        "distancia_stop": 7.462,
+        "stop_loss": 4078.188,
+        "take_profit": 4059.534,
+        "distancia_alvo": 11.192,
+        "relacao_risco_retorno": "1:1.5",
+        "metodo_stop": "ATR(14) x 1.5",
+        "metodo_alvo": "Distancia do stop x 1.5",
+        "horario_sinal_utc": "2026-11-06T08:41:24.232419+00:00",
+        "fechamento_candle_utc": "2026-11-06T08:40:00+00:00",
+        "atraso_apos_fechamento_minutos": 1.4
+      },
+      "central_inicial": {
+        "versao": "1.0",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "metodo": {
+          "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+          "eixo_y": "Faixas fixas de preço",
+          "largura_regiao": 1.5,
+          "ancoragem": 0,
+          "atr": "Medida de volatilidade, sem alterar regiões",
+          "volume": "Não utilizado"
+        },
+        "diagnostico": {
+          "total_velas": 5000,
+          "total_regioes": 188,
+          "total_transicoes": 1045,
+          "minimo_amostras": 10
+        },
+        "mercado_atual": {
+          "timestamp": "2026-11-05 22:05:00",
+          "eixo_x": 4999,
+          "preco": 4089.45446,
+          "atr": 3.50642,
+          "direcao_vela": "ALTA",
+          "regiao": 2726,
+          "limite_inferior": 4089.0,
+          "limite_superior": 4090.5,
+          "visitas_regiao": 24
+        },
+        "transicoes_historicas_da_regiao": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "transicoes_com_amostra_minima": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+      },
+      "total_ciclos": 3,
+      "ultima_observacao": "2026-11-06T12:15:00+00:00",
+      "observacoes": [
+        {
+          "timestamp": "2026-11-06T10:35:00+00:00",
+          "preco": 4068.69086,
+          "maxima": 4069.83843,
+          "minima": 4068.3888,
+          "ema9": 4069.9685003231325,
+          "ema21": 4070.2133327380984,
+          "rsi14": 48.74097077910535,
+          "atr14": 3.0340664285714802,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4068.69086,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 720.2,
+            "central_desatualizada": true,
+            "regiao": 2712,
+            "limite_inferior": 4068.0,
+            "limite_superior": 4069.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4068.69086,
+            "novo_stop": 4078.188,
+            "resultado_r": -0.72,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4068.69086,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 720.2,
+              "central_desatualizada": true,
+              "regiao": 2712,
+              "limite_inferior": 4068.0,
+              "limite_superior": 4069.5,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T10:46:59.228343+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T11:25:00+00:00",
+          "preco": 4071.04561,
+          "maxima": 4071.82703,
+          "minima": 4069.42552,
+          "ema9": 4068.045407273937,
+          "ema21": 4068.4559573761358,
+          "rsi14": 56.65177280291643,
+          "atr14": 2.8807742857142915,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4071.04561,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 772.5,
+            "central_desatualizada": true,
+            "regiao": 2714,
+            "limite_inferior": 4071.0,
+            "limite_superior": 4072.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4071.04561,
+            "novo_stop": 4078.188,
+            "resultado_r": -0.79,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4071.04561,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 772.5,
+              "central_desatualizada": true,
+              "regiao": 2714,
+              "limite_inferior": 4071.0,
+              "limite_superior": 4072.5,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T11:39:20.822187+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T12:15:00+00:00",
+          "preco": 4067.57957,
+          "maxima": 4067.97741,
+          "minima": 4062.50364,
+          "ema9": 4066.4104808311095,
+          "ema21": 4067.4364918453402,
+          "rsi14": 50.064460174187765,
+          "atr14": 3.838080714285752,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4067.57957,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 816.8,
+            "central_desatualizada": true,
+            "regiao": 2711,
+            "limite_inferior": 4066.5,
+            "limite_superior": 4068.0,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4067.57957,
+            "novo_stop": 4078.188,
+            "resultado_r": -0.69,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4067.57957,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 816.8,
+              "central_desatualizada": true,
+              "regiao": 2711,
+              "limite_inferior": 4066.5,
+              "limite_superior": 4068.0,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T12:23:33.169268+00:00"
+        }
+      ]
+    },
+    "ativada_em": "2026-11-06T09:45:12.106868+00:00",
+    "ultima_vela": "2026-11-06T12:15:00+00:00",
+    "alertas": [],
+    "sequencia_reversao": 0,
+    "status": "ATIVA"
+  },
+  "contexto": {
+    "versao": "2.0",
+    "gerado_utc": "2026-11-06T12:23:36.035909+00:00",
+    "ativo": "XAUUSD",
+    "candle_utc": "2026-11-06T12:15:00+00:00",
+    "preco_atual": 4067.58,
+    "validacao_temporal": {
+      "candle_tecnico": "2026-11-06T12:15:00+00:00",
+      "candle_tabuleiro": "2026-11-05 22:05:00",
+      "coincidem": false
+    },
+    "contexto_tecnico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-06T12:15:00+00:00",
+      "preco": 4067.58,
+      "decisao": "SEM_SINAL",
+      "pontuacao_compra": 3,
+      "pontuacao_venda": 2,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "ALTA",
+      "tendencia_h1": "BAIXA",
+      "rsi_14": 50.06,
+      "atr_14": 3.77,
+      "stop": null,
+      "alvo": null,
+      "relacao_risco_retorno": "1:1.5",
+      "motivos": [],
+      "envio_telegram": false,
+      "execucao_ordens": false,
+      "probabilidade_validada": null,
+      "aviso": "Análise técnica experimental. Não representa probabilidade comprovada de lucro."
+    },
+    "contexto_matematico": {
+      "timeframe": "M5",
+      "preco": 4067.57957,
+      "indicadores": {
+        "ema6": 4066.00654,
+        "ema20": 4067.39076,
+        "alinhamento_emas": "BAIXA",
+        "macd_linha": -0.78596,
+        "macd_sinal": -0.39943,
+        "macd_histograma": -0.38653,
+        "consolidacao": false,
+        "vwap": null,
+        "vwap_status": "INDISPONIVEL_SEM_VOLUME_VALIDO"
+      },
+      "estrutura": {
+        "tendencia_estrutural": "BAIXA",
+        "ultimos_topos": [
+          {
+            "indice": 4947,
+            "preco": 4057.12431,
+            "timestamp": "2026-11-06T07:55:00+00:00"
+          },
+          {
+            "indice": 4961,
+            "preco": 4080.30031,
+            "timestamp": "2026-11-06T09:05:00+00:00"
+          },
+          {
+            "indice": 4964,
+            "preco": 4080.96637,
+            "timestamp": "2026-11-06T09:20:00+00:00"
+          },
+          {
+            "indice": 4969,
+            "preco": 4077.47197,
+            "timestamp": "2026-11-06T09:45:00+00:00"
+          },
+          {
+            "indice": 4990,
+            "preco": 4073.33582,
+            "timestamp": "2026-11-06T11:30:00+00:00"
+          },
+          {
+            "indice": 4997,
+            "preco": 4068.18274,
+            "timestamp": "2026-11-06T12:05:00+00:00"
+          }
+        ],
+        "ultimos_fundos": [
+          {
+            "indice": 4958,
+            "preco": 4068.67931,
+            "timestamp": "2026-11-06T08:50:00+00:00"
+          },
+          {
+            "indice": 4968,
+            "preco": 4072.37448,
+            "timestamp": "2026-11-06T09:40:00+00:00"
+          },
+          {
+            "indice": 4977,
+            "preco": 4065.04065,
+            "timestamp": "2026-11-06T10:25:00+00:00"
+          },
+          {
+            "indice": 4984,
+            "preco": 4063.38887,
+            "timestamp": "2026-11-06T11:00:00+00:00"
+          },
+          {
+            "indice": 4987,
+            "preco": 4063.88426,
+            "timestamp": "2026-11-06T11:15:00+00:00"
+          },
+          {
+            "indice": 4996,
+            "preco": 4060.41904,
+            "timestamp": "2026-11-06T12:00:00+00:00"
+          }
+        ],
+        "suportes_proximos": [
+          {
+            "minimo": 4067.12346,
+            "maximo": 4067.52085,
+            "quantidade": 5,
+            "centro": 4067.32215
+          },
+          {
+            "minimo": 4063.38887,
+            "maximo": 4065.2059,
+            "quantidade": 6,
+            "centro": 4064.29738
+          },
+          {
+            "minimo": 4061.73842,
+            "maximo": 4061.90341,
+            "quantidade": 3,
+            "centro": 4061.82092
+          },
+          {
+            "minimo": 4052.84915,
+            "maximo": 4060.65589,
+            "quantidade": 35,
+            "centro": 4056.75252
+          }
+        ],
+        "resistencias_proximas": [
+          {
+            "minimo": 4067.90574,
+            "maximo": 4073.33582,
+            "quantidade": 17,
+            "centro": 4070.62078
+          },
+          {
+            "minimo": 4076.3085,
+            "maximo": 4076.3085,
+            "quantidade": 1,
+            "centro": 4076.3085
+          },
+          {
+            "minimo": 4077.47197,
+            "maximo": 4077.47197,
+            "quantidade": 1,
+            "centro": 4077.47197
+          },
+          {
+            "minimo": 4080.30031,
+            "maximo": 4081.96587,
+            "quantidade": 3,
+            "centro": 4081.13309
+          }
+        ],
+        "rompimentos": [],
+        "observacao": "Figuras gráficas ainda não implementadas. Usar somente candles fechados."
+      },
+      "status": "LEITURA_MATEMATICA_ESTRUTURAL",
+      "decisao_final": "PENDENTE_DE_VALIDACAO",
+      "observacao": "Esta leitura não é um sinal aprovado. É uma fonte independente de contexto."
+    },
+    "grafico_m5": {
+      "eixo_x": "tempo_utc_crescente",
+      "eixo_y": "preco_xauusd",
+      "total_candles_historico": 5000,
+      "candles_exibidos": 240,
+      "serie": [
+        {
+          "timestamp": "2026-11-05T16:20:00+00:00",
+          "open": 4100.80851,
+          "high": 4113.87198,
+          "low": 4100.80851,
+          "close": 4113.59299,
+          "ema9": 4099.83438,
+          "ema21": 4103.64127
+        },
+        {
+          "timestamp": "2026-11-05T16:25:00+00:00",
+          "open": 4113.0341,
+          "high": 4115.1791,
+          "low": 4109.47645,
+          "close": 4114.74762,
+          "ema9": 4102.81703,
+          "ema21": 4104.65093
+        },
+        {
+          "timestamp": "2026-11-05T16:30:00+00:00",
+          "open": 4113.83236,
+          "high": 4115.56507,
+          "low": 4108.96988,
+          "close": 4109.10153,
+          "ema9": 4104.07393,
+          "ema21": 4105.05553
+        },
+        {
+          "timestamp": "2026-11-05T16:35:00+00:00",
+          "open": 4109.3503,
+          "high": 4118.27691,
+          "low": 4108.30349,
+          "close": 4118.10263,
+          "ema9": 4106.87967,
+          "ema21": 4106.24163
+        },
+        {
+          "timestamp": "2026-11-05T16:40:00+00:00",
+          "open": 4117.63225,
+          "high": 4118.34584,
+          "low": 4114.31268,
+          "close": 4116.41508,
+          "ema9": 4108.78675,
+          "ema21": 4107.16649
+        },
+        {
+          "timestamp": "2026-11-05T16:45:00+00:00",
+          "open": 4116.38137,
+          "high": 4122.52133,
+          "low": 4112.88536,
+          "close": 4122.02162,
+          "ema9": 4111.43373,
+          "ema21": 4108.51696
+        },
+        {
+          "timestamp": "2026-11-05T16:50:00+00:00",
+          "open": 4121.05739,
+          "high": 4126.29224,
+          "low": 4121.05739,
+          "close": 4125.85089,
+          "ema9": 4114.31716,
+          "ema21": 4110.09277
+        },
+        {
+          "timestamp": "2026-11-05T16:55:00+00:00",
+          "open": 4125.16267,
+          "high": 4127.79658,
+          "low": 4124.22155,
+          "close": 4126.98812,
+          "ema9": 4116.85135,
+          "ema21": 4111.62871
+        },
+        {
+          "timestamp": "2026-11-05T17:00:00+00:00",
+          "open": 4127.01938,
+          "high": 4127.28548,
+          "low": 4119.63418,
+          "close": 4120.35627,
+          "ema9": 4117.55233,
+          "ema21": 4112.42213
+        },
+        {
+          "timestamp": "2026-11-05T17:05:00+00:00",
+          "open": 4119.98278,
+          "high": 4123.5413,
+          "low": 4117.42908,
+          "close": 4123.0701,
+          "ema9": 4118.65589,
+          "ema21": 4113.39012
+        },
+        {
+          "timestamp": "2026-11-05T17:10:00+00:00",
+          "open": 4122.14976,
+          "high": 4124.84546,
+          "low": 4119.1251,
+          "close": 4121.38516,
+          "ema9": 4119.20174,
+          "ema21": 4114.11694
+        },
+        {
+          "timestamp": "2026-11-05T17:15:00+00:00",
+          "open": 4120.62373,
+          "high": 4122.67679,
+          "low": 4117.42908,
+          "close": 4121.13389,
+          "ema9": 4119.58817,
+          "ema21": 4114.75485
+        },
+        {
+          "timestamp": "2026-11-05T17:20:00+00:00",
+          "open": 4120.5929,
+          "high": 4120.5929,
+          "low": 4115.73445,
+          "close": 4117.40628,
+          "ema9": 4119.15179,
+          "ema21": 4114.99589
+        },
+        {
+          "timestamp": "2026-11-05T17:25:00+00:00",
+          "open": 4117.45166,
+          "high": 4117.45166,
+          "low": 4112.51851,
+          "close": 4114.90398,
+          "ema9": 4118.30223,
+          "ema21": 4114.98753
+        },
+        {
+          "timestamp": "2026-11-05T17:30:00+00:00",
+          "open": 4114.36463,
+          "high": 4114.36463,
+          "low": 4108.46343,
+          "close": 4110.78456,
+          "ema9": 4116.7987,
+          "ema21": 4114.60544
+        },
+        {
+          "timestamp": "2026-11-05T17:35:00+00:00",
+          "open": 4110.33185,
+          "high": 4110.65894,
+          "low": 4106.88798,
+          "close": 4109.14177,
+          "ema9": 4115.26731,
+          "ema21": 4114.10875
+        },
+        {
+          "timestamp": "2026-11-05T17:40:00+00:00",
+          "open": 4109.29513,
+          "high": 4109.29513,
+          "low": 4103.25421,
+          "close": 4105.55006,
+          "ema9": 4113.32386,
+          "ema21": 4113.33068
+        },
+        {
+          "timestamp": "2026-11-05T17:45:00+00:00",
+          "open": 4105.16139,
+          "high": 4107.49395,
+          "low": 4102.22977,
+          "close": 4107.01459,
+          "ema9": 4112.06201,
+          "ema21": 4112.75649
+        },
+        {
+          "timestamp": "2026-11-05T17:50:00+00:00",
+          "open": 4106.39962,
+          "high": 4108.04006,
+          "low": 4104.07945,
+          "close": 4104.90922,
+          "ema9": 4110.63145,
+          "ema21": 4112.04311
+        },
+        {
+          "timestamp": "2026-11-05T17:55:00+00:00",
+          "open": 4104.55848,
+          "high": 4106.46804,
+          "low": 4102.5641,
+          "close": 4102.86467,
+          "ema9": 4109.07809,
+          "ema21": 4111.2087
+        },
+        {
+          "timestamp": "2026-11-05T18:00:00+00:00",
+          "open": 4103.12743,
+          "high": 4105.57896,
+          "low": 4096.51387,
+          "close": 4096.82236,
+          "ema9": 4106.62695,
+          "ema21": 4109.90085
+        },
+        {
+          "timestamp": "2026-11-05T18:05:00+00:00",
+          "open": 4097.36809,
+          "high": 4100.8093,
+          "low": 4095.48163,
+          "close": 4098.33858,
+          "ema9": 4104.96927,
+          "ema21": 4108.84974
+        },
+        {
+          "timestamp": "2026-11-05T18:10:00+00:00",
+          "open": 4099.07788,
+          "high": 4104.58482,
+          "low": 4099.07788,
+          "close": 4104.06396,
+          "ema9": 4104.78821,
+          "ema21": 4108.41467
+        },
+        {
+          "timestamp": "2026-11-05T18:15:00+00:00",
+          "open": 4104.01191,
+          "high": 4104.32777,
+          "low": 4096.71119,
+          "close": 4097.05365,
+          "ema9": 4103.2413,
+          "ema21": 4107.38185
+        },
+        {
+          "timestamp": "2026-11-05T18:20:00+00:00",
+          "open": 4097.84188,
+          "high": 4100.06181,
+          "low": 4097.84188,
+          "close": 4098.87272,
+          "ema9": 4102.36758,
+          "ema21": 4106.60829
+        },
+        {
+          "timestamp": "2026-11-05T18:25:00+00:00",
+          "open": 4098.66341,
+          "high": 4104.07945,
+          "low": 4098.66341,
+          "close": 4104.01072,
+          "ema9": 4102.69621,
+          "ema21": 4106.37215
+        },
+        {
+          "timestamp": "2026-11-05T18:30:00+00:00",
+          "open": 4103.81823,
+          "high": 4104.7533,
+          "low": 4103.15554,
+          "close": 4104.17391,
+          "ema9": 4102.99175,
+          "ema21": 4106.17231
+        },
+        {
+          "timestamp": "2026-11-05T18:35:00+00:00",
+          "open": 4103.89814,
+          "high": 4104.41635,
+          "low": 4100.37723,
+          "close": 4103.09993,
+          "ema9": 4103.01339,
+          "ema21": 4105.893
+        },
+        {
+          "timestamp": "2026-11-05T18:40:00+00:00",
+          "open": 4103.25878,
+          "high": 4104.16096,
+          "low": 4099.70482,
+          "close": 4102.4782,
+          "ema9": 4102.90635,
+          "ema21": 4105.58256
+        },
+        {
+          "timestamp": "2026-11-05T18:45:00+00:00",
+          "open": 4101.82443,
+          "high": 4105.79903,
+          "low": 4098.1927,
+          "close": 4100.84269,
+          "ema9": 4102.49362,
+          "ema21": 4105.15167
+        },
+        {
+          "timestamp": "2026-11-05T18:50:00+00:00",
+          "open": 4100.76663,
+          "high": 4104.87686,
+          "low": 4099.20066,
+          "close": 4104.16495,
+          "ema9": 4102.82788,
+          "ema21": 4105.06196
+        },
+        {
+          "timestamp": "2026-11-05T18:55:00+00:00",
+          "open": 4102.66286,
+          "high": 4109.26774,
+          "low": 4102.66286,
+          "close": 4105.93625,
+          "ema9": 4103.44956,
+          "ema21": 4105.14145
+        },
+        {
+          "timestamp": "2026-11-05T19:00:00+00:00",
+          "open": 4107.04136,
+          "high": 4107.04136,
+          "low": 4100.88169,
+          "close": 4101.02058,
+          "ema9": 4102.96376,
+          "ema21": 4104.76682
+        },
+        {
+          "timestamp": "2026-11-05T19:05:00+00:00",
+          "open": 4101.24199,
+          "high": 4101.24199,
+          "low": 4099.70482,
+          "close": 4100.87897,
+          "ema9": 4102.5468,
+          "ema21": 4104.41338
+        },
+        {
+          "timestamp": "2026-11-05T19:10:00+00:00",
+          "open": 4100.57488,
+          "high": 4106.51237,
+          "low": 4100.57488,
+          "close": 4106.00341,
+          "ema9": 4103.23812,
+          "ema21": 4104.55793
+        },
+        {
+          "timestamp": "2026-11-05T19:15:00+00:00",
+          "open": 4104.70318,
+          "high": 4107.28221,
+          "low": 4104.40634,
+          "close": 4105.11223,
+          "ema9": 4103.61295,
+          "ema21": 4104.60832
+        },
+        {
+          "timestamp": "2026-11-05T19:20:00+00:00",
+          "open": 4105.41978,
+          "high": 4106.43531,
+          "low": 4100.74489,
+          "close": 4102.53208,
+          "ema9": 4103.39677,
+          "ema21": 4104.41957
+        },
+        {
+          "timestamp": "2026-11-05T19:25:00+00:00",
+          "open": 4101.94993,
+          "high": 4101.94993,
+          "low": 4098.38828,
+          "close": 4099.77797,
+          "ema9": 4102.67301,
+          "ema21": 4103.99761
+        },
+        {
+          "timestamp": "2026-11-05T19:30:00+00:00",
+          "open": 4100.06805,
+          "high": 4101.55099,
+          "low": 4099.03263,
+          "close": 4101.37086,
+          "ema9": 4102.41258,
+          "ema21": 4103.75881
+        },
+        {
+          "timestamp": "2026-11-05T19:35:00+00:00",
+          "open": 4101.0996,
+          "high": 4101.55449,
+          "low": 4099.45827,
+          "close": 4100.96576,
+          "ema9": 4102.12322,
+          "ema21": 4103.5049
+        },
+        {
+          "timestamp": "2026-11-05T19:40:00+00:00",
+          "open": 4100.96384,
+          "high": 4111.59922,
+          "low": 4100.5591,
+          "close": 4111.05744,
+          "ema9": 4103.91006,
+          "ema21": 4104.19149
+        },
+        {
+          "timestamp": "2026-11-05T19:45:00+00:00",
+          "open": 4110.28908,
+          "high": 4117.59862,
+          "low": 4110.28908,
+          "close": 4117.24669,
+          "ema9": 4106.57739,
+          "ema21": 4105.37833
+        },
+        {
+          "timestamp": "2026-11-05T19:50:00+00:00",
+          "open": 4116.5676,
+          "high": 4117.42908,
+          "low": 4114.86201,
+          "close": 4117.33968,
+          "ema9": 4108.72985,
+          "ema21": 4106.46572
+        },
+        {
+          "timestamp": "2026-11-05T19:55:00+00:00",
+          "open": 4116.99294,
+          "high": 4117.92941,
+          "low": 4112.34939,
+          "close": 4114.39555,
+          "ema9": 4109.86299,
+          "ema21": 4107.18662
+        },
+        {
+          "timestamp": "2026-11-05T20:00:00+00:00",
+          "open": 4113.99358,
+          "high": 4115.81961,
+          "low": 4107.72289,
+          "close": 4108.2278,
+          "ema9": 4109.53595,
+          "ema21": 4107.28127
+        },
+        {
+          "timestamp": "2026-11-05T20:05:00+00:00",
+          "open": 4109.12647,
+          "high": 4109.12647,
+          "low": 4105.15528,
+          "close": 4105.47633,
+          "ema9": 4108.72403,
+          "ema21": 4107.11718
+        },
+        {
+          "timestamp": "2026-11-05T20:10:00+00:00",
+          "open": 4106.13387,
+          "high": 4106.13387,
+          "low": 4101.54274,
+          "close": 4105.07701,
+          "ema9": 4107.99462,
+          "ema21": 4106.93171
+        },
+        {
+          "timestamp": "2026-11-05T20:15:00+00:00",
+          "open": 4103.34505,
+          "high": 4107.86706,
+          "low": 4103.34505,
+          "close": 4104.21555,
+          "ema9": 4107.23881,
+          "ema21": 4106.68479
+        },
+        {
+          "timestamp": "2026-11-05T20:20:00+00:00",
+          "open": 4105.11341,
+          "high": 4108.63224,
+          "low": 4105.11341,
+          "close": 4106.13703,
+          "ema9": 4107.01845,
+          "ema21": 4106.63499
+        },
+        {
+          "timestamp": "2026-11-05T20:25:00+00:00",
+          "open": 4106.23117,
+          "high": 4107.11352,
+          "low": 4104.90162,
+          "close": 4105.34729,
+          "ema9": 4106.68422,
+          "ema21": 4106.51793
+        },
+        {
+          "timestamp": "2026-11-05T20:30:00+00:00",
+          "open": 4106.31635,
+          "high": 4106.31635,
+          "low": 4099.53675,
+          "close": 4105.04249,
+          "ema9": 4106.35587,
+          "ema21": 4106.3838
+        },
+        {
+          "timestamp": "2026-11-05T20:35:00+00:00",
+          "open": 4104.59179,
+          "high": 4105.18246,
+          "low": 4101.04987,
+          "close": 4101.84754,
+          "ema9": 4105.45421,
+          "ema21": 4105.97141
+        },
+        {
+          "timestamp": "2026-11-05T20:40:00+00:00",
+          "open": 4102.4972,
+          "high": 4105.42737,
+          "low": 4101.84262,
+          "close": 4103.37615,
+          "ema9": 4105.0386,
+          "ema21": 4105.73548
+        },
+        {
+          "timestamp": "2026-11-05T20:45:00+00:00",
+          "open": 4102.87886,
+          "high": 4102.87886,
+          "low": 4098.52863,
+          "close": 4100.7984,
+          "ema9": 4104.19056,
+          "ema21": 4105.28665
+        },
+        {
+          "timestamp": "2026-11-05T20:50:00+00:00",
+          "open": 4100.68393,
+          "high": 4104.9218,
+          "low": 4099.20066,
+          "close": 4104.57284,
+          "ema9": 4104.26701,
+          "ema21": 4105.22176
+        },
+        {
+          "timestamp": "2026-11-05T20:55:00+00:00",
+          "open": 4103.85864,
+          "high": 4105.88445,
+          "low": 4095.67497,
+          "close": 4095.99945,
+          "ema9": 4102.6135,
+          "ema21": 4104.38337
+        },
+        {
+          "timestamp": "2026-11-05T21:00:00+00:00",
+          "open": 4096.66631,
+          "high": 4097.85682,
+          "low": 4089.85803,
+          "close": 4090.21666,
+          "ema9": 4100.13413,
+          "ema21": 4103.09549
+        },
+        {
+          "timestamp": "2026-11-05T21:05:00+00:00",
+          "open": 4090.92767,
+          "high": 4090.92767,
+          "low": 4081.96587,
+          "close": 4086.77461,
+          "ema9": 4097.46223,
+          "ema21": 4101.61177
+        },
+        {
+          "timestamp": "2026-11-05T21:10:00+00:00",
+          "open": 4086.12211,
+          "high": 4089.17078,
+          "low": 4084.46677,
+          "close": 4088.83445,
+          "ema9": 4095.73667,
+          "ema21": 4100.4502
+        },
+        {
+          "timestamp": "2026-11-05T21:15:00+00:00",
+          "open": 4088.1698,
+          "high": 4090.48145,
+          "low": 4088.1698,
+          "close": 4090.31263,
+          "ema9": 4094.65186,
+          "ema21": 4099.5286
+        },
+        {
+          "timestamp": "2026-11-05T21:20:00+00:00",
+          "open": 4090.00444,
+          "high": 4090.62995,
+          "low": 4088.80893,
+          "close": 4090.28767,
+          "ema9": 4093.77903,
+          "ema21": 4098.68851
+        },
+        {
+          "timestamp": "2026-11-05T21:25:00+00:00",
+          "open": 4089.37334,
+          "high": 4090.98347,
+          "low": 4087.30483,
+          "close": 4090.23046,
+          "ema9": 4093.06931,
+          "ema21": 4097.9196
+        },
+        {
+          "timestamp": "2026-11-05T21:30:00+00:00",
+          "open": 4089.90112,
+          "high": 4091.15084,
+          "low": 4088.64175,
+          "close": 4090.27414,
+          "ema9": 4092.51028,
+          "ema21": 4097.22456
+        },
+        {
+          "timestamp": "2026-11-05T21:35:00+00:00",
+          "open": 4090.38353,
+          "high": 4091.65303,
+          "low": 4088.30744,
+          "close": 4091.49018,
+          "ema9": 4092.30626,
+          "ema21": 4096.70325
+        },
+        {
+          "timestamp": "2026-11-05T21:40:00+00:00",
+          "open": 4091.28658,
+          "high": 4091.28658,
+          "low": 4087.30483,
+          "close": 4088.09793,
+          "ema9": 4091.46459,
+          "ema21": 4095.92095
+        },
+        {
+          "timestamp": "2026-11-05T21:45:00+00:00",
+          "open": 4087.98519,
+          "high": 4089.00818,
+          "low": 4086.6367,
+          "close": 4088.17553,
+          "ema9": 4090.80678,
+          "ema21": 4095.21682
+        },
+        {
+          "timestamp": "2026-11-05T21:50:00+00:00",
+          "open": 4088.13659,
+          "high": 4088.42702,
+          "low": 4086.6367,
+          "close": 4087.43919,
+          "ema9": 4090.13326,
+          "ema21": 4094.50976
+        },
+        {
+          "timestamp": "2026-11-05T21:55:00+00:00",
+          "open": 4087.59759,
+          "high": 4089.46859,
+          "low": 4086.56417,
+          "close": 4089.34369,
+          "ema9": 4089.97535,
+          "ema21": 4094.04012
+        },
+        {
+          "timestamp": "2026-11-05T22:00:00+00:00",
+          "open": 4089.10597,
+          "high": 4089.47777,
+          "low": 4087.97318,
+          "close": 4089.27612,
+          "ema9": 4089.8355,
+          "ema21": 4093.60703
+        },
+        {
+          "timestamp": "2026-11-05T22:05:00+00:00",
+          "open": 4089.19278,
+          "high": 4089.47777,
+          "low": 4088.47459,
+          "close": 4089.16978,
+          "ema9": 4089.70236,
+          "ema21": 4093.20364
+        },
+        {
+          "timestamp": "2026-11-05T22:10:00+00:00",
+          "open": 4089.22447,
+          "high": 4089.35732,
+          "low": 4089.09459,
+          "close": 4089.22075,
+          "ema9": 4089.60604,
+          "ema21": 4092.84156
+        },
+        {
+          "timestamp": "2026-11-05T22:15:00+00:00",
+          "open": 4089.16956,
+          "high": 4089.38553,
+          "low": 4089.08888,
+          "close": 4089.34563,
+          "ema9": 4089.55395,
+          "ema21": 4092.52375
+        },
+        {
+          "timestamp": "2026-11-05T22:20:00+00:00",
+          "open": 4089.26461,
+          "high": 4089.37402,
+          "low": 4088.97612,
+          "close": 4089.28118,
+          "ema9": 4089.4994,
+          "ema21": 4092.22897
+        },
+        {
+          "timestamp": "2026-11-05T22:25:00+00:00",
+          "open": 4089.15089,
+          "high": 4089.37434,
+          "low": 4089.14332,
+          "close": 4089.20898,
+          "ema9": 4089.44132,
+          "ema21": 4091.95443
+        },
+        {
+          "timestamp": "2026-11-05T22:30:00+00:00",
+          "open": 4089.23188,
+          "high": 4089.35031,
+          "low": 4088.97612,
+          "close": 4089.22353,
+          "ema9": 4089.39776,
+          "ema21": 4091.70616
+        },
+        {
+          "timestamp": "2026-11-05T22:35:00+00:00",
+          "open": 4089.16574,
+          "high": 4089.23182,
+          "low": 4088.80893,
+          "close": 4088.85115,
+          "ema9": 4089.28844,
+          "ema21": 4091.44662
+        },
+        {
+          "timestamp": "2026-11-05T22:40:00+00:00",
+          "open": 4088.83156,
+          "high": 4088.97612,
+          "low": 4088.62723,
+          "close": 4088.6444,
+          "ema9": 4089.15963,
+          "ema21": 4091.19187
+        },
+        {
+          "timestamp": "2026-11-05T22:45:00+00:00",
+          "open": 4088.69733,
+          "high": 4088.82217,
+          "low": 4088.62722,
+          "close": 4088.68581,
+          "ema9": 4089.06487,
+          "ema21": 4090.96405
+        },
+        {
+          "timestamp": "2026-11-05T22:50:00+00:00",
+          "open": 4088.66832,
+          "high": 4088.8588,
+          "low": 4088.47459,
+          "close": 4088.76339,
+          "ema9": 4089.00457,
+          "ema21": 4090.76399
+        },
+        {
+          "timestamp": "2026-11-05T22:55:00+00:00",
+          "open": 4088.6902,
+          "high": 4088.76308,
+          "low": 4088.47459,
+          "close": 4088.64803,
+          "ema9": 4088.93326,
+          "ema21": 4090.57163
+        },
+        {
+          "timestamp": "2026-11-05T23:00:00+00:00",
+          "open": 4088.5916,
+          "high": 4090.87476,
+          "low": 4085.96878,
+          "close": 4087.24682,
+          "ema9": 4088.59597,
+          "ema21": 4090.26937
+        },
+        {
+          "timestamp": "2026-11-05T23:05:00+00:00",
+          "open": 4087.49356,
+          "high": 4091.61365,
+          "low": 4086.68977,
+          "close": 4090.70453,
+          "ema9": 4089.01769,
+          "ema21": 4090.30893
+        },
+        {
+          "timestamp": "2026-11-05T23:10:00+00:00",
+          "open": 4088.89903,
+          "high": 4092.65777,
+          "low": 4085.30109,
+          "close": 4087.43699,
+          "ema9": 4088.70155,
+          "ema21": 4090.04785
+        },
+        {
+          "timestamp": "2026-11-05T23:15:00+00:00",
+          "open": 4086.97236,
+          "high": 4087.4413,
+          "low": 4073.32575,
+          "close": 4074.4391,
+          "ema9": 4085.84906,
+          "ema21": 4088.62887
+        },
+        {
+          "timestamp": "2026-11-05T23:20:00+00:00",
+          "open": 4076.06683,
+          "high": 4086.30271,
+          "low": 4068.93594,
+          "close": 4084.58191,
+          "ema9": 4085.59563,
+          "ema21": 4088.26096
+        },
+        {
+          "timestamp": "2026-11-05T23:25:00+00:00",
+          "open": 4084.36349,
+          "high": 4095.40986,
+          "low": 4083.37626,
+          "close": 4094.62586,
+          "ema9": 4087.40167,
+          "ema21": 4088.83959
+        },
+        {
+          "timestamp": "2026-11-05T23:30:00+00:00",
+          "open": 4093.54383,
+          "high": 4096.34606,
+          "low": 4092.82528,
+          "close": 4093.00441,
+          "ema9": 4088.52222,
+          "ema21": 4089.21821
+        },
+        {
+          "timestamp": "2026-11-05T23:35:00+00:00",
+          "open": 4093.22018,
+          "high": 4093.8306,
+          "low": 4090.20693,
+          "close": 4090.50979,
+          "ema9": 4088.91973,
+          "ema21": 4089.33563
+        },
+        {
+          "timestamp": "2026-11-05T23:40:00+00:00",
+          "open": 4091.1254,
+          "high": 4097.49749,
+          "low": 4088.71952,
+          "close": 4096.55555,
+          "ema9": 4090.4469,
+          "ema21": 4089.99198
+        },
+        {
+          "timestamp": "2026-11-05T23:45:00+00:00",
+          "open": 4094.25826,
+          "high": 4098.52863,
+          "low": 4089.47777,
+          "close": 4089.66341,
+          "ema9": 4090.2902,
+          "ema21": 4089.96211
+        },
+        {
+          "timestamp": "2026-11-05T23:50:00+00:00",
+          "open": 4090.05165,
+          "high": 4091.20061,
+          "low": 4084.96732,
+          "close": 4085.48286,
+          "ema9": 4089.32873,
+          "ema21": 4089.55491
+        },
+        {
+          "timestamp": "2026-11-05T23:55:00+00:00",
+          "open": 4085.70033,
+          "high": 4086.83876,
+          "low": 4084.96732,
+          "close": 4086.56171,
+          "ema9": 4088.77533,
+          "ema21": 4089.2828
+        },
+        {
+          "timestamp": "2026-11-06T00:00:00+00:00",
+          "open": 4086.20476,
+          "high": 4096.34606,
+          "low": 4084.80046,
+          "close": 4095.6598,
+          "ema9": 4090.15222,
+          "ema21": 4089.86253
+        },
+        {
+          "timestamp": "2026-11-06T00:05:00+00:00",
+          "open": 4094.46491,
+          "high": 4104.7533,
+          "low": 4094.46491,
+          "close": 4104.45131,
+          "ema9": 4093.01204,
+          "ema21": 4091.18878
+        },
+        {
+          "timestamp": "2026-11-06T00:10:00+00:00",
+          "open": 4103.87178,
+          "high": 4105.04394,
+          "low": 4096.64922,
+          "close": 4097.06335,
+          "ema9": 4093.8223,
+          "ema21": 4091.72283
+        },
+        {
+          "timestamp": "2026-11-06T00:15:00+00:00",
+          "open": 4097.77474,
+          "high": 4105.25884,
+          "low": 4095.84272,
+          "close": 4102.50381,
+          "ema9": 4095.5586,
+          "ema21": 4092.70292
+        },
+        {
+          "timestamp": "2026-11-06T00:20:00+00:00",
+          "open": 4103.13047,
+          "high": 4105.44728,
+          "low": 4101.56938,
+          "close": 4104.83874,
+          "ema9": 4097.41463,
+          "ema21": 4093.80618
+        },
+        {
+          "timestamp": "2026-11-06T00:25:00+00:00",
+          "open": 4103.53296,
+          "high": 4106.27027,
+          "low": 4101.21806,
+          "close": 4101.47568,
+          "ema9": 4098.22684,
+          "ema21": 4094.5034
+        },
+        {
+          "timestamp": "2026-11-06T00:30:00+00:00",
+          "open": 4102.02399,
+          "high": 4106.97037,
+          "low": 4099.81227,
+          "close": 4102.93558,
+          "ema9": 4099.16859,
+          "ema21": 4095.26997
+        },
+        {
+          "timestamp": "2026-11-06T00:35:00+00:00",
+          "open": 4103.61936,
+          "high": 4103.61936,
+          "low": 4098.04264,
+          "close": 4098.48706,
+          "ema9": 4099.03228,
+          "ema21": 4095.56243
+        },
+        {
+          "timestamp": "2026-11-06T00:40:00+00:00",
+          "open": 4099.3125,
+          "high": 4100.71352,
+          "low": 4097.18523,
+          "close": 4100.08359,
+          "ema9": 4099.24254,
+          "ema21": 4095.97344
+        },
+        {
+          "timestamp": "2026-11-06T00:45:00+00:00",
+          "open": 4099.86426,
+          "high": 4100.27056,
+          "low": 4094.05471,
+          "close": 4094.86073,
+          "ema9": 4098.36618,
+          "ema21": 4095.87229
+        },
+        {
+          "timestamp": "2026-11-06T00:50:00+00:00",
+          "open": 4096.68546,
+          "high": 4097.521,
+          "low": 4092.65777,
+          "close": 4096.22444,
+          "ema9": 4097.93783,
+          "ema21": 4095.9043
+        },
+        {
+          "timestamp": "2026-11-06T00:55:00+00:00",
+          "open": 4096.38689,
+          "high": 4097.79289,
+          "low": 4092.49028,
+          "close": 4093.03462,
+          "ema9": 4096.95719,
+          "ema21": 4095.64342
+        },
+        {
+          "timestamp": "2026-11-06T01:00:00+00:00",
+          "open": 4093.88855,
+          "high": 4097.26165,
+          "low": 4087.30483,
+          "close": 4093.97375,
+          "ema9": 4096.3605,
+          "ema21": 4095.49163
+        },
+        {
+          "timestamp": "2026-11-06T01:05:00+00:00",
+          "open": 4093.88903,
+          "high": 4095.17179,
+          "low": 4087.30483,
+          "close": 4088.14554,
+          "ema9": 4094.71751,
+          "ema21": 4094.82381
+        },
+        {
+          "timestamp": "2026-11-06T01:10:00+00:00",
+          "open": 4089.66874,
+          "high": 4094.16581,
+          "low": 4088.30744,
+          "close": 4094.04461,
+          "ema9": 4094.58293,
+          "ema21": 4094.75297
+        },
+        {
+          "timestamp": "2026-11-06T01:15:00+00:00",
+          "open": 4093.7058,
+          "high": 4094.16953,
+          "low": 4084.46677,
+          "close": 4084.96817,
+          "ema9": 4092.65998,
+          "ema21": 4093.86344
+        },
+        {
+          "timestamp": "2026-11-06T01:20:00+00:00",
+          "open": 4086.21884,
+          "high": 4088.41405,
+          "low": 4075.64395,
+          "close": 4076.27492,
+          "ema9": 4089.38297,
+          "ema21": 4092.26449
+        },
+        {
+          "timestamp": "2026-11-06T01:25:00+00:00",
+          "open": 4077.33665,
+          "high": 4081.96987,
+          "low": 4065.70174,
+          "close": 4066.37272,
+          "ema9": 4084.78092,
+          "ema21": 4089.91069
+        },
+        {
+          "timestamp": "2026-11-06T01:30:00+00:00",
+          "open": 4067.50606,
+          "high": 4077.79522,
+          "low": 4059.98423,
+          "close": 4069.83414,
+          "ema9": 4081.79156,
+          "ema21": 4088.08555
+        },
+        {
+          "timestamp": "2026-11-06T01:35:00+00:00",
+          "open": 4067.91563,
+          "high": 4075.47785,
+          "low": 4067.91563,
+          "close": 4074.09445,
+          "ema9": 4080.25214,
+          "ema21": 4086.81363
+        },
+        {
+          "timestamp": "2026-11-06T01:40:00+00:00",
+          "open": 4073.65142,
+          "high": 4075.14569,
+          "low": 4064.82064,
+          "close": 4069.82236,
+          "ema9": 4078.16618,
+          "ema21": 4085.26897
+        },
+        {
+          "timestamp": "2026-11-06T01:45:00+00:00",
+          "open": 4069.18316,
+          "high": 4071.6364,
+          "low": 4061.57345,
+          "close": 4063.70909,
+          "ema9": 4075.27476,
+          "ema21": 4083.30898
+        },
+        {
+          "timestamp": "2026-11-06T01:50:00+00:00",
+          "open": 4062.80382,
+          "high": 4069.34158,
+          "low": 4062.56348,
+          "close": 4069.20005,
+          "ema9": 4074.05982,
+          "ema21": 4082.02635
+        },
+        {
+          "timestamp": "2026-11-06T01:55:00+00:00",
+          "open": 4068.64927,
+          "high": 4069.83843,
+          "low": 4059.56218,
+          "close": 4060.51731,
+          "ema9": 4071.35132,
+          "ema21": 4080.07098
+        },
+        {
+          "timestamp": "2026-11-06T02:00:00+00:00",
+          "open": 4062.74331,
+          "high": 4062.83791,
+          "low": 4057.85971,
+          "close": 4058.30141,
+          "ema9": 4068.74134,
+          "ema21": 4078.09193
+        },
+        {
+          "timestamp": "2026-11-06T02:05:00+00:00",
+          "open": 4059.44408,
+          "high": 4066.26808,
+          "low": 4059.44408,
+          "close": 4060.56197,
+          "ema9": 4067.10546,
+          "ema21": 4076.4983
+        },
+        {
+          "timestamp": "2026-11-06T02:10:00+00:00",
+          "open": 4061.8642,
+          "high": 4072.31198,
+          "low": 4061.8642,
+          "close": 4069.62751,
+          "ema9": 4067.60987,
+          "ema21": 4075.87368
+        },
+        {
+          "timestamp": "2026-11-06T02:15:00+00:00",
+          "open": 4070.83138,
+          "high": 4070.83138,
+          "low": 4064.21459,
+          "close": 4065.7846,
+          "ema9": 4067.24482,
+          "ema21": 4074.95649
+        },
+        {
+          "timestamp": "2026-11-06T02:20:00+00:00",
+          "open": 4066.25184,
+          "high": 4071.92138,
+          "low": 4065.09021,
+          "close": 4071.3488,
+          "ema9": 4068.06561,
+          "ema21": 4074.62852
+        },
+        {
+          "timestamp": "2026-11-06T02:25:00+00:00",
+          "open": 4070.27026,
+          "high": 4072.49033,
+          "low": 4070.00407,
+          "close": 4070.03621,
+          "ema9": 4068.45973,
+          "ema21": 4074.21104
+        },
+        {
+          "timestamp": "2026-11-06T02:30:00+00:00",
+          "open": 4070.20415,
+          "high": 4071.33297,
+          "low": 4064.54497,
+          "close": 4064.8274,
+          "ema9": 4067.73327,
+          "ema21": 4073.35798
+        },
+        {
+          "timestamp": "2026-11-06T02:35:00+00:00",
+          "open": 4065.33402,
+          "high": 4066.17154,
+          "low": 4064.66054,
+          "close": 4065.5334,
+          "ema9": 4067.29329,
+          "ema21": 4072.64665
+        },
+        {
+          "timestamp": "2026-11-06T02:40:00+00:00",
+          "open": 4065.20456,
+          "high": 4068.84485,
+          "low": 4062.24506,
+          "close": 4062.94442,
+          "ema9": 4066.42352,
+          "ema21": 4071.76463
+        },
+        {
+          "timestamp": "2026-11-06T02:45:00+00:00",
+          "open": 4064.34973,
+          "high": 4067.28429,
+          "low": 4057.94749,
+          "close": 4066.14486,
+          "ema9": 4066.36779,
+          "ema21": 4071.25374
+        },
+        {
+          "timestamp": "2026-11-06T02:50:00+00:00",
+          "open": 4063.93924,
+          "high": 4068.84485,
+          "low": 4060.61593,
+          "close": 4062.45494,
+          "ema9": 4065.58522,
+          "ema21": 4070.45385
+        },
+        {
+          "timestamp": "2026-11-06T02:55:00+00:00",
+          "open": 4064.89859,
+          "high": 4065.86705,
+          "low": 4057.94749,
+          "close": 4062.81364,
+          "ema9": 4065.0309,
+          "ema21": 4069.75929
+        },
+        {
+          "timestamp": "2026-11-06T03:00:00+00:00",
+          "open": 4063.79206,
+          "high": 4065.2059,
+          "low": 4059.52137,
+          "close": 4063.03488,
+          "ema9": 4064.6317,
+          "ema21": 4069.14798
+        },
+        {
+          "timestamp": "2026-11-06T03:05:00+00:00",
+          "open": 4062.98124,
+          "high": 4064.31076,
+          "low": 4053.01342,
+          "close": 4053.61819,
+          "ema9": 4062.429,
+          "ema21": 4067.73618
+        },
+        {
+          "timestamp": "2026-11-06T03:10:00+00:00",
+          "open": 4054.7151,
+          "high": 4054.79132,
+          "low": 4048.91084,
+          "close": 4053.35461,
+          "ema9": 4060.61412,
+          "ema21": 4066.42876
+        },
+        {
+          "timestamp": "2026-11-06T03:15:00+00:00",
+          "open": 4052.9912,
+          "high": 4053.34198,
+          "low": 4049.00455,
+          "close": 4049.32354,
+          "ema9": 4058.356,
+          "ema21": 4064.87374
+        },
+        {
+          "timestamp": "2026-11-06T03:20:00+00:00",
+          "open": 4050.05434,
+          "high": 4051.37139,
+          "low": 4049.35971,
+          "close": 4049.894,
+          "ema9": 4056.6636,
+          "ema21": 4063.51195
+        },
+        {
+          "timestamp": "2026-11-06T03:25:00+00:00",
+          "open": 4051.03896,
+          "high": 4051.03896,
+          "low": 4047.92746,
+          "close": 4050.16249,
+          "ema9": 4055.36338,
+          "ema21": 4062.29836
+        },
+        {
+          "timestamp": "2026-11-06T03:30:00+00:00",
+          "open": 4049.683,
+          "high": 4050.55087,
+          "low": 4045.3518,
+          "close": 4045.98922,
+          "ema9": 4053.48855,
+          "ema21": 4060.81571
+        },
+        {
+          "timestamp": "2026-11-06T03:35:00+00:00",
+          "open": 4047.43471,
+          "high": 4047.43471,
+          "low": 4042.70371,
+          "close": 4043.14739,
+          "ema9": 4051.42032,
+          "ema21": 4059.2095
+        },
+        {
+          "timestamp": "2026-11-06T03:40:00+00:00",
+          "open": 4043.88465,
+          "high": 4046.12583,
+          "low": 4040.9756,
+          "close": 4045.62604,
+          "ema9": 4050.26146,
+          "ema21": 4057.97464
+        },
+        {
+          "timestamp": "2026-11-06T03:45:00+00:00",
+          "open": 4044.82785,
+          "high": 4047.27214,
+          "low": 4041.87381,
+          "close": 4044.08456,
+          "ema9": 4049.02608,
+          "ema21": 4056.71191
+        },
+        {
+          "timestamp": "2026-11-06T03:50:00+00:00",
+          "open": 4044.68779,
+          "high": 4044.68779,
+          "low": 4042.52739,
+          "close": 4042.58095,
+          "ema9": 4047.73705,
+          "ema21": 4055.42727
+        },
+        {
+          "timestamp": "2026-11-06T03:55:00+00:00",
+          "open": 4042.65645,
+          "high": 4045.4711,
+          "low": 4042.36397,
+          "close": 4044.78587,
+          "ema9": 4047.14682,
+          "ema21": 4054.45987
+        },
+        {
+          "timestamp": "2026-11-06T04:00:00+00:00",
+          "open": 4043.92565,
+          "high": 4045.79844,
+          "low": 4040.52708,
+          "close": 4041.22573,
+          "ema9": 4045.9626,
+          "ema21": 4053.25677
+        },
+        {
+          "timestamp": "2026-11-06T04:05:00+00:00",
+          "open": 4042.45097,
+          "high": 4042.45097,
+          "low": 4038.8788,
+          "close": 4039.17551,
+          "ema9": 4044.60518,
+          "ema21": 4051.97666
+        },
+        {
+          "timestamp": "2026-11-06T04:10:00+00:00",
+          "open": 4039.7456,
+          "high": 4040.40404,
+          "low": 4038.44601,
+          "close": 4040.0962,
+          "ema9": 4043.70339,
+          "ema21": 4050.89661
+        },
+        {
+          "timestamp": "2026-11-06T04:15:00+00:00",
+          "open": 4040.04657,
+          "high": 4043.34465,
+          "low": 4040.04657,
+          "close": 4042.83757,
+          "ema9": 4043.53022,
+          "ema21": 4050.16397
+        },
+        {
+          "timestamp": "2026-11-06T04:20:00+00:00",
+          "open": 4042.78344,
+          "high": 4044.98122,
+          "low": 4041.38377,
+          "close": 4042.72007,
+          "ema9": 4043.36819,
+          "ema21": 4049.48725
+        },
+        {
+          "timestamp": "2026-11-06T04:25:00+00:00",
+          "open": 4042.46388,
+          "high": 4043.01771,
+          "low": 4040.49056,
+          "close": 4040.60827,
+          "ema9": 4042.81621,
+          "ema21": 4048.68007
+        },
+        {
+          "timestamp": "2026-11-06T04:30:00+00:00",
+          "open": 4040.92291,
+          "high": 4045.79844,
+          "low": 4040.89385,
+          "close": 4045.54578,
+          "ema9": 4043.36212,
+          "ema21": 4048.39514
+        },
+        {
+          "timestamp": "2026-11-06T04:35:00+00:00",
+          "open": 4044.89432,
+          "high": 4047.43595,
+          "low": 4044.89432,
+          "close": 4045.85956,
+          "ema9": 4043.86161,
+          "ema21": 4048.16463
+        },
+        {
+          "timestamp": "2026-11-06T04:40:00+00:00",
+          "open": 4046.24244,
+          "high": 4046.24244,
+          "low": 4042.34869,
+          "close": 4042.84378,
+          "ema9": 4043.65804,
+          "ema21": 4047.68092
+        },
+        {
+          "timestamp": "2026-11-06T04:45:00+00:00",
+          "open": 4043.92899,
+          "high": 4043.99871,
+          "low": 4041.22204,
+          "close": 4043.02139,
+          "ema9": 4043.53071,
+          "ema21": 4047.25732
+        },
+        {
+          "timestamp": "2026-11-06T04:50:00+00:00",
+          "open": 4042.4545,
+          "high": 4046.37895,
+          "low": 4041.99524,
+          "close": 4044.92437,
+          "ema9": 4043.80944,
+          "ema21": 4047.04524
+        },
+        {
+          "timestamp": "2026-11-06T04:55:00+00:00",
+          "open": 4044.97252,
+          "high": 4046.45328,
+          "low": 4044.13613,
+          "close": 4044.29871,
+          "ema9": 4043.9073,
+          "ema21": 4046.79555
+        },
+        {
+          "timestamp": "2026-11-06T05:00:00+00:00",
+          "open": 4044.6678,
+          "high": 4047.27214,
+          "low": 4043.50815,
+          "close": 4046.9818,
+          "ema9": 4044.5222,
+          "ema21": 4046.81248
+        },
+        {
+          "timestamp": "2026-11-06T05:05:00+00:00",
+          "open": 4046.46464,
+          "high": 4052.0705,
+          "low": 4046.45328,
+          "close": 4051.44668,
+          "ema9": 4045.90709,
+          "ema21": 4047.23378
+        },
+        {
+          "timestamp": "2026-11-06T05:10:00+00:00",
+          "open": 4050.26535,
+          "high": 4052.84915,
+          "low": 4046.82297,
+          "close": 4047.47939,
+          "ema9": 4046.22155,
+          "ema21": 4047.2561
+        },
+        {
+          "timestamp": "2026-11-06T05:15:00+00:00",
+          "open": 4048.89108,
+          "high": 4048.89108,
+          "low": 4043.50815,
+          "close": 4045.71444,
+          "ema9": 4046.12013,
+          "ema21": 4047.11595
+        },
+        {
+          "timestamp": "2026-11-06T05:20:00+00:00",
+          "open": 4045.50048,
+          "high": 4047.01277,
+          "low": 4036.73063,
+          "close": 4039.94715,
+          "ema9": 4044.88553,
+          "ema21": 4046.46424
+        },
+        {
+          "timestamp": "2026-11-06T05:25:00+00:00",
+          "open": 4039.49541,
+          "high": 4043.83704,
+          "low": 4038.96317,
+          "close": 4039.73257,
+          "ema9": 4043.85494,
+          "ema21": 4045.85227
+        },
+        {
+          "timestamp": "2026-11-06T05:30:00+00:00",
+          "open": 4041.07196,
+          "high": 4043.99871,
+          "low": 4037.79375,
+          "close": 4042.12064,
+          "ema9": 4043.50808,
+          "ema21": 4045.51303
+        },
+        {
+          "timestamp": "2026-11-06T05:35:00+00:00",
+          "open": 4041.31724,
+          "high": 4044.65297,
+          "low": 4040.82734,
+          "close": 4044.4331,
+          "ema9": 4043.69309,
+          "ema21": 4045.41486
+        },
+        {
+          "timestamp": "2026-11-06T05:40:00+00:00",
+          "open": 4044.30587,
+          "high": 4047.10834,
+          "low": 4040.5673,
+          "close": 4040.95807,
+          "ema9": 4043.14608,
+          "ema21": 4045.0097
+        },
+        {
+          "timestamp": "2026-11-06T05:45:00+00:00",
+          "open": 4041.40014,
+          "high": 4047.76361,
+          "low": 4040.81601,
+          "close": 4045.58908,
+          "ema9": 4043.63468,
+          "ema21": 4045.06237
+        },
+        {
+          "timestamp": "2026-11-06T05:50:00+00:00",
+          "open": 4046.14502,
+          "high": 4048.583,
+          "low": 4044.81657,
+          "close": 4044.94595,
+          "ema9": 4043.89694,
+          "ema21": 4045.05178
+        },
+        {
+          "timestamp": "2026-11-06T05:55:00+00:00",
+          "open": 4044.8562,
+          "high": 4047.27214,
+          "low": 4038.77221,
+          "close": 4039.15605,
+          "ema9": 4042.94876,
+          "ema21": 4044.51581
+        },
+        {
+          "timestamp": "2026-11-06T06:00:00+00:00",
+          "open": 4039.43002,
+          "high": 4047.86648,
+          "low": 4038.62348,
+          "close": 4046.95897,
+          "ema9": 4043.7508,
+          "ema21": 4044.73791
+        },
+        {
+          "timestamp": "2026-11-06T06:05:00+00:00",
+          "open": 4045.17072,
+          "high": 4048.91084,
+          "low": 4045.17072,
+          "close": 4046.73995,
+          "ema9": 4044.34863,
+          "ema21": 4044.91992
+        },
+        {
+          "timestamp": "2026-11-06T06:10:00+00:00",
+          "open": 4047.0564,
+          "high": 4049.31047,
+          "low": 4043.75495,
+          "close": 4046.11948,
+          "ema9": 4044.7028,
+          "ema21": 4045.02897
+        },
+        {
+          "timestamp": "2026-11-06T06:15:00+00:00",
+          "open": 4045.20933,
+          "high": 4046.28955,
+          "low": 4040.97399,
+          "close": 4045.14938,
+          "ema9": 4044.79212,
+          "ema21": 4045.03991
+        },
+        {
+          "timestamp": "2026-11-06T06:20:00+00:00",
+          "open": 4044.75068,
+          "high": 4049.14622,
+          "low": 4043.83517,
+          "close": 4049.00432,
+          "ema9": 4045.63456,
+          "ema21": 4045.40031
+        },
+        {
+          "timestamp": "2026-11-06T06:25:00+00:00",
+          "open": 4048.54971,
+          "high": 4050.72854,
+          "low": 4045.79844,
+          "close": 4046.15432,
+          "ema9": 4045.73851,
+          "ema21": 4045.46886
+        },
+        {
+          "timestamp": "2026-11-06T06:30:00+00:00",
+          "open": 4046.82294,
+          "high": 4046.82294,
+          "low": 4044.26256,
+          "close": 4046.11684,
+          "ema9": 4045.81418,
+          "ema21": 4045.52777
+        },
+        {
+          "timestamp": "2026-11-06T06:35:00+00:00",
+          "open": 4045.97005,
+          "high": 4049.23874,
+          "low": 4044.04784,
+          "close": 4049.16348,
+          "ema9": 4046.48404,
+          "ema21": 4045.85829
+        },
+        {
+          "timestamp": "2026-11-06T06:40:00+00:00",
+          "open": 4048.98088,
+          "high": 4049.5667,
+          "low": 4047.43595,
+          "close": 4048.35779,
+          "ema9": 4046.85879,
+          "ema21": 4046.08551
+        },
+        {
+          "timestamp": "2026-11-06T06:45:00+00:00",
+          "open": 4048.36453,
+          "high": 4049.25441,
+          "low": 4045.79844,
+          "close": 4046.49916,
+          "ema9": 4046.78686,
+          "ema21": 4046.12312
+        },
+        {
+          "timestamp": "2026-11-06T06:50:00+00:00",
+          "open": 4046.60023,
+          "high": 4049.12995,
+          "low": 4045.67361,
+          "close": 4048.56304,
+          "ema9": 4047.1421,
+          "ema21": 4046.34493
+        },
+        {
+          "timestamp": "2026-11-06T06:55:00+00:00",
+          "open": 4048.74656,
+          "high": 4049.73069,
+          "low": 4048.31955,
+          "close": 4049.29867,
+          "ema9": 4047.57341,
+          "ema21": 4046.61345
+        },
+        {
+          "timestamp": "2026-11-06T07:00:00+00:00",
+          "open": 4049.37272,
+          "high": 4050.85712,
+          "low": 4045.30744,
+          "close": 4045.64,
+          "ema9": 4047.18673,
+          "ema21": 4046.52496
+        },
+        {
+          "timestamp": "2026-11-06T07:05:00+00:00",
+          "open": 4046.30101,
+          "high": 4047.18084,
+          "low": 4044.31174,
+          "close": 4046.81388,
+          "ema9": 4047.11216,
+          "ema21": 4046.55122
+        },
+        {
+          "timestamp": "2026-11-06T07:10:00+00:00",
+          "open": 4046.3004,
+          "high": 4047.59977,
+          "low": 4044.98018,
+          "close": 4045.94815,
+          "ema9": 4046.87936,
+          "ema21": 4046.4964
+        },
+        {
+          "timestamp": "2026-11-06T07:15:00+00:00",
+          "open": 4045.47774,
+          "high": 4050.02258,
+          "low": 4044.98018,
+          "close": 4049.50732,
+          "ema9": 4047.40495,
+          "ema21": 4046.77012
+        },
+        {
+          "timestamp": "2026-11-06T07:20:00+00:00",
+          "open": 4048.71175,
+          "high": 4051.53553,
+          "low": 4048.6467,
+          "close": 4051.36561,
+          "ema9": 4048.19708,
+          "ema21": 4047.18789
+        },
+        {
+          "timestamp": "2026-11-06T07:25:00+00:00",
+          "open": 4051.02288,
+          "high": 4051.02288,
+          "low": 4044.40697,
+          "close": 4044.74849,
+          "ema9": 4047.50736,
+          "ema21": 4046.96613
+        },
+        {
+          "timestamp": "2026-11-06T07:30:00+00:00",
+          "open": 4045.44745,
+          "high": 4046.05878,
+          "low": 4042.03719,
+          "close": 4043.69385,
+          "ema9": 4046.74466,
+          "ema21": 4046.66865
+        },
+        {
+          "timestamp": "2026-11-06T07:35:00+00:00",
+          "open": 4043.65782,
+          "high": 4043.92478,
+          "low": 4042.36397,
+          "close": 4042.47004,
+          "ema9": 4045.88974,
+          "ema21": 4046.28695
+        },
+        {
+          "timestamp": "2026-11-06T07:40:00+00:00",
+          "open": 4042.59234,
+          "high": 4046.8097,
+          "low": 4042.54525,
+          "close": 4046.44551,
+          "ema9": 4046.00089,
+          "ema21": 4046.30137
+        },
+        {
+          "timestamp": "2026-11-06T07:45:00+00:00",
+          "open": 4045.97246,
+          "high": 4048.40174,
+          "low": 4044.48938,
+          "close": 4045.76322,
+          "ema9": 4045.95336,
+          "ema21": 4046.25245
+        },
+        {
+          "timestamp": "2026-11-06T07:50:00+00:00",
+          "open": 4045.4679,
+          "high": 4053.32684,
+          "low": 4044.78972,
+          "close": 4052.86551,
+          "ema9": 4047.33579,
+          "ema21": 4046.85363
+        },
+        {
+          "timestamp": "2026-11-06T07:55:00+00:00",
+          "open": 4051.67972,
+          "high": 4057.12431,
+          "low": 4051.19668,
+          "close": 4056.12913,
+          "ema9": 4049.09446,
+          "ema21": 4047.69686
+        },
+        {
+          "timestamp": "2026-11-06T08:00:00+00:00",
+          "open": 4056.08192,
+          "high": 4056.69458,
+          "low": 4051.31262,
+          "close": 4053.1985,
+          "ema9": 4049.91526,
+          "ema21": 4048.19701
+        },
+        {
+          "timestamp": "2026-11-06T08:05:00+00:00",
+          "open": 4052.38469,
+          "high": 4056.95971,
+          "low": 4052.38469,
+          "close": 4055.30714,
+          "ema9": 4050.99364,
+          "ema21": 4048.84339
+        },
+        {
+          "timestamp": "2026-11-06T08:10:00+00:00",
+          "open": 4055.68575,
+          "high": 4056.1545,
+          "low": 4053.01342,
+          "close": 4054.87391,
+          "ema9": 4051.76969,
+          "ema21": 4049.39161
+        },
+        {
+          "timestamp": "2026-11-06T08:15:00+00:00",
+          "open": 4054.65716,
+          "high": 4064.59692,
+          "low": 4054.65716,
+          "close": 4064.30703,
+          "ema9": 4054.27716,
+          "ema21": 4050.74756
+        },
+        {
+          "timestamp": "2026-11-06T08:20:00+00:00",
+          "open": 4063.90331,
+          "high": 4069.17599,
+          "low": 4063.90331,
+          "close": 4068.3219,
+          "ema9": 4057.08611,
+          "ema21": 4052.34523
+        },
+        {
+          "timestamp": "2026-11-06T08:25:00+00:00",
+          "open": 4067.47022,
+          "high": 4070.07944,
+          "low": 4064.74966,
+          "close": 4065.1821,
+          "ema9": 4058.70531,
+          "ema21": 4053.51222
+        },
+        {
+          "timestamp": "2026-11-06T08:30:00+00:00",
+          "open": 4066.09463,
+          "high": 4069.01042,
+          "low": 4064.04942,
+          "close": 4068.56503,
+          "ema9": 4060.67725,
+          "ema21": 4054.88065
+        },
+        {
+          "timestamp": "2026-11-06T08:35:00+00:00",
+          "open": 4068.31709,
+          "high": 4071.05826,
+          "low": 4068.31709,
+          "close": 4070.72684,
+          "ema9": 4062.68717,
+          "ema21": 4056.32122
+        },
+        {
+          "timestamp": "2026-11-06T08:40:00+00:00",
+          "open": 4070.25766,
+          "high": 4072.82206,
+          "low": 4070.11421,
+          "close": 4072.57921,
+          "ema9": 4064.66558,
+          "ema21": 4057.79922
+        },
+        {
+          "timestamp": "2026-11-06T08:45:00+00:00",
+          "open": 4072.15248,
+          "high": 4073.65162,
+          "low": 4071.16395,
+          "close": 4072.63961,
+          "ema9": 4066.26038,
+          "ema21": 4059.14834
+        },
+        {
+          "timestamp": "2026-11-06T08:50:00+00:00",
+          "open": 4072.97653,
+          "high": 4076.40171,
+          "low": 4068.67931,
+          "close": 4072.00147,
+          "ema9": 4067.4086,
+          "ema21": 4060.31681
+        },
+        {
+          "timestamp": "2026-11-06T08:55:00+00:00",
+          "open": 4070.73267,
+          "high": 4075.29791,
+          "low": 4070.73267,
+          "close": 4075.20203,
+          "ema9": 4068.96729,
+          "ema21": 4061.67001
+        },
+        {
+          "timestamp": "2026-11-06T09:00:00+00:00",
+          "open": 4075.01476,
+          "high": 4080.14354,
+          "low": 4075.01476,
+          "close": 4079.86931,
+          "ema9": 4071.14769,
+          "ema21": 4063.32449
+        },
+        {
+          "timestamp": "2026-11-06T09:05:00+00:00",
+          "open": 4079.29904,
+          "high": 4080.30031,
+          "low": 4078.46976,
+          "close": 4078.868,
+          "ema9": 4072.69175,
+          "ema21": 4064.73754
+        },
+        {
+          "timestamp": "2026-11-06T09:10:00+00:00",
+          "open": 4078.96846,
+          "high": 4080.1534,
+          "low": 4078.03623,
+          "close": 4080.01432,
+          "ema9": 4074.15627,
+          "ema21": 4066.12634
+        },
+        {
+          "timestamp": "2026-11-06T09:15:00+00:00",
+          "open": 4079.82802,
+          "high": 4079.82802,
+          "low": 4077.9708,
+          "close": 4078.04593,
+          "ema9": 4074.9342,
+          "ema21": 4067.20994
+        },
+        {
+          "timestamp": "2026-11-06T09:20:00+00:00",
+          "open": 4078.16556,
+          "high": 4080.96637,
+          "low": 4077.63823,
+          "close": 4077.86713,
+          "ema9": 4075.52079,
+          "ema21": 4068.17877
+        },
+        {
+          "timestamp": "2026-11-06T09:25:00+00:00",
+          "open": 4078.26892,
+          "high": 4078.46976,
+          "low": 4077.13948,
+          "close": 4077.30379,
+          "ema9": 4075.87739,
+          "ema21": 4069.00832
+        },
+        {
+          "timestamp": "2026-11-06T09:30:00+00:00",
+          "open": 4077.58176,
+          "high": 4077.71934,
+          "low": 4076.81659,
+          "close": 4076.93818,
+          "ema9": 4076.08955,
+          "ema21": 4069.72922
+        },
+        {
+          "timestamp": "2026-11-06T09:35:00+00:00",
+          "open": 4077.13233,
+          "high": 4077.13233,
+          "low": 4073.66919,
+          "close": 4074.43473,
+          "ema9": 4075.75858,
+          "ema21": 4070.15699
+        },
+        {
+          "timestamp": "2026-11-06T09:40:00+00:00",
+          "open": 4074.20161,
+          "high": 4074.20161,
+          "low": 4072.37448,
+          "close": 4072.47201,
+          "ema9": 4075.10127,
+          "ema21": 4070.36745
+        },
+        {
+          "timestamp": "2026-11-06T09:45:00+00:00",
+          "open": 4072.70468,
+          "high": 4077.47197,
+          "low": 4072.70468,
+          "close": 4075.59385,
+          "ema9": 4075.19978,
+          "ema21": 4070.84257
+        },
+        {
+          "timestamp": "2026-11-06T09:50:00+00:00",
+          "open": 4076.06142,
+          "high": 4076.06142,
+          "low": 4073.31976,
+          "close": 4073.35382,
+          "ema9": 4074.83059,
+          "ema21": 4071.07087
+        },
+        {
+          "timestamp": "2026-11-06T09:55:00+00:00",
+          "open": 4073.3637,
+          "high": 4076.2746,
+          "low": 4072.89916,
+          "close": 4073.5428,
+          "ema9": 4074.57303,
+          "ema21": 4071.29559
+        },
+        {
+          "timestamp": "2026-11-06T10:00:00+00:00",
+          "open": 4074.89404,
+          "high": 4074.89404,
+          "low": 4070.50108,
+          "close": 4070.66781,
+          "ema9": 4073.79199,
+          "ema21": 4071.23852
+        },
+        {
+          "timestamp": "2026-11-06T10:05:00+00:00",
+          "open": 4070.95297,
+          "high": 4071.16395,
+          "low": 4068.35767,
+          "close": 4071.05889,
+          "ema9": 4073.24537,
+          "ema21": 4071.22219
+        },
+        {
+          "timestamp": "2026-11-06T10:10:00+00:00",
+          "open": 4070.84209,
+          "high": 4070.99821,
+          "low": 4068.29099,
+          "close": 4070.93282,
+          "ema9": 4072.78286,
+          "ema21": 4071.19588
+        },
+        {
+          "timestamp": "2026-11-06T10:15:00+00:00",
+          "open": 4070.77979,
+          "high": 4071.01339,
+          "low": 4067.52085,
+          "close": 4070.3156,
+          "ema9": 4072.28941,
+          "ema21": 4071.11586
+        },
+        {
+          "timestamp": "2026-11-06T10:20:00+00:00",
+          "open": 4070.39506,
+          "high": 4070.39506,
+          "low": 4066.28203,
+          "close": 4067.12204,
+          "ema9": 4071.25593,
+          "ema21": 4070.75278
+        },
+        {
+          "timestamp": "2026-11-06T10:25:00+00:00",
+          "open": 4066.84643,
+          "high": 4067.9963,
+          "low": 4065.04065,
+          "close": 4067.77558,
+          "ema9": 4070.55986,
+          "ema21": 4070.48213
+        },
+        {
+          "timestamp": "2026-11-06T10:30:00+00:00",
+          "open": 4067.48096,
+          "high": 4070.05776,
+          "low": 4067.10202,
+          "close": 4069.2001,
+          "ema9": 4070.28791,
+          "ema21": 4070.36558
+        },
+        {
+          "timestamp": "2026-11-06T10:35:00+00:00",
+          "open": 4069.22059,
+          "high": 4069.83843,
+          "low": 4067.6863,
+          "close": 4067.9083,
+          "ema9": 4069.81199,
+          "ema21": 4070.14219
+        },
+        {
+          "timestamp": "2026-11-06T10:40:00+00:00",
+          "open": 4068.21131,
+          "high": 4069.50718,
+          "low": 4068.01725,
+          "close": 4069.13459,
+          "ema9": 4069.67651,
+          "ema21": 4070.05059
+        },
+        {
+          "timestamp": "2026-11-06T10:45:00+00:00",
+          "open": 4069.00054,
+          "high": 4069.17599,
+          "low": 4066.36304,
+          "close": 4068.99538,
+          "ema9": 4069.54028,
+          "ema21": 4069.95466
+        },
+        {
+          "timestamp": "2026-11-06T10:50:00+00:00",
+          "open": 4068.54169,
+          "high": 4069.17696,
+          "low": 4063.71912,
+          "close": 4065.46686,
+          "ema9": 4068.7256,
+          "ema21": 4069.54668
+        },
+        {
+          "timestamp": "2026-11-06T10:55:00+00:00",
+          "open": 4065.11187,
+          "high": 4065.70174,
+          "low": 4064.36677,
+          "close": 4065.6525,
+          "ema9": 4068.11098,
+          "ema21": 4069.19266
+        },
+        {
+          "timestamp": "2026-11-06T11:00:00+00:00",
+          "open": 4065.33537,
+          "high": 4065.68382,
+          "low": 4063.38887,
+          "close": 4064.25359,
+          "ema9": 4067.3395,
+          "ema21": 4068.74366
+        },
+        {
+          "timestamp": "2026-11-06T11:05:00+00:00",
+          "open": 4064.17194,
+          "high": 4066.04731,
+          "low": 4064.1133,
+          "close": 4065.96222,
+          "ema9": 4067.06404,
+          "ema21": 4068.4908
+        },
+        {
+          "timestamp": "2026-11-06T11:10:00+00:00",
+          "open": 4065.7519,
+          "high": 4067.36313,
+          "low": 4064.531,
+          "close": 4065.05976,
+          "ema9": 4066.66319,
+          "ema21": 4068.17889
+        },
+        {
+          "timestamp": "2026-11-06T11:15:00+00:00",
+          "open": 4065.98167,
+          "high": 4066.25639,
+          "low": 4063.88426,
+          "close": 4066.03914,
+          "ema9": 4066.53838,
+          "ema21": 4067.98436
+        },
+        {
+          "timestamp": "2026-11-06T11:20:00+00:00",
+          "open": 4065.63658,
+          "high": 4070.7515,
+          "low": 4065.63658,
+          "close": 4070.32327,
+          "ema9": 4067.29536,
+          "ema21": 4068.19699
+        },
+        {
+          "timestamp": "2026-11-06T11:25:00+00:00",
+          "open": 4069.42552,
+          "high": 4071.82703,
+          "low": 4069.42552,
+          "close": 4070.41535,
+          "ema9": 4067.91936,
+          "ema21": 4068.39866
+        },
+        {
+          "timestamp": "2026-11-06T11:30:00+00:00",
+          "open": 4070.73259,
+          "high": 4073.33582,
+          "low": 4070.06639,
+          "close": 4073.22163,
+          "ema9": 4068.97981,
+          "ema21": 4068.83711
+        },
+        {
+          "timestamp": "2026-11-06T11:35:00+00:00",
+          "open": 4072.99381,
+          "high": 4073.3016,
+          "low": 4070.00407,
+          "close": 4070.11542,
+          "ema9": 4069.20693,
+          "ema21": 4068.95332
+        },
+        {
+          "timestamp": "2026-11-06T11:40:00+00:00",
+          "open": 4070.33374,
+          "high": 4071.01085,
+          "low": 4069.34158,
+          "close": 4070.74164,
+          "ema9": 4069.51387,
+          "ema21": 4069.1159
+        },
+        {
+          "timestamp": "2026-11-06T11:45:00+00:00",
+          "open": 4070.19854,
+          "high": 4071.49546,
+          "low": 4068.84485,
+          "close": 4069.77672,
+          "ema9": 4069.56644,
+          "ema21": 4069.17597
+        },
+        {
+          "timestamp": "2026-11-06T11:50:00+00:00",
+          "open": 4069.62722,
+          "high": 4069.63111,
+          "low": 4065.84824,
+          "close": 4066.41951,
+          "ema9": 4068.93706,
+          "ema21": 4068.92538
+        },
+        {
+          "timestamp": "2026-11-06T11:55:00+00:00",
+          "open": 4067.65397,
+          "high": 4067.65397,
+          "low": 4062.99774,
+          "close": 4063.2425,
+          "ema9": 4067.79815,
+          "ema21": 4068.40876
+        },
+        {
+          "timestamp": "2026-11-06T12:00:00+00:00",
+          "open": 4063.69748,
+          "high": 4063.87455,
+          "low": 4060.41904,
+          "close": 4063.49038,
+          "ema9": 4066.93659,
+          "ema21": 4067.96163
+        },
+        {
+          "timestamp": "2026-11-06T12:05:00+00:00",
+          "open": 4062.48867,
+          "high": 4068.18274,
+          "low": 4062.48867,
+          "close": 4067.98961,
+          "ema9": 4067.1472,
+          "ema21": 4067.96418
+        },
+        {
+          "timestamp": "2026-11-06T12:10:00+00:00",
+          "open": 4067.58224,
+          "high": 4067.94447,
+          "low": 4061.57345,
+          "close": 4062.00226,
+          "ema9": 4066.11821,
+          "ema21": 4067.42218
+        },
+        {
+          "timestamp": "2026-11-06T12:15:00+00:00",
+          "open": 4062.78246,
+          "high": 4067.97741,
+          "low": 4062.50364,
+          "close": 4067.57957,
+          "ema9": 4066.41048,
+          "ema21": 4067.43649
+        }
+      ]
+    },
+    "estado_central": {
+      "disponivel": true,
+      "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+      "idade_minutos": 816.8,
+      "desatualizada": true,
+      "horario_igual_ao_candle_atual": false
+    },
+    "tabuleiro_estavel": {
+      "metodo": {
+        "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+        "eixo_y": "Faixas fixas de preço",
+        "largura_regiao": 1.5,
+        "ancoragem": 0,
+        "atr": "Medida de volatilidade, sem alterar regiões",
+        "volume": "Não utilizado"
+      },
+      "diagnostico": {
+        "total_velas": 5000,
+        "total_regioes": 188,
+        "total_transicoes": 1045,
+        "minimo_amostras": 10
+      },
+      "mercado_atual": {
+        "timestamp": "2026-11-05 22:05:00",
+        "eixo_x": 4999,
+        "preco": 4089.45446,
+        "atr": 3.50642,
+        "direcao_vela": "ALTA",
+        "regiao": 2726,
+        "limite_inferior": 4089.0,
+        "limite_superior": 4090.5,
+        "visitas_regiao": 24
+      },
+      "transicoes_historicas": [
+        {
+          "origem": 2726,
+          "destino": 2725,
+          "transicoes": 4,
+          "saidas_origem": 12,
+          "probabilidade": 33.33,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2724,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2727,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2729,
+          "transicoes": 2,
+          "saidas_origem": 12,
+          "probabilidade": 16.67,
+          "amostra_suficiente": true
+        }
+      ]
+    },
+    "regras_de_utilizacao": [
+      "Não alterar a decisão original do Gemini.",
+      "Não modificar entrada, stop ou alvo originais.",
+      "Não tratar frequências históricas como certezas.",
+      "Não somar fontes como votos de mesmo peso.",
+      "Invalidadores estruturais devem ser avaliados separadamente.",
+      "Dados ausentes ou horários divergentes exigem cautela.",
+      "Nenhuma ordem será enviada ou executada."
+    ],
+    "avisos": [
+      "Os horários do contexto técnico e do tabuleiro não coincidem.",
+      "A Central está desatualizada há mais de 30 minutos.",
+      "A amostra de transições da região atual ainda é pequena.",
+      "VWAP indisponível nesta leitura matemática."
+    ]
+  },
+  "decisao_diretor": {
+    "decisao": {
+      "acao": "CONTINUA",
+      "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+      "preco_referencia": 4067.57957,
+      "novo_stop": 4078.188,
+      "resultado_r": -0.69,
+      "sequencia_reversao": 0,
+      "central": {
+        "disponivel": true,
+        "preco": 4067.57957,
+        "timestamp_central": "2026-11-05 22:05:00",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "idade_minutos": 816.8,
+        "central_desatualizada": true,
+        "regiao": 2711,
+        "limite_inferior": 4066.5,
+        "limite_superior": 4068.0,
+        "regiao_registrada_na_central": 2726,
+        "visitas_regiao": null,
+        "transicoes_historicas": [],
+        "transicoes_confiaveis": []
+      }
+    },
+    "indicadores": {
+      "ema9": 4066.4104808311095,
+      "ema21": 4067.4364918453402,
+      "rsi14": 50.064460174187765,
+      "atr14": 3.838080714285752
+    },
+    "leitura_central": {
+      "disponivel": true,
+      "preco": 4067.57957,
+      "timestamp_central": "2026-11-05 22:05:00",
+      "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+      "idade_minutos": 816.8,
+      "central_desatualizada": true,
+      "regiao": 2711,
+      "limite_inferior": 4066.5,
+      "limite_superior": 4068.0,
+      "regiao_registrada_na_central": 2726,
+      "visitas_regiao": null,
+      "transicoes_historicas": [],
+      "transicoes_confiaveis": []
+    }
+  },
+  "memoria": {
+    "versao": "1.0",
+    "criada_em": "2026-11-06T09:45:12.106721+00:00",
+    "diagnostico_original": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-06T08:35:00+00:00",
+      "decisao_motor": "SEM_SINAL",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "modelo_solicitado_pelo_testador": "models/gemini-3.1-flash-lite",
+      "fallback_modelo_acionado": false,
+      "erros_modelos_anteriores": [],
+      "decisao_ia_original": "VENDA",
+      "decisao_gemini": "VENDA",
+      "confianca_declarada": 75,
+      "pontuacao_tecnica_compra": 37.5,
+      "pontuacao_tecnica_venda": 25.0,
+      "fonte_pontuacao_tecnica": "campo_antigo_normalizado",
+      "pontuacao_tecnica_direcao": 25.0,
+      "contribuicao_gemini": 18.75,
+      "pontuacao_final": 43.75,
+      "parametros_adaptativos": {
+        "peso_tecnico": 75.0,
+        "peso_gemini": 25.0,
+        "limiar": 40.0,
+        "stop_atr": 1.5,
+        "rr": 1.5
+      },
+      "aprendizado": "A consistência das operações de venda tem sido alta quando o alinhamento macro (M15/H1) coincide com o rompimento de mínimas no M5. O uso do contexto da Central Inteligente como filtro de regiões de transição tem reduzido entradas em zonas de reversão, aumentando a precisão das operações de continuação.",
+      "justificativa": "O ativo mantém alinhamento técnico de baixa em todos os tempos gráficos (M5, M15, H1). A EMA9 abaixo da EMA21 no M5 e o RSI em 46.21 confirmam a continuidade do momentum vendedor. O contexto da Central Inteligente corrobora a estrutura de transição na região 2726, com histórico de saídas para faixas inferiores, reforçando a probabilidade de continuidade do movimento baixista. A ausência de sinais de exaustão e o alinhamento macro validam a entrada técnica.",
+      "central_status": "RECEBIDO",
+      "contexto_central": {
+        "versao": "1.0",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "metodo": {
+          "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+          "eixo_y": "Faixas fixas de preço",
+          "largura_regiao": 1.5,
+          "ancoragem": 0,
+          "atr": "Medida de volatilidade, sem alterar regiões",
+          "volume": "Não utilizado"
+        },
+        "diagnostico": {
+          "total_velas": 5000,
+          "total_regioes": 188,
+          "total_transicoes": 1045,
+          "minimo_amostras": 10
+        },
+        "mercado_atual": {
+          "timestamp": "2026-11-05 22:05:00",
+          "eixo_x": 4999,
+          "preco": 4089.45446,
+          "atr": 3.50642,
+          "direcao_vela": "ALTA",
+          "regiao": 2726,
+          "limite_inferior": 4089.0,
+          "limite_superior": 4090.5,
+          "visitas_regiao": 24
+        },
+        "transicoes_historicas_da_regiao": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "transicoes_com_amostra_minima": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+      },
+      "gerado_utc": "2026-11-06T08:41:23.093758+00:00",
+      "modo_teste": true,
+      "envio_telegram": true,
+      "execucao_ordens": false,
+      "entrada": 4070.727,
+      "atr14": 4.9744,
+      "distancia_stop": 7.462,
+      "stop_loss": 4078.188,
+      "take_profit": 4059.534,
+      "distancia_alvo": 11.192,
+      "relacao_risco_retorno": "1:1.5",
+      "metodo_stop": "ATR(14) x 1.5",
+      "metodo_alvo": "Distancia do stop x 1.5",
+      "horario_sinal_utc": "2026-11-06T08:41:24.232419+00:00",
+      "fechamento_candle_utc": "2026-11-06T08:40:00+00:00",
+      "atraso_apos_fechamento_minutos": 1.4
+    },
+    "central_inicial": {
+      "versao": "1.0",
+      "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+      "metodo": {
+        "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+        "eixo_y": "Faixas fixas de preço",
+        "largura_regiao": 1.5,
+        "ancoragem": 0,
+        "atr": "Medida de volatilidade, sem alterar regiões",
+        "volume": "Não utilizado"
+      },
+      "diagnostico": {
+        "total_velas": 5000,
+        "total_regioes": 188,
+        "total_transicoes": 1045,
+        "minimo_amostras": 10
+      },
+      "mercado_atual": {
+        "timestamp": "2026-11-05 22:05:00",
+        "eixo_x": 4999,
+        "preco": 4089.45446,
+        "atr": 3.50642,
+        "direcao_vela": "ALTA",
+        "regiao": 2726,
+        "limite_inferior": 4089.0,
+        "limite_superior": 4090.5,
+        "visitas_regiao": 24
+      },
+      "transicoes_historicas_da_regiao": [
+        {
+          "origem": 2726,
+          "destino": 2725,
+          "transicoes": 4,
+          "saidas_origem": 12,
+          "probabilidade": 33.33,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2724,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2727,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2729,
+          "transicoes": 2,
+          "saidas_origem": 12,
+          "probabilidade": 16.67,
+          "amostra_suficiente": true
+        }
+      ],
+      "transicoes_com_amostra_minima": [
+        {
+          "origem": 2726,
+          "destino": 2725,
+          "transicoes": 4,
+          "saidas_origem": 12,
+          "probabilidade": 33.33,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2724,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2727,
+          "transicoes": 3,
+          "saidas_origem": 12,
+          "probabilidade": 25.0,
+          "amostra_suficiente": true
+        },
+        {
+          "origem": 2726,
+          "destino": 2729,
+          "transicoes": 2,
+          "saidas_origem": 12,
+          "probabilidade": 16.67,
+          "amostra_suficiente": true
+        }
+      ],
+      "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+    },
+    "total_ciclos": 3,
+    "ultima_observacao": "2026-11-06T12:15:00+00:00",
+    "observacoes": [
+      {
+        "timestamp": "2026-11-06T10:35:00+00:00",
+        "preco": 4068.69086,
+        "maxima": 4069.83843,
+        "minima": 4068.3888,
+        "ema9": 4069.9685003231325,
+        "ema21": 4070.2133327380984,
+        "rsi14": 48.74097077910535,
+        "atr14": 3.0340664285714802,
+        "leitura_central": {
+          "disponivel": true,
+          "preco": 4068.69086,
+          "timestamp_central": "2026-11-05 22:05:00",
+          "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+          "idade_minutos": 720.2,
+          "central_desatualizada": true,
+          "regiao": 2712,
+          "limite_inferior": 4068.0,
+          "limite_superior": 4069.5,
+          "regiao_registrada_na_central": 2726,
+          "visitas_regiao": null,
+          "transicoes_historicas": [],
+          "transicoes_confiaveis": []
+        },
+        "decisao": {
+          "acao": "CONTINUA",
+          "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+          "preco_referencia": 4068.69086,
+          "novo_stop": 4078.188,
+          "resultado_r": -0.72,
+          "sequencia_reversao": 0,
+          "central": {
+            "disponivel": true,
+            "preco": 4068.69086,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 720.2,
+            "central_desatualizada": true,
+            "regiao": 2712,
+            "limite_inferior": 4068.0,
+            "limite_superior": 4069.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          }
+        },
+        "registrada_em": "2026-11-06T10:46:59.228343+00:00"
+      },
+      {
+        "timestamp": "2026-11-06T11:25:00+00:00",
+        "preco": 4071.04561,
+        "maxima": 4071.82703,
+        "minima": 4069.42552,
+        "ema9": 4068.045407273937,
+        "ema21": 4068.4559573761358,
+        "rsi14": 56.65177280291643,
+        "atr14": 2.8807742857142915,
+        "leitura_central": {
+          "disponivel": true,
+          "preco": 4071.04561,
+          "timestamp_central": "2026-11-05 22:05:00",
+          "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+          "idade_minutos": 772.5,
+          "central_desatualizada": true,
+          "regiao": 2714,
+          "limite_inferior": 4071.0,
+          "limite_superior": 4072.5,
+          "regiao_registrada_na_central": 2726,
+          "visitas_regiao": null,
+          "transicoes_historicas": [],
+          "transicoes_confiaveis": []
+        },
+        "decisao": {
+          "acao": "CONTINUA",
+          "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+          "preco_referencia": 4071.04561,
+          "novo_stop": 4078.188,
+          "resultado_r": -0.79,
+          "sequencia_reversao": 0,
+          "central": {
+            "disponivel": true,
+            "preco": 4071.04561,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 772.5,
+            "central_desatualizada": true,
+            "regiao": 2714,
+            "limite_inferior": 4071.0,
+            "limite_superior": 4072.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          }
+        },
+        "registrada_em": "2026-11-06T11:39:20.822187+00:00"
+      },
+      {
+        "timestamp": "2026-11-06T12:15:00+00:00",
+        "preco": 4067.57957,
+        "maxima": 4067.97741,
+        "minima": 4062.50364,
+        "ema9": 4066.4104808311095,
+        "ema21": 4067.4364918453402,
+        "rsi14": 50.064460174187765,
+        "atr14": 3.838080714285752,
+        "leitura_central": {
+          "disponivel": true,
+          "preco": 4067.57957,
+          "timestamp_central": "2026-11-05 22:05:00",
+          "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+          "idade_minutos": 816.8,
+          "central_desatualizada": true,
+          "regiao": 2711,
+          "limite_inferior": 4066.5,
+          "limite_superior": 4068.0,
+          "regiao_registrada_na_central": 2726,
+          "visitas_regiao": null,
+          "transicoes_historicas": [],
+          "transicoes_confiaveis": []
+        },
+        "decisao": {
+          "acao": "CONTINUA",
+          "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+          "preco_referencia": 4067.57957,
+          "novo_stop": 4078.188,
+          "resultado_r": -0.69,
+          "sequencia_reversao": 0,
+          "central": {
+            "disponivel": true,
+            "preco": 4067.57957,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 816.8,
+            "central_desatualizada": true,
+            "regiao": 2711,
+            "limite_inferior": 4066.5,
+            "limite_superior": 4068.0,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          }
+        },
+        "registrada_em": "2026-11-06T12:23:33.169268+00:00"
+      }
+    ]
+  },
+  "validacao_candles": {
+    "ultima_vela": "2026-11-06T12:15:00+00:00",
+    "idade_minutos": 3.6,
+    "atual": true
+  },
+  "regras": [
+    "A análise é consultiva.",
+    "Não executar ordens.",
+    "Não modificar entrada, stop ou alvo.",
+    "Não ignorar dados desatualizados.",
+    "Toda alteração de stop exige confirmação manual."
+  ]
+}
