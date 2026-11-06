@@ -10,5 +10,609 @@
     "alertas": [],
     "status": "FECHADA MANUALMENTE NA CORRETORA",
     "encerrada_em": "2026-11-06T03:29:57.763135+00:00"
+  },
+  {
+    "direcao": "VENDA",
+    "entrada_sinal": 4044.461,
+    "stop": 4053.562,
+    "alvo": 4030.811,
+    "entrada_real": 4044.461,
+    "stop_original": 4053.562,
+    "stop_confirmado": 4053.562,
+    "stop_pendente": null,
+    "diagnostico_original": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-06T03:45:00+00:00",
+      "decisao_motor": "VENDA",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "modelo_solicitado_pelo_testador": "models/gemini-3.1-flash-lite",
+      "fallback_modelo_acionado": false,
+      "erros_modelos_anteriores": [],
+      "decisao_ia_original": "VENDA",
+      "decisao_gemini": "VENDA",
+      "confianca_declarada": 75,
+      "pontuacao_tecnica_compra": 0.0,
+      "pontuacao_tecnica_venda": 50.0,
+      "fonte_pontuacao_tecnica": "campo_antigo_normalizado",
+      "pontuacao_tecnica_direcao": 50.0,
+      "contribuicao_gemini": 18.75,
+      "pontuacao_final": 68.75,
+      "parametros_adaptativos": {
+        "peso_tecnico": 75.0,
+        "peso_gemini": 25.0,
+        "limiar": 40.0,
+        "stop_atr": 1.5,
+        "rr": 1.5
+      },
+      "aprendizado": "O histórico recente de operações reais de venda com alinhamento macro e confirmação de transição em regiões de preço da Central Inteligente tem apresentado consistência. A manutenção do peso técnico elevado (75%) é justificada pela eficácia do alinhamento das médias móveis e RSI como filtros de momentum.",
+      "justificativa": "O ativo mantém alinhamento técnico de baixa em todos os tempos gráficos (M5, M15, H1). A EMA9 abaixo da EMA21 no M5 e o RSI em 31.21 confirmam o momentum vendedor. O contexto da Central Inteligente corrobora a estrutura de transição na região 2726, com histórico de saídas para faixas inferiores, reforçando a probabilidade de continuidade do movimento baixista. A ausência de sinais de exaustão e o alinhamento macro validam a entrada técnica.",
+      "central_status": "RECEBIDO",
+      "contexto_central": {
+        "versao": "1.0",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "metodo": {
+          "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+          "eixo_y": "Faixas fixas de preço",
+          "largura_regiao": 1.5,
+          "ancoragem": 0,
+          "atr": "Medida de volatilidade, sem alterar regiões",
+          "volume": "Não utilizado"
+        },
+        "diagnostico": {
+          "total_velas": 5000,
+          "total_regioes": 188,
+          "total_transicoes": 1045,
+          "minimo_amostras": 10
+        },
+        "mercado_atual": {
+          "timestamp": "2026-11-05 22:05:00",
+          "eixo_x": 4999,
+          "preco": 4089.45446,
+          "atr": 3.50642,
+          "direcao_vela": "ALTA",
+          "regiao": 2726,
+          "limite_inferior": 4089.0,
+          "limite_superior": 4090.5,
+          "visitas_regiao": 24
+        },
+        "transicoes_historicas_da_regiao": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "transicoes_com_amostra_minima": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+      },
+      "gerado_utc": "2026-11-06T03:50:43.491597+00:00",
+      "modo_teste": true,
+      "envio_telegram": true,
+      "execucao_ordens": false,
+      "entrada": 4044.461,
+      "atr14": 6.06682,
+      "distancia_stop": 9.1,
+      "stop_loss": 4053.562,
+      "take_profit": 4030.811,
+      "distancia_alvo": 13.65,
+      "relacao_risco_retorno": "1:1.5",
+      "metodo_stop": "ATR(14) x 1.5",
+      "metodo_alvo": "Distancia do stop x 1.5",
+      "horario_sinal_utc": "2026-11-06T03:50:45.177444+00:00",
+      "fechamento_candle_utc": "2026-11-06T03:50:00+00:00",
+      "atraso_apos_fechamento_minutos": 0.75
+    },
+    "memoria_autonoma": {
+      "versao": "1.0",
+      "criada_em": "2026-11-06T04:17:45.125753+00:00",
+      "diagnostico_original": {
+        "ativo": "XAUUSD",
+        "timeframe": "M5",
+        "candle_utc": "2026-11-06T03:45:00+00:00",
+        "decisao_motor": "VENDA",
+        "modelo_utilizado": "models/gemini-3.1-flash-lite",
+        "modelo_solicitado_pelo_testador": "models/gemini-3.1-flash-lite",
+        "fallback_modelo_acionado": false,
+        "erros_modelos_anteriores": [],
+        "decisao_ia_original": "VENDA",
+        "decisao_gemini": "VENDA",
+        "confianca_declarada": 75,
+        "pontuacao_tecnica_compra": 0.0,
+        "pontuacao_tecnica_venda": 50.0,
+        "fonte_pontuacao_tecnica": "campo_antigo_normalizado",
+        "pontuacao_tecnica_direcao": 50.0,
+        "contribuicao_gemini": 18.75,
+        "pontuacao_final": 68.75,
+        "parametros_adaptativos": {
+          "peso_tecnico": 75.0,
+          "peso_gemini": 25.0,
+          "limiar": 40.0,
+          "stop_atr": 1.5,
+          "rr": 1.5
+        },
+        "aprendizado": "O histórico recente de operações reais de venda com alinhamento macro e confirmação de transição em regiões de preço da Central Inteligente tem apresentado consistência. A manutenção do peso técnico elevado (75%) é justificada pela eficácia do alinhamento das médias móveis e RSI como filtros de momentum.",
+        "justificativa": "O ativo mantém alinhamento técnico de baixa em todos os tempos gráficos (M5, M15, H1). A EMA9 abaixo da EMA21 no M5 e o RSI em 31.21 confirmam o momentum vendedor. O contexto da Central Inteligente corrobora a estrutura de transição na região 2726, com histórico de saídas para faixas inferiores, reforçando a probabilidade de continuidade do movimento baixista. A ausência de sinais de exaustão e o alinhamento macro validam a entrada técnica.",
+        "central_status": "RECEBIDO",
+        "contexto_central": {
+          "versao": "1.0",
+          "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+          "metodo": {
+            "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+            "eixo_y": "Faixas fixas de preço",
+            "largura_regiao": 1.5,
+            "ancoragem": 0,
+            "atr": "Medida de volatilidade, sem alterar regiões",
+            "volume": "Não utilizado"
+          },
+          "diagnostico": {
+            "total_velas": 5000,
+            "total_regioes": 188,
+            "total_transicoes": 1045,
+            "minimo_amostras": 10
+          },
+          "mercado_atual": {
+            "timestamp": "2026-11-05 22:05:00",
+            "eixo_x": 4999,
+            "preco": 4089.45446,
+            "atr": 3.50642,
+            "direcao_vela": "ALTA",
+            "regiao": 2726,
+            "limite_inferior": 4089.0,
+            "limite_superior": 4090.5,
+            "visitas_regiao": 24
+          },
+          "transicoes_historicas_da_regiao": [
+            {
+              "origem": 2726,
+              "destino": 2725,
+              "transicoes": 4,
+              "saidas_origem": 12,
+              "probabilidade": 33.33,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2724,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2727,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2729,
+              "transicoes": 2,
+              "saidas_origem": 12,
+              "probabilidade": 16.67,
+              "amostra_suficiente": true
+            }
+          ],
+          "transicoes_com_amostra_minima": [
+            {
+              "origem": 2726,
+              "destino": 2725,
+              "transicoes": 4,
+              "saidas_origem": 12,
+              "probabilidade": 33.33,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2724,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2727,
+              "transicoes": 3,
+              "saidas_origem": 12,
+              "probabilidade": 25.0,
+              "amostra_suficiente": true
+            },
+            {
+              "origem": 2726,
+              "destino": 2729,
+              "transicoes": 2,
+              "saidas_origem": 12,
+              "probabilidade": 16.67,
+              "amostra_suficiente": true
+            }
+          ],
+          "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+        },
+        "gerado_utc": "2026-11-06T03:50:43.491597+00:00",
+        "modo_teste": true,
+        "envio_telegram": true,
+        "execucao_ordens": false,
+        "entrada": 4044.461,
+        "atr14": 6.06682,
+        "distancia_stop": 9.1,
+        "stop_loss": 4053.562,
+        "take_profit": 4030.811,
+        "distancia_alvo": 13.65,
+        "relacao_risco_retorno": "1:1.5",
+        "metodo_stop": "ATR(14) x 1.5",
+        "metodo_alvo": "Distancia do stop x 1.5",
+        "horario_sinal_utc": "2026-11-06T03:50:45.177444+00:00",
+        "fechamento_candle_utc": "2026-11-06T03:50:00+00:00",
+        "atraso_apos_fechamento_minutos": 0.75
+      },
+      "central_inicial": {
+        "versao": "1.0",
+        "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+        "metodo": {
+          "eixo_x": "Uma posição por vela M5 em ordem cronológica",
+          "eixo_y": "Faixas fixas de preço",
+          "largura_regiao": 1.5,
+          "ancoragem": 0,
+          "atr": "Medida de volatilidade, sem alterar regiões",
+          "volume": "Não utilizado"
+        },
+        "diagnostico": {
+          "total_velas": 5000,
+          "total_regioes": 188,
+          "total_transicoes": 1045,
+          "minimo_amostras": 10
+        },
+        "mercado_atual": {
+          "timestamp": "2026-11-05 22:05:00",
+          "eixo_x": 4999,
+          "preco": 4089.45446,
+          "atr": 3.50642,
+          "direcao_vela": "ALTA",
+          "regiao": 2726,
+          "limite_inferior": 4089.0,
+          "limite_superior": 4090.5,
+          "visitas_regiao": 24
+        },
+        "transicoes_historicas_da_regiao": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "transicoes_com_amostra_minima": [
+          {
+            "origem": 2726,
+            "destino": 2725,
+            "transicoes": 4,
+            "saidas_origem": 12,
+            "probabilidade": 33.33,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2724,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2727,
+            "transicoes": 3,
+            "saidas_origem": 12,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+          },
+          {
+            "origem": 2726,
+            "destino": 2729,
+            "transicoes": 2,
+            "saidas_origem": 12,
+            "probabilidade": 16.67,
+            "amostra_suficiente": true
+          }
+        ],
+        "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
+      },
+      "total_ciclos": 4,
+      "ultima_observacao": "2026-11-06T06:35:00+00:00",
+      "observacoes": [
+        {
+          "timestamp": "2026-11-06T03:45:00+00:00",
+          "preco": 4044.46133,
+          "maxima": 4047.27214,
+          "minima": 4041.87381,
+          "ema9": 4049.1014349070847,
+          "ema21": 4056.746158277814,
+          "rsi14": 31.21282449065596,
+          "atr14": 6.066818571428485,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4044.46133,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 336.8,
+            "central_desatualizada": true,
+            "regiao": 2696,
+            "limite_inferior": 4044.0,
+            "limite_superior": 4045.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4044.46133,
+            "novo_stop": 4053.562,
+            "resultado_r": -0.0,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4044.46133,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 336.8,
+              "central_desatualizada": true,
+              "regiao": 2696,
+              "limite_inferior": 4044.0,
+              "limite_superior": 4045.5,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T04:23:37.224594+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T04:40:00+00:00",
+          "preco": 4043.5128,
+          "maxima": 4046.24244,
+          "minima": 4043.34465,
+          "ema9": 4043.7918477623007,
+          "ema21": 4047.7417377294973,
+          "rsi14": 39.7054641142219,
+          "atr14": 3.6714942857142887,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4043.5128,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 400.0,
+            "central_desatualizada": true,
+            "regiao": 2695,
+            "limite_inferior": 4042.5,
+            "limite_superior": 4044.0,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4043.5128,
+            "novo_stop": 4053.562,
+            "resultado_r": 0.1,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4043.5128,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 400.0,
+              "central_desatualizada": true,
+              "regiao": 2695,
+              "limite_inferior": 4042.5,
+              "limite_superior": 4044.0,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T05:26:46.882080+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T05:35:00+00:00",
+          "preco": 4044.46857,
+          "maxima": 4044.65297,
+          "minima": 4040.82734,
+          "ema9": 4043.700179106647,
+          "ema21": 4045.4180823645893,
+          "rsi14": 46.21366166928495,
+          "atr14": 4.791428571428502,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4044.46857,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 464.1,
+            "central_desatualizada": true,
+            "regiao": 2696,
+            "limite_inferior": 4044.0,
+            "limite_superior": 4045.5,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4044.46857,
+            "novo_stop": 4053.562,
+            "resultado_r": -0.0,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4044.46857,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 464.1,
+              "central_desatualizada": true,
+              "regiao": 2696,
+              "limite_inferior": 4044.0,
+              "limite_superior": 4045.5,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T06:30:51.977989+00:00"
+        },
+        {
+          "timestamp": "2026-11-06T06:35:00+00:00",
+          "preco": 4048.8613,
+          "maxima": 4049.14208,
+          "minima": 4044.04784,
+          "ema9": 4046.423600570397,
+          "ema21": 4045.830816352022,
+          "rsi14": 53.75594783416957,
+          "atr14": 5.538254285714304,
+          "leitura_central": {
+            "disponivel": true,
+            "preco": 4048.8613,
+            "timestamp_central": "2026-11-05 22:05:00",
+            "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+            "idade_minutos": 543.1,
+            "central_desatualizada": true,
+            "regiao": 2699,
+            "limite_inferior": 4048.5,
+            "limite_superior": 4050.0,
+            "regiao_registrada_na_central": 2726,
+            "visitas_regiao": null,
+            "transicoes_historicas": [],
+            "transicoes_confiaveis": []
+          },
+          "decisao": {
+            "acao": "CONTINUA",
+            "motivo": "A operação mantém condições para continuar. Não há confirmação suficiente para fechar nem novo nível de proteção nesta vela.",
+            "preco_referencia": 4048.8613,
+            "novo_stop": 4053.562,
+            "resultado_r": -0.48,
+            "sequencia_reversao": 0,
+            "central": {
+              "disponivel": true,
+              "preco": 4048.8613,
+              "timestamp_central": "2026-11-05 22:05:00",
+              "atualizado_em": "2026-11-05T22:46:48.025786+00:00",
+              "idade_minutos": 543.1,
+              "central_desatualizada": true,
+              "regiao": 2699,
+              "limite_inferior": 4048.5,
+              "limite_superior": 4050.0,
+              "regiao_registrada_na_central": 2726,
+              "visitas_regiao": null,
+              "transicoes_historicas": [],
+              "transicoes_confiaveis": []
+            }
+          },
+          "registrada_em": "2026-11-06T07:49:53.470770+00:00"
+        }
+      ]
+    },
+    "ativada_em": "2026-11-06T04:17:45.125893+00:00",
+    "ultima_vela": "2026-11-06T08:35:00+00:00",
+    "alertas": [],
+    "sequencia_reversao": 0,
+    "status": "STOP",
+    "encerrada_em": "2026-11-06T08:43:45.632623+00:00"
   }
 ]
