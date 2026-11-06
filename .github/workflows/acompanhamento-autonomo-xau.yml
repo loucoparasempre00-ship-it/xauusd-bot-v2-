@@ -1,6 +1,13 @@
+
 name: Acompanhamento Autônomo XAUUSD
 
 on:
+  workflow_run:
+    workflows:
+      - "Central Inteligente XAUUSD"
+    types:
+      - completed
+
   schedule:
     - cron: "*/5 * * * *"
 
@@ -16,6 +23,7 @@ concurrency:
 
 jobs:
   acompanhar:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 4
 
@@ -33,11 +41,10 @@ jobs:
       - name: Instalar dependência
         run: pip install requests
 
-      - name: Executar acompanhamento
+      - name: Executar acompanhamento autônomo
         env:
           TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python acompanhamento_autonomo_xau.py
