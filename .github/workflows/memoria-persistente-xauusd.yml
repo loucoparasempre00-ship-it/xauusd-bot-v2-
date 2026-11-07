@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -197,3 +197,20 @@ jobs:
           path: data/memoria_agente.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publicar memória
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoria-agente-xau
+          path: data/memoria_agente.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Disparar Central Inteligente
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run central-inteligente-xauusd.yml \
+            --ref main \
+            -f memoria_run_id="$GITHUB_RUN_ID"
+
