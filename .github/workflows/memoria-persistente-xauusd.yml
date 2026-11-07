@@ -40,20 +40,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh api \
+          RUN_ID="$(gh api \
             "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
-            --jq '.workflow_runs[]
+            --jq '[.workflow_runs[]
               | select(.name == "Memoria Persistente XAUUSD")
               | select(.conclusion == "success")
-              | .id' |
-          head -n 1 > data/ultimo_run.txt
+              | .id] | first // empty')"
 
-          RUN_ID=$(cat data/ultimo_run.txt)
+          echo "$RUN_ID" > data/ultimo_run.txt
 
           if [ -n "$RUN_ID" ]; then
+            echo "Recuperando memória da execução $RUN_ID"
+
             gh run download "$RUN_ID" \
               --name memoria-agente-xau \
               --dir data/anterior || true
+          else
+            echo "Nenhuma memória anterior encontrada."
           fi
 
       - name: Recuperar resultado do agente
