@@ -38,6 +38,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           gh api \
             "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
             --jq '.workflow_runs[]
@@ -60,6 +62,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
+          set -euo pipefail
+
           gh run download "$RUN_ID" \
             --name resultado-agente-gemini \
             --dir data/entrada || true
@@ -116,11 +120,13 @@ jobs:
 
               candle = str(resultado.get("candle_utc", "")).strip()
 
-              # O agente grava a direção final neste campo.
               decisao = str(
                   resultado.get(
                       "decisao_gemini",
-                      resultado.get("decisao", resultado.get("sinal", "SEM_SINAL"))
+                      resultado.get(
+                          "decisao",
+                          resultado.get("sinal", "SEM_SINAL")
+                      )
                   )
               ).strip().upper()
 
@@ -189,7 +195,7 @@ jobs:
           print("Novos registros:", adicionados)
           print("Total preservado:", len(historico))
           PY
-          l
+
       - name: Publicar memória
         uses: actions/upload-artifact@v4
         with:
@@ -203,7 +209,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+
           gh workflow run central-inteligente-xauusd.yml \
             --ref main \
             -f memoria_run_id="$GITHUB_RUN_ID"
-
