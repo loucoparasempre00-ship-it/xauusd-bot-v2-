@@ -89,9 +89,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          mkdir -p /tmp/memoria-artifact
           gh run download "${{ steps.memoria_run.outputs.run_id }}" \
             --name memoria-agente-xau \
-            --dir data
+            --dir /tmp/memoria-artifact
+          cp -a /tmp/memoria-artifact/. data/
 
       - name: Validar memoria
         run: test -s data/memoria_agente.json
@@ -126,9 +129,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          mkdir -p /tmp/candles-artifact
           gh run download "${{ steps.integracao_run.outputs.run_id }}" \
             --name candles-xauusd-m5 \
-            --dir data
+            --dir /tmp/candles-artifact
+          cp -a /tmp/candles-artifact/. data/
 
       - name: Preparar historico M5
         shell: bash
