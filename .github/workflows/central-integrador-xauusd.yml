@@ -1,0 +1,222 @@
+name: Central Integrador XAUUSD
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Central executa periodicamente para receber Telegram e atualizar contexto.
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: central-integrador-xauusd
+  cancel-in-progress: false
+
+jobs:
+  central:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 1 - Checkout do repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: 2 - Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 3 - Preparar ambiente
+        shell: bash
+        run: |
+          set -e
+          python --version
+          pip install requests
+          mkdir -p data
+
+      # ==========================================
+      # MODULO 1 — RECEPCAO / INTEGRACAO
+      # ==========================================
+      # Recupera a integracao mais recente concluida com sucesso
+      # e baixa as velas fechadas M5 para o workspace.
+
+      - name: 4 - Localizar integracao mais recente
+        id: integracao
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+            --jq '[.workflow_runs[]
+              | select(.name == "Integracao XAUUSD Bot V2")
+              | select(.conclusion == "success")]
+              | sort_by(.created_at)
+              | last
+              | .id // empty')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Nenhuma Integracao XAUUSD concluida com sucesso foi encontrada."
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: 5 - Baixar velas M5 fechadas
+        uses: actions/download-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.integracao.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: 6 - Validar e preparar velas
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s data/xauusd_m5_fechados.csv
+          cp data/xauusd_m5_fechados.csv data/historico_velas_m5.csv
+          test -s data/historico_velas_m5.csv
+
+      # ==========================================
+      # MODULO 2 — IDENTIFICADOR CENTRAL / TELEGRAM
+      # ==========================================
+      # Script base atualmente existente. A futura versao do dispatcher
+      # deve escrever data/central_rota.json com {"rota":"..."}.
+      # Este workflow nao tenta adivinhar comandos pelo log do Telegram.
+
+      - name: 7 - Executar identificador e coordenador base
+        id: identificador
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python -u acompanhamento_autonomo_xau.py
+
+      - name: 8 - Determinar rota da Central
+        id: rota
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Rota prevista para o dispatcher:
+          # MONITORAR | CONSOLIDAR | ANALISAR | ANALISAR_E_MONITORAR
+          if [ -s data/central_rota.json ]; then
+            ROTA=$(python -c "import json; print(json.load(open('data/central_rota.json')).get('rota','ANALISAR'))")
+          else
+            # Compatibilidade inicial com os scripts atuais.
+            # Quando o dispatcher central estiver pronto, remover fallback.
+            ROTA="ANALISAR"
+          fi
+
+          case "$ROTA" in
+            MONITORAR|CONSOLIDAR|ANALISAR|ANALISAR_E_MONITORAR) ;;
+            *)
+              echo "Rota invalida: $ROTA"
+              exit 1
+              ;;
+          esac
+
+          echo "rota=$ROTA" >> "$GITHUB_OUTPUT"
+          echo "Rota selecionada: $ROTA"
+
+      # ==========================================
+      # MODULO 3 — MONITORAMENTO / RESULTADOS
+      # ==========================================
+
+      # O acompanhamento_autonomo_xau.py foi executado apenas uma vez
+      # acima: nao repetir a leitura do Telegram/getUpdates neste ciclo.
+
+      - name: 9 - Atualizar memoria Gemini
+        if: ${{ steps.rota.outputs.rota == 'MONITORAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
+        run: python -u memoria_persistente_gemini.py
+
+      # ==========================================
+      # MODULOS 4–8 — TABULEIRO / ESTATISTICAS
+      # ==========================================
+
+      - name: 11 - Coletar tabuleiro M5
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+        run: python -u coletor_tabuleiro_m5.py
+
+      - name: 12 - Detectar bordas M5
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+        run: python -u detector_bordas_m5.py
+
+      - name: 13 - Atualizar banco de dados
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+        run: python -u banco_dados_tabuleiro.py
+
+      - name: 14 - Processar estatisticas
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+        run: python -u processador_estatistico_m5.py
+
+      - name: 15 - Calcular sequencias provaveis
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+        run: python -u sequenciador_tabuleiro_m5.py
+
+      - name: 16 - Avaliar resultados
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
+        run: python -u avaliador_resultados_m5.py
+
+      - name: 17 - Gerar relatorio e contexto
+        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
+        run: |
+          set -e
+          python -u relatorio_tabuleiro_m5.py
+          python -u tabuleiro_estavel_m5.py
+
+      # ==========================================
+      # MODULO 9 — VALIDACAO / PERSISTENCIA
+      # ==========================================
+
+      - name: 18 - Validar contexto final
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [ -s data/contexto_tabuleiro_m5.json ]; then
+            echo "Contexto Central encontrado."
+          else
+            echo "Contexto ainda nao foi produzido nesta rota."
+          fi
+
+      - name: 19 - Persistir arquivos de dados
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ || true
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza Central Integrador XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "Sem alteracoes para persistir."
+          fi
+
+      - name: 20 - Publicar contexto e relatorios
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: contexto-central-integrador-xauusd
+          path: |
+            data/contexto_tabuleiro_m5.json
+            data/relatorio_tabuleiro_m5.json
+            data/relatorio_geral_tabuleiro_m5.csv
+            data/tabuleiro_estavel_m5.csv
+            data/regioes_estaveis_m5.csv
+            data/transicoes_estaveis_m5.csv
+            data/memoria_agente.json
+            data/memoria_agente.csv
+            data/resultados_operacoes.csv
+          if-no-files-found: warn
+          retention-days: 30
