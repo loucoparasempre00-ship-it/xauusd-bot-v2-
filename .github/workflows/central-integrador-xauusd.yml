@@ -1,222 +1,291 @@
-name: Central Integrador XAUUSD
+name: Central Integradora XAUUSD
 
 on:
+  workflow_run:
+    workflows:
+      - Memoria Persistente XAUUSD
+    types:
+      - completed
   workflow_dispatch:
-  schedule:
-    # Central executa periodicamente para receber Telegram e atualizar contexto.
-    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
-  actions: read
+  actions: write
+  checks: read
 
 concurrency:
-  group: central-integrador-xauusd
+  group: central-integradora-xauusd
   cancel-in-progress: false
 
 jobs:
   central:
+    name: Central + Coordenador
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.name == 'Memoria Persistente XAUUSD')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
 
     steps:
-      - name: 1 - Checkout do repositorio
+      - name: Baixar repositório
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
-      - name: 2 - Preparar Python
+      - name: Preparar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: 3 - Preparar ambiente
-        shell: bash
+      - name: Instalar dependências
         run: |
-          set -e
-          python --version
+          python -m pip install --upgrade pip
           pip install requests
-          mkdir -p data
 
-      # ==========================================
-      # MODULO 1 — RECEPCAO / INTEGRACAO
-      # ==========================================
-      # Recupera a integracao mais recente concluida com sucesso
-      # e baixa as velas fechadas M5 para o workspace.
+      - name: Preparar diretório de dados
+        run: mkdir -p data
 
-      - name: 4 - Localizar integracao mais recente
-        id: integracao
+      - name: Identificar execução da memória
+        id: memoria_run
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          set -euo pipefail
-          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
-            --jq '[.workflow_runs[]
-              | select(.name == "Integracao XAUUSD Bot V2")
-              | select(.conclusion == "success")]
-              | sort_by(.created_at)
-              | last
-              | .id // empty')
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            RUN_ID="${{ github.event.workflow_run.id }}"
+          else
+            RUN_ID="$(gh run list \
+              --workflow 'Memoria Persistente XAUUSD' \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')"
+          fi
 
-          if [ -z "$RUN_ID" ]; then
-            echo "Nenhuma Integracao XAUUSD concluida com sucesso foi encontrada."
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Execução da memória não encontrada."
             exit 1
           fi
 
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-      - name: 5 - Baixar velas M5 fechadas
-        uses: actions/download-artifact@v4
-        with:
-          name: candles-xauusd-m5
-          path: data
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.integracao.outputs.run_id }}
-          github-token: ${{ github.token }}
+      - name: Baixar memória persistente
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ steps.memoria_run.outputs.run_id }}" \
+            --name memoria-agente-xau \
+            --dir data
 
-      - name: 6 - Validar e preparar velas
+      - name: Validar memória
+        run: |
+          test -s data/memoria_agente.json
+
+      - name: Identificar integração M5 mais recente
+        id: integracao_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          set -euo pipefail
-          test -s data/xauusd_m5_fechados.csv
-          cp data/xauusd_m5_fechados.csv data/historico_velas_m5.csv
-          test -s data/historico_velas_m5.csv
+          RUN_ID="$(gh run list \
+            --workflow 'Integracao XAUUSD Bot V2' \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')"
 
-      # ==========================================
-      # MODULO 2 — IDENTIFICADOR CENTRAL / TELEGRAM
-      # ==========================================
-      # Script base atualmente existente. A futura versao do dispatcher
-      # deve escrever data/central_rota.json com {"rota":"..."}.
-      # Este workflow nao tenta adivinhar comandos pelo log do Telegram.
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Integração M5 não encontrada."
+            exit 1
+          fi
 
-      - name: 7 - Executar identificador e coordenador base
-        id: identificador
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Baixar candles M5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ steps.integracao_run.outputs.run_id }}" \
+            --name candles-xauusd-m5 \
+            --dir data
+
+      - name: Preparar histórico M5
+        run: |
+          if [ -s data/xauusd_m5_fechados.csv ]; then
+            cp data/xauusd_m5_fechados.csv data/historico_velas_m5.csv
+          elif [ -s data/xauusd_m5.csv ]; then
+            cp data/xauusd_m5.csv data/historico_velas_m5.csv
+          else
+            echo "Histórico M5 não encontrado."
+            exit 1
+          fi
+
+      # Telegram é consultado pelo Coordenador.
+      # A execução continua até o fim da Central.
+      - name: Executar Coordenador Autônomo
         env:
           TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python -u acompanhamento_autonomo_xau.py
 
-      - name: 8 - Determinar rota da Central
-        id: rota
-        shell: bash
+      - name: Validar entradas
         run: |
-          set -euo pipefail
+          test -s data/memoria_agente.json
+          test -s data/historico_velas_m5.csv
 
-          # Rota prevista para o dispatcher:
-          # MONITORAR | CONSOLIDAR | ANALISAR | ANALISAR_E_MONITORAR
-          if [ -s data/central_rota.json ]; then
-            ROTA=$(python -c "import json; print(json.load(open('data/central_rota.json')).get('rota','ANALISAR'))")
-          else
-            # Compatibilidade inicial com os scripts atuais.
-            # Quando o dispatcher central estiver pronto, remover fallback.
-            ROTA="ANALISAR"
-          fi
+      - name: Atualizar resultados das operações
+        run: python -u acompanhar_operacoes_xau.py
 
-          case "$ROTA" in
-            MONITORAR|CONSOLIDAR|ANALISAR|ANALISAR_E_MONITORAR) ;;
-            *)
-              echo "Rota invalida: $ROTA"
-              exit 1
-              ;;
-          esac
-
-          echo "rota=$ROTA" >> "$GITHUB_OUTPUT"
-          echo "Rota selecionada: $ROTA"
-
-      # ==========================================
-      # MODULO 3 — MONITORAMENTO / RESULTADOS
-      # ==========================================
-
-      # O acompanhamento_autonomo_xau.py foi executado apenas uma vez
-      # acima: nao repetir a leitura do Telegram/getUpdates neste ciclo.
-
-      - name: 9 - Atualizar memoria Gemini
-        if: ${{ steps.rota.outputs.rota == 'MONITORAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
+      - name: Atualizar memória do Gemini
         run: python -u memoria_persistente_gemini.py
 
-      # ==========================================
-      # MODULOS 4–8 — TABULEIRO / ESTATISTICAS
-      # ==========================================
-
-      - name: 11 - Coletar tabuleiro M5
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+      - name: Coletar tabuleiro M5
         run: python -u coletor_tabuleiro_m5.py
 
-      - name: 12 - Detectar bordas M5
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+      - name: Detectar bordas M5
         run: python -u detector_bordas_m5.py
 
-      - name: 13 - Atualizar banco de dados
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+      - name: Atualizar banco de dados
         run: python -u banco_dados_tabuleiro.py
 
-      - name: 14 - Processar estatisticas
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+      - name: Processar estatísticas
         run: python -u processador_estatistico_m5.py
 
-      - name: 15 - Calcular sequencias provaveis
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' }}
+      - name: Sequenciar regiões prováveis
         run: python -u sequenciador_tabuleiro_m5.py
 
-      - name: 16 - Avaliar resultados
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
+      - name: Avaliar resultados dos eventos
         run: python -u avaliador_resultados_m5.py
 
-      - name: 17 - Gerar relatorio e contexto
-        if: ${{ steps.rota.outputs.rota == 'ANALISAR' || steps.rota.outputs.rota == 'ANALISAR_E_MONITORAR' || steps.rota.outputs.rota == 'CONSOLIDAR' }}
-        run: |
-          set -e
-          python -u relatorio_tabuleiro_m5.py
-          python -u tabuleiro_estavel_m5.py
+      - name: Gerar relatório do tabuleiro
+        run: python -u relatorio_tabuleiro_m5.py
 
-      # ==========================================
-      # MODULO 9 — VALIDACAO / PERSISTENCIA
-      # ==========================================
+      - name: Consolidar tabuleiro estável
+        run: python -u tabuleiro_estavel_m5.py
 
-      - name: 18 - Validar contexto final
-        if: ${{ always() }}
-        shell: bash
+      - name: Validar consolidação
         run: |
-          if [ -s data/contexto_tabuleiro_m5.json ]; then
-            echo "Contexto Central encontrado."
-          else
-            echo "Contexto ainda nao foi produzido nesta rota."
-          fi
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: 19 - Persistir arquivos de dados
-        if: ${{ always() }}
-        shell: bash
+          required = [
+              "data/memoria_agente.json",
+              "data/memoria_agente.csv",
+              "data/resultados_operacoes.csv",
+              "data/tabuleiro_m5.csv",
+              "data/eventos_bordas_m5.csv",
+              "data/tabuleiro_m5.db",
+              "data/estatisticas_regioes_m5.csv",
+              "data/transicoes_probabilidade_m5.csv",
+              "data/sequencias_provaveis_m5.csv",
+              "data/proximas_regioes_m5.json",
+              "data/resultados_eventos_m5.csv",
+              "data/resumo_resultados_m5.csv",
+              "data/relatorio_tabuleiro_m5.json",
+              "data/relatorio_geral_tabuleiro_m5.csv",
+              "data/tabuleiro_estavel_m5.csv",
+              "data/regioes_estaveis_m5.csv",
+              "data/transicoes_estaveis_m5.csv",
+              "data/contexto_tabuleiro_m5.json",
+          ]
+
+          missing = [
+              name for name in required
+              if not Path(name).is_file()
+          ]
+
+          empty = [
+              name for name in required
+              if Path(name).is_file()
+              and Path(name).stat().st_size == 0
+          ]
+
+          if missing or empty:
+              print("Ausentes:", missing)
+              print("Vazios:", empty)
+              raise SystemExit(1)
+
+          print("Consolidação validada.")
+          PY
+
+      - name: Persistir dados
         run: |
-          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/ || true
 
-          if ! git diff --cached --quiet; then
-            git commit -m "Atualiza Central Integrador XAUUSD"
-            git push origin HEAD:main
+          git add data/
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração para salvar."
           else
-            echo "Sem alteracoes para persistir."
+            git commit -m "Atualiza Central Integradora XAUUSD"
+            git push
           fi
 
-      - name: 20 - Publicar contexto e relatorios
-        if: ${{ always() }}
+      - name: Publicar relatório
         uses: actions/upload-artifact@v4
         with:
-          name: contexto-central-integrador-xauusd
+          name: relatorio-central-integradora-xauusd
           path: |
             data/contexto_tabuleiro_m5.json
             data/relatorio_tabuleiro_m5.json
             data/relatorio_geral_tabuleiro_m5.csv
-            data/tabuleiro_estavel_m5.csv
-            data/regioes_estaveis_m5.csv
-            data/transicoes_estaveis_m5.csv
-            data/memoria_agente.json
-            data/memoria_agente.csv
             data/resultados_operacoes.csv
+            data/acompanhamento_autonomo_estado.json
+            data/resultados_operacoes.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Verificar necessidade de teste Gemini
+        id: teste_gemini
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+
+          path = Path("data/historico_conexoes_gemini.json")
+          executar = True
+
+          if path.exists():
+              try:
+                  dados = json.loads(
+                      path.read_text(encoding="utf-8")
+                  )
+
+                  valor = (
+                      dados.get("ultima_verificacao")
+                      or dados.get("timestamp_utc")
+                  )
+
+                  if valor:
+                      instante = datetime.fromisoformat(
+                          valor.replace("Z", "+00:00")
+                      )
+
+                      executar = (
+                          datetime.now(timezone.utc) - instante
+                          >= timedelta(hours=24)
+                      )
+              except Exception:
+                  executar = True
+
+          with open(
+              os.environ["GITHUB_OUTPUT"],
+              "a",
+              encoding="utf-8"
+          ) as arquivo:
+              arquivo.write(
+                  f"executar={'true' if executar else 'false'}\n"
+              )
+          PY
+
+      - name: Testar conexão Gemini
+        if: steps.teste_gemini.outputs.executar == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run testador-gemini.yml
