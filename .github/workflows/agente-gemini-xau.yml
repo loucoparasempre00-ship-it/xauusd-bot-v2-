@@ -1084,7 +1084,15 @@ jobs:
               print("Mensagem enviada ao Telegram.")
 
           except Exception as e:
-              sys.exit("Falha no envio ao Telegram: " + str(e))
+              detalhe = ""
+
+              if hasattr(e, "read"):
+                  detalhe = e.read().decode("utf-8", "replace")
+
+              sys.exit(
+                  f"Falha no envio ao Telegram: {e}\n"
+                  f"Resposta detalhada: {detalhe}"
+              )
           PY
 
       - name: Registrar decisao no historico
