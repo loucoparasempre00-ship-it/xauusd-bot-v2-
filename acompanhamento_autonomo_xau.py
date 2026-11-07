@@ -5,6 +5,7 @@ import json
 import zipfile
 import io
 import copy
+import uuid
 import requests
 
 from pathlib import Path
@@ -51,10 +52,84 @@ NOME_WORKFLOW_INTEGRACAO = "integracao-xauusd.yml"
 
 estado = {
     "ultimo_update_id": 0,
-    "operacao": None
+    "operacao": None,
+    "operacoes": []
 }
 
 historico = []
+
+
+# =========================================================
+# IDENTIFICAÇÃO DAS OPERAÇÕES
+# =========================================================
+
+def gerar_id():
+    return uuid.uuid4().hex[:8].upper()
+
+
+def obter_operacoes():
+    operacoes = estado.get("operacoes")
+
+    if isinstance(operacoes, list):
+        return operacoes
+
+    antiga = estado.get("operacao")
+
+    if isinstance(antiga, dict):
+        antiga = copy.deepcopy(antiga)
+        antiga.setdefault("id", gerar_id())
+        antiga.setdefault("status", "ATIVA")
+
+        estado["operacoes"] = [antiga]
+        estado["operacao"] = None
+
+        return estado["operacoes"]
+
+    estado["operacoes"] = []
+    estado["operacao"] = None
+
+    return estado["operacoes"]
+
+
+def buscar_operacao(identificador=None):
+    operacoes = obter_operacoes()
+
+    if identificador:
+        identificador = str(identificador).upper()
+
+        for operacao in operacoes:
+            if operacao.get("id", "").upper() == identificador:
+                return operacao
+
+        return None
+
+    ativas = [
+        op for op in operacoes
+        if op.get("status") == "ATIVA"
+    ]
+
+    if len(ativas) == 1:
+        return ativas[0]
+
+    return None
+
+
+def atualizar_estado_operacoes():
+    operacoes = obter_operacoes()
+
+    estado["operacoes"] = operacoes
+
+    # Compatibilidade com leitores antigos do estado.
+    ativas = [
+        op for op in operacoes
+        if op.get("status") == "ATIVA"
+    ]
+
+    estado["operacao"] = (
+        copy.deepcopy(ativas[0])
+        if len(ativas) == 1
+        else None
+    )
 
 
 # =========================================================
@@ -76,6 +151,24 @@ def carregar():
         except Exception as erro:
             print(f"Erro ao carregar estado: {erro}")
 
+    if not isinstance(estado.get("operacoes"), list):
+        estado["operacoes"] = []
+
+    # Migração do formato antigo para múltiplas operações.
+    if not estado["operacoes"] and isinstance(
+        estado.get("operacao"), dict
+    ):
+        antiga = copy.deepcopy(estado["operacao"])
+        antiga.setdefault("id", gerar_id())
+        antiga.setdefault("status", "ATIVA")
+        estado["operacoes"].append(antiga)
+
+    for operacao in estado["operacoes"]:
+        operacao.setdefault("id", gerar_id())
+        operacao.setdefault("status", "ATIVA")
+
+    atualizar_estado_operacoes()
+
     if ARQUIVO_HISTORICO.exists():
         try:
             historico = json.loads(
@@ -91,6 +184,8 @@ def carregar():
 
 
 def salvar():
+    atualizar_estado_operacoes()
+
     ARQUIVO_ESTADO.write_text(
         json.dumps(estado, ensure_ascii=False, indent=2),
         encoding="utf-8"
@@ -145,23 +240,54 @@ def buscar_atualizacoes():
     return dados.get("result", [])
 
 
-def atualizar_offset(atualizacao):
-    estado["ultimo_update_id"] = max(
-        int(estado.get("ultimo_update_id", 0)),
-        int(atualizacao["update_id"])
+# =========================================================
+# IDENTIFICAÇÃO DE COMANDOS
+# =========================================================
+
+def extrair_preco_entrada(texto):
+    resultado = re.fullmatch(
+        r"^ENTREI\s*(?:\+|:|\s)\s*(\d+(?:[.,]\d+)?)$",
+        texto.strip(),
+        flags=re.IGNORECASE
     )
+
+    if not resultado:
+        return None
+
+    return float(
+        resultado.group(1).replace(",", ".")
+    )
+
+
+def extrair_comando_identificado(texto, comando):
+    resultado = re.fullmatch(
+        rf"{re.escape(comando)}(?:\s+([A-Z0-9]+))?",
+        texto.strip(),
+        flags=re.IGNORECASE
+    )
+
+    if not resultado:
+        return None
+
+    return resultado.group(1)
 
 
 # =========================================================
 # ENCERRAMENTO E HISTÓRICO
 # =========================================================
 
-def fechar_operacao(status, mensagem):
-    operacao = estado.get("operacao")
+def fechar_operacao(status, mensagem, operacao=None):
+    if operacao is None:
+        operacao = buscar_operacao()
 
     if not operacao:
-        enviar("Não existe operação ativa.")
+        enviar(
+            "Não foi possível identificar uma operação.\n"
+            "Informe o identificador da operação."
+        )
         return
+
+    identificador = operacao["id"]
 
     operacao["status"] = status
     operacao["encerrada_em"] = datetime.now(
@@ -170,10 +296,17 @@ def fechar_operacao(status, mensagem):
 
     historico.append(copy.deepcopy(operacao))
 
-    estado["operacao"] = None
+    estado["operacoes"] = [
+        item for item in obter_operacoes()
+        if item.get("id") != identificador
+    ]
 
     salvar()
-    enviar(mensagem)
+
+    enviar(
+        f"OPERAÇÃO {identificador} ENCERRADA.\n\n"
+        f"{mensagem}"
+    )
 
 
 # =========================================================
@@ -196,7 +329,7 @@ def github_get(url):
 
 
 # =========================================================
-# LOCALIZAR O ÚLTIMO SINAL REALMENTE ENVIADO
+# LOCALIZAR ÚLTIMO SINAL REALMENTE ENVIADO
 # =========================================================
 
 def ultimo_sinal():
@@ -269,11 +402,13 @@ def ultimo_sinal():
         if not enviado:
             continue
 
+        diagnostico["_run_id"] = run_id
+
         return diagnostico
 
     raise RuntimeError(
         "Não encontrei sinal COMPRA ou VENDA realmente enviado "
-        "pelo Agente Gemini nas últimas 20 execuções."
+        "nas últimas 20 execuções."
     )
 
 
@@ -335,7 +470,7 @@ def preparar_sinal(dados):
 
 
 # =========================================================
-# LOCALIZAR VELAS VALIDADAS NO GITHUB ACTIONS
+# LOCALIZAR VELAS VALIDADAS
 # =========================================================
 
 def localizar_execucao_integracao():
@@ -348,9 +483,7 @@ def localizar_execucao_integracao():
         url + "?status=success&per_page=20"
     ).json()
 
-    execucoes = dados.get("workflow_runs", [])
-
-    for execucao in execucoes:
+    for execucao in dados.get("workflow_runs", []):
         if execucao.get("conclusion") == "success":
             return execucao["id"]
 
@@ -378,8 +511,7 @@ def baixar_artefato_velas(run_id):
 
     if not artefato:
         raise RuntimeError(
-            "O artefato de velas validadas não foi encontrado "
-            "na última integração."
+            "Artefato de velas validadas não encontrado."
         )
 
     resposta = github_get(
@@ -389,10 +521,6 @@ def baixar_artefato_velas(run_id):
 
     return resposta.content
 
-
-# =========================================================
-# LER CSV DE VELAS FECHADAS
-# =========================================================
 
 def interpretar_horario(valor):
     instante = datetime.fromisoformat(
@@ -406,10 +534,9 @@ def interpretar_horario(valor):
 
 
 def buscar_velas():
-    print("Buscando banco de velas validadas no GitHub Actions.")
+    print("Buscando banco de velas validadas.")
 
     run_id = localizar_execucao_integracao()
-
     conteudo = baixar_artefato_velas(run_id)
 
     agora = datetime.now(timezone.utc)
@@ -423,7 +550,7 @@ def buscar_velas():
 
         if not caminhos:
             raise RuntimeError(
-                "O artefato não contém xauusd_m5_fechados.csv."
+                "Artefato sem xauusd_m5_fechados.csv."
             )
 
         with arquivo.open(caminhos[0]) as bruto:
@@ -434,11 +561,6 @@ def buscar_velas():
             )
 
             leitor = csv.DictReader(texto)
-
-            if not leitor.fieldnames:
-                raise RuntimeError(
-                    "CSV de velas sem cabeçalho."
-                )
 
             for item in leitor:
                 horario_texto = (
@@ -476,7 +598,6 @@ def buscar_velas():
                     if minima > min(abertura, fechamento, maxima):
                         continue
 
-                    # Confirma que a vela M5 já fechou.
                     if horario + timedelta(minutes=5) > agora:
                         continue
 
@@ -491,13 +612,10 @@ def buscar_velas():
                 except (ValueError, TypeError, KeyError):
                     continue
 
-    velas.sort(key=lambda item: item["horario"])
-
-    # Remove duplicidades de horário.
-    unicas = {}
-
-    for vela in velas:
-        unicas[vela["horario"]] = vela
+    unicas = {
+        vela["horario"]: vela
+        for vela in velas
+    }
 
     velas = sorted(
         unicas.values(),
@@ -506,16 +624,12 @@ def buscar_velas():
 
     if not velas:
         raise RuntimeError(
-            "O banco de velas não possui candles M5 fechados válidos."
+            "Não existem candles M5 fechados válidos."
         )
 
-    print(f"Velas validadas encontradas: {len(velas)}")
-    print(
-        "Última vela fechada:",
-        velas[-1]["horario"].isoformat()
-    )
+    print(f"Velas válidas: {len(velas)}")
+    print("Última vela:", velas[-1]["horario"].isoformat())
 
-    # Mantém até 5000 candles para os cálculos.
     return velas[-5000:]
 
 
@@ -594,36 +708,42 @@ def calcular_atr(velas, periodo=14):
 
         ranges.append(tr)
 
-    janela = ranges[-periodo:]
-
-    if not janela:
-        return None
-
-    return sum(janela) / len(janela)
+    return sum(ranges[-periodo:]) / periodo
 
 
 # =========================================================
-# ATIVAR OPERAÇÃO
+# ATIVAR NOVA OPERAÇÃO
 # =========================================================
 
 def ativar_operacao(preco):
     diagnostico = ultimo_sinal()
     sinal = preparar_sinal(diagnostico)
 
-    central_inicial = diagnostico.get("contexto_central")
+    run_id = diagnostico.get("_run_id")
+
+    # Impede cadastrar duas vezes o mesmo sinal.
+    for existente in obter_operacoes():
+        if existente.get("sinal_run_id") == run_id:
+            enviar(
+                "Este sinal já está sendo acompanhado.\n"
+                f"Operação: {existente['id']}"
+            )
+            return
 
     memoria = criar_memoria(
         diagnostico_original=diagnostico,
-        contexto_central=central_inicial
+        contexto_central=diagnostico.get("contexto_central")
     )
 
     operacao = {
+        "id": gerar_id(),
         **sinal,
         "entrada_real": float(preco),
         "stop_original": float(sinal["stop"]),
         "stop_confirmado": float(sinal["stop"]),
         "stop_pendente": None,
         "diagnostico_original": copy.deepcopy(diagnostico),
+        "sinal_run_id": run_id,
         "memoria_autonoma": memoria,
         "ativada_em": datetime.now(timezone.utc).isoformat(),
         "ultima_vela": None,
@@ -632,22 +752,20 @@ def ativar_operacao(preco):
         "status": "ATIVA"
     }
 
-    estado["operacao"] = operacao
+    obter_operacoes().append(operacao)
 
     salvar()
 
     enviar(
-        "ROBÔ DIRETOR ATIVADO\n\n"
+        "NOVA OPERAÇÃO REGISTRADA\n\n"
+        f"ID: {operacao['id']}\n"
         f"Direção: {operacao['direcao']}\n"
         f"Sua entrada: {preco:.3f}\n"
         f"Entrada do sinal: {operacao['entrada_sinal']}\n"
         f"Stop inicial: {operacao['stop']:.3f}\n"
         f"Alvo: {operacao['alvo']:.3f}\n\n"
-        "Último sinal válido do Gemini localizado.\n"
-        "Diagnóstico original armazenado.\n"
-        "Contexto inicial da Central armazenado.\n\n"
-        "O acompanhamento começa na próxima execução M5.\n"
-        "As velas serão consultadas no banco já validado.\n"
+        f"Operações ativas: {len(obter_operacoes())}\n"
+        "A operação anterior, se existente, foi preservada.\n"
         "Nenhuma ordem será executada pelo robô."
     )
 
@@ -656,31 +774,11 @@ def ativar_operacao(preco):
 # COMANDOS TELEGRAM
 # =========================================================
 
-def extrair_preco_entrada(texto):
-    padrao = (
-        r"^ENTREI\s*(?:\+|:|\s)\s*"
-        r"(\d+(?:[.,]\d+)?)$"
-    )
-
-    resultado = re.fullmatch(
-        padrao,
-        texto.strip(),
-        flags=re.IGNORECASE
-    )
-
-    if not resultado:
-        return None
-
-    return float(
-        resultado.group(1).replace(",", ".")
-    )
-
-
 def processar_mensagem(mensagem):
     if str(
         mensagem.get("chat", {}).get("id")
     ) != CHAT_ID:
-        return False
+        return
 
     texto = (
         mensagem.get("text") or ""
@@ -688,166 +786,169 @@ def processar_mensagem(mensagem):
 
     upper = texto.upper()
 
-    operacao = estado.get("operacao")
-
-    # -----------------------------------------------------
-    # DESLIGA — RESET IMEDIATO DO ACOMPANHANTE
-    # -----------------------------------------------------
-
+    # DESLIGA tem prioridade absoluta.
     if upper == "DESLIGA":
         ultimo_id = int(
             estado.get("ultimo_update_id", 0)
         )
 
-        # Restaura o estado operacional inicial.
-        # Preserva o controle da fila do Telegram.
         estado.clear()
 
         estado.update({
             "ultimo_update_id": ultimo_id,
-            "operacao": None
+            "operacao": None,
+            "operacoes": []
         })
 
-        # Salva o estado inicial antes da confirmação.
         salvar()
 
         enviar(
             "ACOMPANHAMENTO DESLIGADO.\n\n"
-            "Estado operacional restaurado ao inicial.\n"
-            "Nenhuma operação será acompanhada.\n"
-            "Histórico anterior preservado.\n\n"
-            "O XP voltou a aguardar novas instruções."
+            "Todas as operações foram retiradas do acompanhamento.\n"
+            "Histórico anterior preservado.\n"
+            "O sistema voltou ao estado inicial."
         )
 
-        return False
+        return
 
-    # -----------------------------------------------------
-    # CANCELA
-    # -----------------------------------------------------
+    # CANCELA ou CANCELA ID
+    identificador = extrair_comando_identificado(
+        texto, "CANCELA"
+    )
 
-    if upper in ("CANCELA", "CANCELAR"):
-        if operacao:
-            fechar_operacao(
-                "FECHADA MANUALMENTE NA CORRETORA",
-                "ACOMPANHAMENTO ENCERRADO.\n\n"
-                "Você informou que fechou a posição na corretora.\n"
-                "Registro salvo como FECHADA MANUALMENTE.\n"
-                "O robô voltou a aguardar um novo ENTREI + preço."
-            )
+    if identificador is None:
+        identificador = extrair_comando_identificado(
+            texto, "CANCELAR"
+        )
 
-        else:
-            enviar(
-                "Não existe operação ativa para cancelar."
-            )
+    if texto.upper() in ("CANCELA", "CANCELAR") or identificador:
+        operacao = buscar_operacao(identificador)
 
-        return False
-
-    # -----------------------------------------------------
-    # CONFIRMAÇÃO DE STOP
-    # -----------------------------------------------------
-
-    if upper == "STOP OK":
         if not operacao:
-            enviar("Não existe operação ativa.")
-            return False
-
-        pendente = operacao.get("stop_pendente")
-
-        if pendente is None:
             enviar(
-                "Não existe novo stop aguardando confirmação."
+                "Não foi possível identificar a operação.\n"
+                "Use CANCELA ID quando houver mais de uma.\n"
+                "Exemplo: CANCELA A1B2C3D4"
             )
-            return False
+            return
 
-        operacao["stop"] = float(pendente)
-        operacao["stop_confirmado"] = float(pendente)
+        fechar_operacao(
+            "FECHADA MANUALMENTE NA CORRETORA",
+            "Você informou que fechou a posição na corretora.\n"
+            "Registro salvo como fechamento manual.",
+            operacao
+        )
+        return
+
+    # STOP OK ID
+    identificador = extrair_comando_identificado(
+        texto, "STOP OK"
+    )
+
+    if texto.upper() == "STOP OK" or identificador:
+        if texto.upper().startswith("STOP OK"):
+            operacao = buscar_operacao(identificador)
+
+            if not operacao:
+                enviar(
+                    "Informe o ID do stop quando houver "
+                    "mais de uma operação."
+                )
+                return
+
+            pendente = operacao.get("stop_pendente")
+
+            if pendente is None:
+                enviar(
+                    f"Operação {operacao['id']}: "
+                    "não existe stop aguardando confirmação."
+                )
+                return
+
+            operacao["stop"] = float(pendente)
+            operacao["stop_confirmado"] = float(pendente)
+            operacao["stop_pendente"] = None
+
+            salvar()
+
+            enviar(
+                f"STOP CONFIRMADO — {operacao['id']}\n"
+                f"Novo stop: {operacao['stop']:.3f}"
+            )
+            return
+
+    # STOP NÃO ID
+    if upper.startswith("STOP NÃO") or upper.startswith("STOP NAO"):
+        partes = texto.split()
+        identificador = partes[2] if len(partes) > 2 else None
+
+        operacao = buscar_operacao(identificador)
+
+        if not operacao:
+            enviar(
+                "Informe o ID da operação para recusar o stop."
+            )
+            return
+
         operacao["stop_pendente"] = None
-
         salvar()
 
         enviar(
-            "NOVO STOP CONFIRMADO.\n\n"
-            f"Stop atualizado: {operacao['stop']:.3f}\n"
-            "O robô passará a monitorar esse nível."
+            f"STOP RECUSADO — {operacao['id']}\n"
+            f"Stop mantido: {operacao['stop']:.3f}"
         )
+        return
 
-        return False
-
-    if upper == "STOP NÃO":
-        if not operacao:
-            enviar("Não existe operação ativa.")
-            return False
-
-        operacao["stop_pendente"] = None
-
-        salvar()
-
-        enviar(
-            "ALTERAÇÃO DE STOP RECUSADA.\n"
-            f"Continuarei monitorando: {operacao['stop']:.3f}"
-        )
-
-        return False
-
-    # -----------------------------------------------------
     # STATUS
-    # -----------------------------------------------------
-
     if upper == "STATUS":
-        if not operacao:
-            enviar(
-                "ROBÔ DIRETOR: AGUARDANDO ENTREI + PREÇO."
-            )
-            return False
+        operacoes = [
+            op for op in obter_operacoes()
+            if op.get("status") == "ATIVA"
+        ]
 
-        enviar(
-            "STATUS DA OPERAÇÃO\n\n"
-            f"Direção: {operacao['direcao']}\n"
-            f"Entrada real: {operacao['entrada_real']:.3f}\n"
-            f"Stop monitorado: {operacao['stop']:.3f}\n"
-            f"Alvo: {operacao['alvo']:.3f}\n"
-            f"Estado: {operacao['status']}\n"
-            f"Stop pendente: {operacao.get('stop_pendente')}"
-        )
+        if not operacoes:
+            enviar("Nenhuma operação ativa.")
+            return
 
-        return False
+        linhas = [
+            f"OPERAÇÕES ATIVAS: {len(operacoes)}"
+        ]
 
-    # -----------------------------------------------------
-    # NOVA ENTRADA
-    # -----------------------------------------------------
+        for op in operacoes:
+            linhas.extend([
+                "",
+                f"ID: {op['id']}",
+                f"Direção: {op['direcao']}",
+                f"Entrada: {op['entrada_real']:.3f}",
+                f"Stop: {op['stop']:.3f}",
+                f"Alvo: {op['alvo']:.3f}",
+                f"Estado: {op['status']}"
+            ])
 
+        enviar("\n".join(linhas))
+        return
+
+    # ENTREI
     preco = extrair_preco_entrada(texto)
 
     if preco is not None:
-        if operacao:
-            enviar(
-                "Já existe uma operação em acompanhamento.\n"
-                "Envie CANCELA somente depois de fechar "
-                "a posição na corretora."
-            )
-            return False
-
         try:
             ativar_operacao(preco)
-            return True
 
         except Exception as erro:
             enviar(
-                "NÃO FOI POSSÍVEL ATIVAR O ACOMPANHAMENTO.\n\n"
-                f"Motivo: {erro}\n\n"
-                "Nenhuma operação foi iniciada."
+                "NÃO FOI POSSÍVEL REGISTRAR A OPERAÇÃO.\n\n"
+                f"Motivo: {erro}\n"
+                "Nenhuma ordem foi executada."
             )
 
-            return False
+        return
 
     if upper.startswith("ENTREI"):
         enviar(
-            "FORMATO DE ENTRADA NÃO RECONHECIDO.\n\n"
-            "Envie tudo em uma mensagem:\n"
-            "ENTREI 4095.212"
+            "FORMATO NÃO RECONHECIDO.\n"
+            "Exemplo: ENTREI 4095.212"
         )
-
-    return False
 
 
 # =========================================================
@@ -906,16 +1007,11 @@ def obter_contexto_central(operacao):
 
 
 # =========================================================
-# ACOMPANHAMENTO AUTÔNOMO POR VELA M5
+# ACOMPANHAMENTO DE UMA OPERAÇÃO
 # =========================================================
 
-def conduzir(velas):
-    operacao = estado.get("operacao")
-
-    if (
-        not operacao
-        or operacao.get("status") != "ATIVA"
-    ):
+def conduzir_operacao(velas, operacao):
+    if operacao.get("status") != "ATIVA":
         return
 
     if len(velas) < 30:
@@ -926,11 +1022,12 @@ def conduzir(velas):
     horario = vela["horario"].isoformat()
 
     if operacao.get("ultima_vela") == horario:
-        print("Esta vela M5 já foi analisada.")
+        print(
+            f"Operação {operacao['id']}: vela já analisada."
+        )
         return
 
     direcao = operacao["direcao"]
-
     stop = float(operacao["stop"])
     alvo = float(operacao["alvo"])
 
@@ -941,44 +1038,33 @@ def conduzir(velas):
     if direcao == "COMPRA":
         tocou_stop = vela["low"] <= stop
         tocou_alvo = vela["high"] >= alvo
-
     else:
         tocou_stop = vela["high"] >= stop
         tocou_alvo = vela["low"] <= alvo
 
     if tocou_stop and tocou_alvo:
-        operacao["ultima_vela"] = horario
-
         fechar_operacao(
             "AMBIGUO",
-            "ATENÇÃO: A mesma vela M5 tocou stop e alvo.\n"
-            "Não é possível determinar qual nível ocorreu primeiro."
+            "A mesma vela M5 tocou stop e alvo. "
+            "Não é possível determinar a ordem dos eventos.",
+            operacao
         )
-
         return
 
     if tocou_stop:
-        operacao["ultima_vela"] = horario
-
         fechar_operacao(
             "STOP",
-            "STOP DE REFERÊNCIA ATINGIDO.\n\n"
-            f"Entrada real: {operacao['entrada_real']:.3f}\n"
-            f"Stop monitorado: {stop:.3f}"
+            f"Stop de referência atingido: {stop:.3f}",
+            operacao
         )
-
         return
 
     if tocou_alvo:
-        operacao["ultima_vela"] = horario
-
         fechar_operacao(
             "ALVO",
-            "ALVO ATINGIDO.\n\n"
-            f"Entrada real: {operacao['entrada_real']:.3f}\n"
-            f"Alvo: {alvo:.3f}"
+            f"Alvo atingido: {alvo:.3f}",
+            operacao
         )
-
         return
 
     # -----------------------------------------------------
@@ -995,7 +1081,7 @@ def conduzir(velas):
     atr = calcular_atr(velas, 14)
 
     if atr is None:
-        print("ATR indisponível nesta vela.")
+        print("ATR indisponível.")
         return
 
     # -----------------------------------------------------
@@ -1010,7 +1096,7 @@ def conduzir(velas):
     )
 
     # -----------------------------------------------------
-    # DECISÃO DO DIRETOR
+    # DIRETOR OPERACIONAL
     # -----------------------------------------------------
 
     decisao = calcular_decisao(
@@ -1049,12 +1135,10 @@ def conduzir(velas):
         )
 
         operacao["memoria_autonoma"] = memoria
-
     else:
         registrada = False
 
     if not registrada:
-        salvar()
         return
 
     operacao["ultima_vela"] = horario
@@ -1099,14 +1183,6 @@ def conduzir(velas):
                 )
             )
 
-    elif acao == "FECHA":
-        enviar(
-            formatar_mensagem(
-                decisao,
-                operacao
-            )
-        )
-
     else:
         enviar(
             formatar_mensagem(
@@ -1119,22 +1195,22 @@ def conduzir(velas):
 
 
 # =========================================================
-# EXECUÇÃO PRINCIPAL — FILA TELEGRAM + DESLIGA
+# EXECUÇÃO PRINCIPAL
 # =========================================================
 
 def main():
     carregar()
 
     try:
-        # 1. CONSULTAR TELEGRAM
+        # 1. UMA ÚNICA CONSULTA AO TELEGRAM
         atualizacoes = buscar_atualizacoes()
 
-        if not atualizacoes:
-            print("Nenhuma mensagem nova no Telegram.")
+        print(
+            f"Mensagens recebidas: {len(atualizacoes)}"
+        )
 
-        # 2. LOCALIZAR COMANDOS
-        comandos_validos = []
-        comandos_desliga = []
+        # 2. IDENTIFICAR MENSAGENS DO CHAT AUTORIZADO
+        mensagens = []
 
         for atualizacao in atualizacoes:
             mensagem = atualizacao.get("message")
@@ -1147,31 +1223,9 @@ def main():
             ) != CHAT_ID:
                 continue
 
-            texto = (
-                mensagem.get("text") or ""
-            ).strip()
+            mensagens.append(mensagem)
 
-            upper = texto.upper()
-
-            comando_reconhecido = (
-                upper in (
-                    "DESLIGA",
-                    "CANCELA",
-                    "CANCELAR",
-                    "STOP OK",
-                    "STOP NÃO",
-                    "STATUS"
-                )
-                or extrair_preco_entrada(texto) is not None
-            )
-
-            if comando_reconhecido:
-                comandos_validos.append(mensagem)
-
-                if upper == "DESLIGA":
-                    comandos_desliga.append(mensagem)
-
-        # 3. CONSUMIR TODA A FILA RECEBIDA
+        # 3. ATUALIZAR OFFSET UMA ÚNICA VEZ
         if atualizacoes:
             maior_id = max(
                 int(item["update_id"])
@@ -1185,48 +1239,70 @@ def main():
 
             salvar()
 
-        # 4. DESLIGA TEM PRIORIDADE ABSOLUTA
-        if comandos_desliga:
-            print("Comando DESLIGA identificado.")
+        # 4. DESLIGA TEM PRIORIDADE
+        desligar = [
+            mensagem for mensagem in mensagens
+            if (mensagem.get("text") or "").strip().upper()
+            == "DESLIGA"
+        ]
 
-            processar_mensagem(
-                comandos_desliga[-1]
-            )
-
-            salvar()
+        if desligar:
+            processar_mensagem(desligar[-1])
             return
 
-        # 5. PROCESSAR SOMENTE O COMANDO VÁLIDO MAIS RECENTE
-        if comandos_validos:
-            mensagem = comandos_validos[-1]
-
-            print(
-                "Processando somente o comando válido "
-                "mais recente do Telegram."
-            )
-
+        # 5. PROCESSAR COMANDOS RECEBIDOS
+        # Não interrompe a execução depois de um comando.
+        for mensagem in mensagens:
             processar_mensagem(mensagem)
 
-            salvar()
-            return
+        salvar()
 
-        # 6. SEM OPERAÇÃO ATIVA: AGUARDAR
-        if not estado.get("operacao"):
+        # 6. IDENTIFICAR TODAS AS OPERAÇÕES ATIVAS
+        operacoes_ativas = [
+            op for op in obter_operacoes()
+            if op.get("status") == "ATIVA"
+        ]
+
+        if not operacoes_ativas:
             print(
                 "Nenhuma operação ativa. "
-                "Execução encerrada sem consultar velas."
+                "Central seguirá com as demais etapas."
             )
             return
 
-        # 7. OPERAÇÃO ATIVA: ACOMPANHAR
-        print(
-            "Operação ativa. Consultando banco "
-            "de velas já validadas."
-        )
-
+        # 7. BUSCAR VELAS UMA ÚNICA VEZ
         velas = buscar_velas()
 
-        conduzir(velas)
+        # 8. ACOMPANHAR CADA OPERAÇÃO INDEPENDENTEMENTE
+        for operacao in list(operacoes_ativas):
+            identificador = operacao["id"]
+
+            print(
+                f"Acompanhando operação {identificador}."
+            )
+
+            try:
+                conduzir_operacao(
+                    velas,
+                    operacao
+                )
+
+            except Exception as erro:
+                print(
+                    f"Erro na operação {identificador}: {erro}"
+                )
+
+                # Uma operação com erro não impede
+                # o acompanhamento das demais.
+                continue
+
+        salvar()
+
+        print(
+            "Acompanhamento concluído. "
+            f"Operações ainda ativas: "
+            f"{len([op for op in obter_operacoes() if op.get('status') == 'ATIVA'])}"
+        )
 
     finally:
         salvar()
