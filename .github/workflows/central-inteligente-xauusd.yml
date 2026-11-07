@@ -2,13 +2,12 @@
 name: Central Inteligente XAUUSD
 
 on:
-  workflow_run:
-    workflows:
-      - "Memoria Persistente XAUUSD"
-    types:
-      - completed
-
   workflow_dispatch:
+    inputs:
+      memoria_run_id:
+        description: "ID da execução da Memória Persistente"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -56,18 +55,17 @@ jobs:
       # ==========================================
       # 1. RECUPERAR MEMORIA PERSISTENTE
       # ==========================================
-
+           
       - name: Identificar execucao da memoria
         id: memoria_run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENTO: ${{ github.event_name }}
-          RUN_EVENTO: ${{ github.event.workflow_run.id }}
+          RUN_EVENTO: ${{ inputs.memoria_run_id }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [ "$EVENTO" = "workflow_run" ]; then
+          if [ -n "$RUN_EVENTO" ]; then
             RUN_ID="$RUN_EVENTO"
           else
             RUN_ID="$(gh run list \
