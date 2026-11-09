@@ -15,7 +15,10 @@ def formatar_mensagem(decisao, operacao):
     linhas = [
         f"XAUUSD | {titulos.get(acao, acao)}",
         "",
-        f"Operação: {operacao['direcao']}",
+        f"ID da operação: {operacao.get('id', 'N/D')}",
+        f"Sinal Gemini: {operacao.get('direcao', 'N/D')}",
+        f"ID do sinal Gemini: {operacao.get('sinal_run_id', 'N/D')}",
+        "",
         f"Preço atual: {preco:.3f}",
         f"Stop de referência: {float(operacao['stop']):.3f}",
         f"Stop recomendado: {stop:.3f}",
