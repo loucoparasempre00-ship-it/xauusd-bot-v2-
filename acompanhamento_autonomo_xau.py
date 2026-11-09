@@ -26,6 +26,7 @@ from diretor_operacional_xau import calcular_decisao
 
 from controle_sinais_xau import (
     ultimo_sinal,
+    sinal_por_id,
     campo,
     preparar_sinal
 )
@@ -249,9 +250,9 @@ def buscar_atualizacoes():
 # IDENTIFICAÇÃO DE COMANDOS
 # =========================================================
 
-def extrair_preco_entrada(texto):
+def extrair_entrada(texto):
     resultado = re.fullmatch(
-        r"^ENTREI\s*(?:\+|:|\s)\s*(\d+(?:[.,]\d+)?)$",
+        r"^ENTREI\s+(\d+)\s+(\d+(?:[.,]\d+)?)$",
         texto.strip(),
         flags=re.IGNORECASE
     )
@@ -259,9 +260,13 @@ def extrair_preco_entrada(texto):
     if not resultado:
         return None
 
-    return float(
-        resultado.group(1).replace(",", ".")
+    sinal_id = resultado.group(1)
+
+    preco = float(
+        resultado.group(2).replace(",", ".")
     )
+
+    return sinal_id, preco
 
 
 def extrair_comando_identificado(texto, comando):
@@ -576,18 +581,29 @@ def calcular_atr(velas, periodo=14):
 
 
 # =========================================================
-# ATIVAR NOVA OPERAÇÃO
+# ATIVAR NOVA OPERAÇÃO PELO ID EXATO DO SINAL
 # =========================================================
 
-def ativar_operacao(preco):
-    diagnostico = ultimo_sinal(github_get, GITHUB, REPO)
+def ativar_operacao(sinal_id, preco):
+    diagnostico = sinal_por_id(
+        github_get,
+        GITHUB,
+        REPO,
+        sinal_id
+    )
+
     sinal = preparar_sinal(diagnostico)
 
     run_id = diagnostico.get("_run_id")
 
+    if str(run_id) != str(sinal_id):
+        raise RuntimeError(
+            "O ID recuperado não corresponde ao sinal informado."
+        )
+
     # Impede cadastrar duas vezes o mesmo sinal.
     for existente in obter_operacoes():
-        if existente.get("sinal_run_id") == run_id:
+        if str(existente.get("sinal_run_id")) == str(run_id):
             enviar(
                 "Este sinal já está sendo acompanhado.\n"
                 f"Operação: {existente['id']}"
@@ -622,7 +638,8 @@ def ativar_operacao(preco):
 
     enviar(
         "NOVA OPERAÇÃO REGISTRADA\n\n"
-        f"ID: {operacao['id']}\n"
+        f"ID da operação: {operacao['id']}\n"
+        f"ID do sinal: {run_id}\n"
         f"Direção: {operacao['direcao']}\n"
         f"Sua entrada: {preco:.3f}\n"
         f"Entrada do sinal: {operacao['entrada_sinal']}\n"
@@ -792,16 +809,19 @@ def processar_mensagem(mensagem):
         enviar("\n".join(linhas))
         return
 
-    # ENTREI
-    preco = extrair_preco_entrada(texto)
+    # ENTREI ID_DO_SINAL PREÇO
+    entrada = extrair_entrada(texto)
 
-    if preco is not None:
+    if entrada is not None:
+        sinal_id, preco = entrada
+
         try:
-            ativar_operacao(preco)
+            ativar_operacao(sinal_id, preco)
 
         except Exception as erro:
             enviar(
                 "NÃO FOI POSSÍVEL REGISTRAR A OPERAÇÃO.\n\n"
+                f"ID do sinal: {sinal_id}\n"
                 f"Motivo: {erro}\n"
                 "Nenhuma ordem foi executada."
             )
@@ -810,8 +830,9 @@ def processar_mensagem(mensagem):
 
     if upper.startswith("ENTREI"):
         enviar(
-            "FORMATO NÃO RECONHECIDO.\n"
-            "Exemplo: ENTREI 4095.212"
+            "FORMATO NÃO RECONHECIDO.\n\n"
+            "Use: ENTREI ID_DO_SINAL PREÇO\n"
+            "Exemplo: ENTREI 123456789 4095.212"
         )
 
 
