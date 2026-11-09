@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-09T09:17:54.826051+00:00",
-  "total_registros": 126,
+  "atualizado_utc": "2026-11-09T10:47:00.271745+00:00",
+  "total_registros": 127,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -1600,6 +1600,20 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "O ativo mantém alinhamento de alta em todos os tempos gráficos (M5, M15, H1). O preço sustenta-se acima das médias móveis (EMA9 > EMA21) e o RSI em 61.79 indica momentum comprador saudável. Embora a Central Inteligente identifique o preço em uma região de transição (2751), a força da tendência macro e o impulso atual superam a cautela histórica das transições, validando a continuidade da posição compradora.",
       "registrado_utc": "2026-11-09T09:17:54.826014+00:00"
+    },
+    {
+      "candle_utc": "2026-11-09T10:15:00+00:00",
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_ia_original": "SEM_SINAL",
+      "entrada": "",
+      "stop": "",
+      "gain": "",
+      "confianca": 20,
+      "pontuacao_final": null,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo encontra-se em uma zona de transição (região 2751) com pontuação técnica neutra (3/1). Embora a tendência H1 seja de alta, o M5 e M15 apresentam divergências e falta de momentum direcional claro (RSI 50.41). O histórico recente mostra que operar em regiões de transição sem um rompimento confirmado ou realinhamento de todos os tempos gráficos resulta em menor probabilidade de sucesso.",
+      "registrado_utc": "2026-11-09T10:47:00.271705+00:00"
     }
   ]
 }
