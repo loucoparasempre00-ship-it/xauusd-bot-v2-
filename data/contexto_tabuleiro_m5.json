@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-09T02:01:40.805600+00:00",
+    "atualizado_em": "2026-11-09T02:51:29.232490+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -12,46 +12,103 @@
     "diagnostico": {
         "total_velas": 5000,
         "total_regioes": 179,
-        "total_transicoes": 969,
+        "total_transicoes": 972,
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-09 01:55:00",
+        "timestamp": "2026-11-09 02:45:00",
         "eixo_x": 4999,
-        "preco": 4123.46812,
-        "atr": 7.19374,
+        "preco": 4125.06855,
+        "atr": 6.79034,
         "direcao_vela": "BAIXA",
-        "regiao": 2748,
-        "limite_inferior": 4122.0,
-        "limite_superior": 4123.5,
-        "visitas_regiao": 10
+        "regiao": 2750,
+        "limite_inferior": 4125.0,
+        "limite_superior": 4126.5,
+        "visitas_regiao": 22
     },
     "transicoes_historicas_da_regiao": [
         {
-            "origem": 2748,
-            "destino": 2749,
+            "origem": 2750,
+            "destino": 2751,
             "transicoes": 5,
-            "saidas_origem": 7,
-            "probabilidade": 71.43,
-            "amostra_suficiente": false
+            "saidas_origem": 16,
+            "probabilidade": 31.25,
+            "amostra_suficiente": true
         },
         {
-            "origem": 2748,
+            "origem": 2750,
+            "destino": 2752,
+            "transicoes": 4,
+            "saidas_origem": 16,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2749,
+            "transicoes": 3,
+            "saidas_origem": 16,
+            "probabilidade": 18.75,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
             "destino": 2747,
-            "transicoes": 1,
-            "saidas_origem": 7,
-            "probabilidade": 14.29,
-            "amostra_suficiente": false
+            "transicoes": 2,
+            "saidas_origem": 16,
+            "probabilidade": 12.5,
+            "amostra_suficiente": true
         },
         {
-            "origem": 2748,
-            "destino": 2750,
-            "transicoes": 1,
-            "saidas_origem": 7,
-            "probabilidade": 14.29,
-            "amostra_suficiente": false
+            "origem": 2750,
+            "destino": 2748,
+            "transicoes": 2,
+            "saidas_origem": 16,
+            "probabilidade": 12.5,
+            "amostra_suficiente": true
         }
     ],
-    "transicoes_com_amostra_minima": [],
+    "transicoes_com_amostra_minima": [
+        {
+            "origem": 2750,
+            "destino": 2751,
+            "transicoes": 5,
+            "saidas_origem": 16,
+            "probabilidade": 31.25,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2752,
+            "transicoes": 4,
+            "saidas_origem": 16,
+            "probabilidade": 25.0,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2749,
+            "transicoes": 3,
+            "saidas_origem": 16,
+            "probabilidade": 18.75,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2747,
+            "transicoes": 2,
+            "saidas_origem": 16,
+            "probabilidade": 12.5,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2748,
+            "transicoes": 2,
+            "saidas_origem": 16,
+            "probabilidade": 12.5,
+            "amostra_suficiente": true
+        }
+    ],
     "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
 }
