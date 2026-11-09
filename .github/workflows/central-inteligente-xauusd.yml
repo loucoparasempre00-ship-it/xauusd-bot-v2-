@@ -55,7 +55,7 @@ jobs:
       # ==========================================
       # 1. RECUPERAR MEMORIA PERSISTENTE
       # ==========================================
-           
+
       - name: Identificar execucao da memoria
         id: memoria_run
         env:
@@ -89,9 +89,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/memoria-artifact
+
           gh run download "${{ steps.memoria_run.outputs.run_id }}" \
             --name memoria-agente-xau \
             --dir /tmp/memoria-artifact
+
           cp -a /tmp/memoria-artifact/. data/
 
       - name: Validar memoria
@@ -129,9 +131,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/candles-artifact
+
           gh run download "${{ steps.integracao_run.outputs.run_id }}" \
             --name candles-xauusd-m5 \
             --dir /tmp/candles-artifact
+
           cp -a /tmp/candles-artifact/. data/
 
       - name: Preparar historico M5
@@ -153,34 +157,7 @@ jobs:
           test -s data/historico_velas_m5.csv
 
       # ==========================================
-      # 3. COORDENADOR AUTONOMO
-      # ==========================================
-
-      - name: Executar Coordenador Autonomo
-        env:
-          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python -u acompanhamento_autonomo_xau.py
-
-      # ==========================================
-      # 4. ACOMPANHAMENTO E CONSOLIDACAO
-      # ==========================================
-
-      - name: Validar entradas
-        run: |
-          test -s data/memoria_agente.json
-          test -s data/historico_velas_m5.csv
-
-      - name: Atualizar resultados das operacoes
-        run: python -u acompanhar_operacoes_xau.py
-
-      - name: Atualizar memoria do Gemini
-        run: python -u memoria_persistente_gemini.py
-
-      # ==========================================
-      # 5. TABULEIRO INTELIGENTE
+      # 3. CONSTRUCAO DO TABULEIRO INTELIGENTE
       # ==========================================
 
       - name: Coletar tabuleiro M5
@@ -208,7 +185,93 @@ jobs:
         run: python -u tabuleiro_estavel_m5.py
 
       # ==========================================
-      # 6. VALIDAR CONSOLIDACAO
+      # 4. CONTEXTO UNIFICADO DO ACOMPANHADOR
+      # ==========================================
+
+      - name: Preparar contexto inteligente
+        run: python -u preparar_contexto_acompanhador.py
+
+      - name: Validar contexto inteligente
+        run: |
+          set -euo pipefail
+          test -s data/contexto_tabuleiro_m5.json
+          test -s data/contexto_inteligente_acompanhador.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          caminho = Path(
+              "data/contexto_inteligente_acompanhador.json"
+          )
+
+          dados = json.loads(
+              caminho.read_text(encoding="utf-8")
+          )
+
+          obrigatorios = [
+              "contexto_tecnico",
+              "contexto_matematico",
+              "grafico_m5",
+              "tabuleiro_estavel"
+          ]
+
+          ausentes = [
+              chave for chave in obrigatorios
+              if chave not in dados
+          ]
+
+          if ausentes:
+              raise SystemExit(
+                  f"Contexto incompleto: {ausentes}"
+              )
+
+          serie = dados["grafico_m5"].get("serie", [])
+
+          if not serie:
+              raise SystemExit(
+                  "Grafico M5 sem serie cronologica."
+              )
+
+          print("Contexto inteligente validado.")
+          print("Candles no grafico:", len(serie))
+          print(
+              "Sincronizacao:",
+              dados.get("validacao_temporal", {})
+          )
+          PY
+
+      # ==========================================
+      # 5. CENTRAL + COORDENADOR
+      # ==========================================
+
+      - name: Executar Coordenador Autonomo
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python -u acompanhamento_autonomo_xau.py
+
+      # ==========================================
+      # 6. ACOMPANHAMENTO E CONSOLIDACAO
+      # ==========================================
+
+      - name: Validar entradas
+        run: |
+          test -s data/memoria_agente.json
+          test -s data/historico_velas_m5.csv
+          test -s data/contexto_tabuleiro_m5.json
+          test -s data/contexto_inteligente_acompanhador.json
+
+      - name: Atualizar resultados das operacoes
+        run: python -u acompanhar_operacoes_xau.py
+
+      - name: Atualizar memoria do Gemini
+        run: python -u memoria_persistente_gemini.py
+
+      # ==========================================
+      # 7. VALIDAR CONSOLIDACAO
       # ==========================================
 
       - name: Validar arquivos produzidos
@@ -237,6 +300,7 @@ jobs:
             data/regioes_estaveis_m5.csv
             data/transicoes_estaveis_m5.csv
             data/contexto_tabuleiro_m5.json
+            data/contexto_inteligente_acompanhador.json
           )
 
           missing=()
@@ -255,7 +319,7 @@ jobs:
           echo "Consolidacao validada."
 
       # ==========================================
-      # 7. PERSISTIR ESTADO E RESULTADOS
+      # 8. PERSISTIR ESTADO E RESULTADOS
       # ==========================================
 
       - name: Salvar dados da Central
@@ -277,7 +341,7 @@ jobs:
           fi
 
       # ==========================================
-      # 8. PUBLICAR RELATORIO
+      # 9. PUBLICAR RELATORIO
       # ==========================================
 
       - name: Publicar relatorio
@@ -287,6 +351,7 @@ jobs:
           name: relatorio-central-inteligente-xauusd
           path: |
             data/contexto_tabuleiro_m5.json
+            data/contexto_inteligente_acompanhador.json
             data/relatorio_tabuleiro_m5.json
             data/relatorio_geral_tabuleiro_m5.csv
             data/resultados_operacoes.csv
@@ -296,7 +361,7 @@ jobs:
           retention-days: 30
 
       # ==========================================
-      # 9. TESTADOR GEMINI - LIMITE DE 24 HORAS
+      # 10. TESTADOR GEMINI - LIMITE DE 24 HORAS
       # ==========================================
 
       - name: Verificar necessidade de teste Gemini
