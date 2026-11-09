@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-08T18:06:46.593041+00:00",
-  "total_registros": 116,
+  "atualizado_utc": "2026-11-09T00:56:01.722298+00:00",
+  "total_registros": 117,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -1460,6 +1460,20 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "O ativo mantém alinhamento de alta em todos os tempos gráficos (M5, M15, H1) com EMA9 acima da EMA21. O RSI em 69.63 está próximo da sobrecompra, mas ainda dentro de um regime de momentum comprador sustentado. A pontuação técnica de 4/0 reforça a continuidade do impulso. O contexto da Central Inteligente indica que o preço está em uma zona de transição, mas a força da tendência macro e o alinhamento técnico atual prevalecem sobre a cautela histórica de regiões de transição.",
       "registrado_utc": "2026-11-08T18:06:46.593002+00:00"
+    },
+    {
+      "candle_utc": "2026-11-09T00:50:00+00:00",
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_ia_original": "COMPRA",
+      "entrada": 4100.16,
+      "stop": 4088.366,
+      "gain": 4117.851,
+      "confianca": 65,
+      "pontuacao_final": 41.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém alinhamento de alta em todos os tempos gráficos (M5, M15, H1) com EMA9 acima da EMA21. O RSI em 75.05 indica sobrecompra, mas o momentum comprador permanece forte e sem divergências baixistas. A pontuação técnica (2/1) e a tendência macro favorável sustentam a continuidade da operação iniciada anteriormente, ignorando a cautela histórica de regiões de transição devido à força do impulso atual.",
+      "registrado_utc": "2026-11-09T00:56:01.722257+00:00"
     }
   ]
 }
