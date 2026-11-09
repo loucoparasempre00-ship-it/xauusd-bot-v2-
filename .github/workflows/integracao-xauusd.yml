@@ -50,46 +50,50 @@ jobs:
             exit 1
           }
           echo "Segredos obrigatorios encontrados."
-
+  
       - name: 1 - Cronometro de fechamento M5
         run: |
           python -u - <<'PY'
           import time
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
 
           agora = datetime.now(timezone.utc)
-          minuto = agora.minute % 5
 
-          # Se iniciou exatamente na virada, aguarda somente
-          # o restante da margem de seguranca de 3 segundos.
-          if minuto == 0:
-              alvo = agora.replace(second=3, microsecond=0)
-              if agora >= alvo:
-                  espera = 0
-              else:
-                  espera = (alvo - agora).total_seconds()
+          # Ultimo fechamento M5, com margem de 3 segundos.
+          minuto_base = (agora.minute // 5) * 5
+          ultimo_fechamento = agora.replace(
+              minute=minuto_base,
+              second=3,
+              microsecond=0
+          )
+
+          # Se ja passou pelo fechamento, aproveita os dados
+          # mais recentes, sem esperar outros cinco minutos.
+          if agora >= ultimo_fechamento:
+              espera = 0
+              alvo = ultimo_fechamento
+              motivo = "Fechamento M5 ja ocorreu: iniciar imediatamente."
           else:
-              # Proximo fechamento M5, mais 3 segundos.
-              minutos_ate = 5 - minuto
-              alvo = agora.replace(
-                  second=0, microsecond=0
-              )
-              from datetime import timedelta
-              alvo += timedelta(minutes=minutos_ate, seconds=3)
-              espera = max(0, (alvo - agora).total_seconds())
+              # Ainda nao chegou ao fechamento atual.
+              alvo = ultimo_fechamento
+              espera = (alvo - agora).total_seconds()
+              motivo = "Aguardando fechamento M5."
 
           print(f"Inicio UTC: {agora.isoformat()}")
           print(f"Alvo UTC: {alvo.isoformat()}")
+          print(f"Motivo: {motivo}")
           print(f"Espera calculada: {espera:.1f} segundos")
 
           if espera > 0:
               time.sleep(espera)
 
           print(
-              "Fim da espera UTC:",
+              "Cronometro concluido UTC:",
               datetime.now(timezone.utc).isoformat()
           )
           PY
+
+      
 
       - name: 2 - Coletar candles
         env:
