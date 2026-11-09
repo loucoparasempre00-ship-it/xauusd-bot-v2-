@@ -1,22 +1,22 @@
 {
   "versao": 1,
-  "atualizado_utc": "2026-11-09T13:17:26.002516+00:00",
+  "atualizado_utc": "2026-11-09T14:31:49.604173+00:00",
   "modelos": {
     "models/gemini-2.5-flash-lite": {
-      "tentativas": 21,
+      "tentativas": 22,
       "sucessos": 0,
-      "falhas": 21,
+      "falhas": 22,
       "tempo_total_segundos": 0.0,
       "ultimo_http": 404,
-      "ultima_tentativa_utc": "2026-11-09T13:17:25.427710+00:00"
+      "ultima_tentativa_utc": "2026-11-09T14:31:48.959190+00:00"
     },
     "models/gemini-3.1-flash-lite": {
-      "tentativas": 21,
-      "sucessos": 20,
+      "tentativas": 22,
+      "sucessos": 21,
       "falhas": 1,
-      "tempo_total_segundos": 26.569310152000014,
+      "tempo_total_segundos": 27.114104515000037,
       "ultimo_http": 200,
-      "ultima_tentativa_utc": "2026-11-09T13:17:25.847978+00:00"
+      "ultima_tentativa_utc": "2026-11-09T14:31:49.504099+00:00"
     },
     "models/gemini-3.1-flash-lite-image": {
       "tentativas": 1,
@@ -167,6 +167,13 @@
       "tipo": "erro_api_ou_cota",
       "detalhe": "{\"error\": {\"code\": 429, \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: g",
       "registrado_utc": "2026-11-09T13:17:26.002423+00:00"
+    },
+    {
+      "modelo": "models/gemini-3.1-flash-lite-image",
+      "http": 429,
+      "tipo": "erro_api_ou_cota",
+      "detalhe": "{\"error\": {\"code\": 429, \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-3.1",
+      "registrado_utc": "2026-11-09T14:31:49.604118+00:00"
     }
   ]
 }
