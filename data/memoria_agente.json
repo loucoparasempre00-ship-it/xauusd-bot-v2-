@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-09T10:47:00.271745+00:00",
-  "total_registros": 127,
+  "atualizado_utc": "2026-11-09T11:16:09.170909+00:00",
+  "total_registros": 128,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -1614,6 +1614,20 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "O ativo encontra-se em uma zona de transição (região 2751) com pontuação técnica neutra (3/1). Embora a tendência H1 seja de alta, o M5 e M15 apresentam divergências e falta de momentum direcional claro (RSI 50.41). O histórico recente mostra que operar em regiões de transição sem um rompimento confirmado ou realinhamento de todos os tempos gráficos resulta em menor probabilidade de sucesso.",
       "registrado_utc": "2026-11-09T10:47:00.271705+00:00"
+    },
+    {
+      "candle_utc": "2026-11-09T11:10:00+00:00",
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_ia_original": "COMPRA",
+      "entrada": 4101.444,
+      "stop": 4097.849,
+      "gain": 4106.837,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém alinhamento de alta no M5 e H1, com EMA9 acima da EMA21 no M5. O RSI em 58.02 indica momentum comprador saudável. Embora o M15 esteja em baixa, o impulso comprador recente e a pontuação técnica (4/1) favorecem a continuidade do movimento. O contexto da Central Inteligente mostra o preço em região de transição, mas a força da tendência macro (H1) e o impulso atual superam a cautela histórica das transições, validando a entrada.",
+      "registrado_utc": "2026-11-09T11:16:09.170882+00:00"
     }
   ]
 }
