@@ -51,6 +51,7 @@ jobs:
           }
           echo "Segredos obrigatorios encontrados."
   
+
       - name: 1 - Cronometro de fechamento M5
         run: |
           python -u - <<'PY'
@@ -59,7 +60,6 @@ jobs:
 
           agora = datetime.now(timezone.utc)
 
-          # Ultimo fechamento M5, com margem de 3 segundos.
           minuto_base = (agora.minute // 5) * 5
           ultimo_fechamento = agora.replace(
               minute=minuto_base,
@@ -67,31 +67,31 @@ jobs:
               microsecond=0
           )
 
-          # Se ja passou pelo fechamento, aproveita os dados
-          # mais recentes, sem esperar outros cinco minutos.
-          if agora >= ultimo_fechamento:
+          atraso = (agora - ultimo_fechamento).total_seconds()
+
+          if 0 <= atraso <= 30:
+              alvo = agora
               espera = 0
-              alvo = ultimo_fechamento
-              motivo = "Fechamento M5 ja ocorreu: iniciar imediatamente."
+              motivo = "Atraso pequeno: aproveitar fechamento recente."
           else:
-              # Ainda nao chegou ao fechamento atual.
-              alvo = ultimo_fechamento
-              espera = (alvo - agora).total_seconds()
-              motivo = "Aguardando fechamento M5."
+              minutos_ate = 5 - (agora.minute % 5)
+              alvo = agora.replace(second=0, microsecond=0)
+              alvo += timedelta(minutes=minutos_ate, seconds=3)
+              espera = max(0, (alvo - agora).total_seconds())
+              motivo = "Aguardando proximo fechamento M5."
 
           print(f"Inicio UTC: {agora.isoformat()}")
           print(f"Alvo UTC: {alvo.isoformat()}")
           print(f"Motivo: {motivo}")
-          print(f"Espera calculada: {espera:.1f} segundos")
+          print(f"Espera: {espera:.1f} segundos")
 
           if espera > 0:
               time.sleep(espera)
 
-          print(
-              "Cronometro concluido UTC:",
-              datetime.now(timezone.utc).isoformat()
-          )
+          print("Cronometro concluido UTC:",
+                datetime.now(timezone.utc).isoformat())
           PY
+
 
       
 
