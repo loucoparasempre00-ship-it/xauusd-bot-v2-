@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-09T22:37:08.594401+00:00",
+    "atualizado_em": "2026-11-09T23:31:45.119932+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -11,44 +11,36 @@
     },
     "diagnostico": {
         "total_velas": 5000,
-        "total_regioes": 180,
-        "total_transicoes": 1007,
+        "total_regioes": 181,
+        "total_transicoes": 1006,
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-09 22:30:00",
+        "timestamp": "2026-11-09 23:25:00",
         "eixo_x": 4999,
-        "preco": 4140.37961,
-        "atr": 2.6587,
-        "direcao_vela": "BAIXA",
-        "regiao": 2760,
-        "limite_inferior": 4140.0,
-        "limite_superior": 4141.5,
-        "visitas_regiao": 16
+        "preco": 4143.46939,
+        "atr": 2.29086,
+        "direcao_vela": "ALTA",
+        "regiao": 2762,
+        "limite_inferior": 4143.0,
+        "limite_superior": 4144.5,
+        "visitas_regiao": 4
     },
     "transicoes_historicas_da_regiao": [
         {
-            "origem": 2760,
-            "destino": 2758,
-            "transicoes": 2,
-            "saidas_origem": 5,
-            "probabilidade": 40.0,
-            "amostra_suficiente": false
-        },
-        {
-            "origem": 2760,
+            "origem": 2762,
             "destino": 2759,
-            "transicoes": 2,
-            "saidas_origem": 5,
-            "probabilidade": 40.0,
+            "transicoes": 1,
+            "saidas_origem": 2,
+            "probabilidade": 50.0,
             "amostra_suficiente": false
         },
         {
-            "origem": 2760,
+            "origem": 2762,
             "destino": 2761,
             "transicoes": 1,
-            "saidas_origem": 5,
-            "probabilidade": 20.0,
+            "saidas_origem": 2,
+            "probabilidade": 50.0,
             "amostra_suficiente": false
         }
     ],
