@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-09T13:17:11.866145+00:00",
+    "atualizado_em": "2026-11-09T14:31:36.177354+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -12,85 +12,101 @@
     "diagnostico": {
         "total_velas": 5000,
         "total_regioes": 179,
-        "total_transicoes": 994,
+        "total_transicoes": 993,
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-09 13:10:00",
+        "timestamp": "2026-11-09 14:25:00",
         "eixo_x": 4999,
-        "preco": 4119.03843,
-        "atr": 4.50284,
+        "preco": 4126.21049,
+        "atr": 4.1386,
         "direcao_vela": "BAIXA",
-        "regiao": 2746,
-        "limite_inferior": 4119.0,
-        "limite_superior": 4120.5,
-        "visitas_regiao": 14
+        "regiao": 2750,
+        "limite_inferior": 4125.0,
+        "limite_superior": 4126.5,
+        "visitas_regiao": 29
     },
     "transicoes_historicas_da_regiao": [
         {
-            "origem": 2746,
-            "destino": 2745,
+            "origem": 2750,
+            "destino": 2749,
+            "transicoes": 6,
+            "saidas_origem": 22,
+            "probabilidade": 27.27,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2751,
             "transicoes": 5,
-            "saidas_origem": 12,
-            "probabilidade": 41.67,
+            "saidas_origem": 22,
+            "probabilidade": 22.73,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
-            "destino": 2744,
-            "transicoes": 4,
-            "saidas_origem": 12,
-            "probabilidade": 33.33,
+            "origem": 2750,
+            "destino": 2752,
+            "transicoes": 5,
+            "saidas_origem": 22,
+            "probabilidade": 22.73,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
+            "origem": 2750,
             "destino": 2747,
-            "transicoes": 2,
-            "saidas_origem": 12,
-            "probabilidade": 16.67,
+            "transicoes": 3,
+            "saidas_origem": 22,
+            "probabilidade": 13.64,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
+            "origem": 2750,
             "destino": 2748,
-            "transicoes": 1,
-            "saidas_origem": 12,
-            "probabilidade": 8.33,
+            "transicoes": 3,
+            "saidas_origem": 22,
+            "probabilidade": 13.64,
             "amostra_suficiente": true
         }
     ],
     "transicoes_com_amostra_minima": [
         {
-            "origem": 2746,
-            "destino": 2745,
+            "origem": 2750,
+            "destino": 2749,
+            "transicoes": 6,
+            "saidas_origem": 22,
+            "probabilidade": 27.27,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2750,
+            "destino": 2751,
             "transicoes": 5,
-            "saidas_origem": 12,
-            "probabilidade": 41.67,
+            "saidas_origem": 22,
+            "probabilidade": 22.73,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
-            "destino": 2744,
-            "transicoes": 4,
-            "saidas_origem": 12,
-            "probabilidade": 33.33,
+            "origem": 2750,
+            "destino": 2752,
+            "transicoes": 5,
+            "saidas_origem": 22,
+            "probabilidade": 22.73,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
+            "origem": 2750,
             "destino": 2747,
-            "transicoes": 2,
-            "saidas_origem": 12,
-            "probabilidade": 16.67,
+            "transicoes": 3,
+            "saidas_origem": 22,
+            "probabilidade": 13.64,
             "amostra_suficiente": true
         },
         {
-            "origem": 2746,
+            "origem": 2750,
             "destino": 2748,
-            "transicoes": 1,
-            "saidas_origem": 12,
-            "probabilidade": 8.33,
+            "transicoes": 3,
+            "saidas_origem": 22,
+            "probabilidade": 13.64,
             "amostra_suficiente": true
         }
     ],
