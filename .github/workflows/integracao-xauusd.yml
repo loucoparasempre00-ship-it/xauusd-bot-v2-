@@ -3,8 +3,6 @@ name: Integracao XAUUSD Bot V2
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * 1-5"
 
 permissions:
   contents: read
