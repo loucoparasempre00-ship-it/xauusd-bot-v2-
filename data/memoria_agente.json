@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-09T23:31:31.324767+00:00",
-  "total_registros": 141,
+  "atualizado_utc": "2026-11-09T23:36:24.877741+00:00",
+  "total_registros": 142,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -1810,6 +1810,20 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "Apesar do alinhamento de tendência de alta no M5, M15 e H1, o mercado encontra-se em uma região de transição (2736) com histórico de saídas voláteis. A pontuação técnica de compra (4) é positiva, mas a falta de momentum direcional claro (RSI 57.23 em zona neutra) e a cautela necessária em zonas de transição, conforme indicado pelo histórico, tornam a entrada de alta confiança inconclusiva neste momento.",
       "registrado_utc": "2026-11-09T23:31:31.324709+00:00"
+    },
+    {
+      "candle_utc": "2026-11-09T23:30:00+00:00",
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_ia_original": "COMPRA",
+      "entrada": 4139.83,
+      "stop": 4135.89,
+      "gain": 4145.74,
+      "confianca": 60,
+      "pontuacao_final": 65.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta alinhamento de tendência de alta em todos os tempos gráficos (M5, M15, H1), com EMA9 acima da EMA21 no M5. O RSI em 50.0 está em zona neutra, permitindo espaço para expansão. Embora a Central Inteligente identifique o preço em uma região de transição (2762) com histórico de saídas voláteis, a força da tendência macro e o impulso técnico atual superam a cautela histórica das transições, validando a entrada compradora com base na pontuação técnica superior (4/1).",
+      "registrado_utc": "2026-11-09T23:36:24.877697+00:00"
     }
   ]
 }
