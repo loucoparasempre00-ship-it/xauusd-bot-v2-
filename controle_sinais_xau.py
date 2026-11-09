@@ -4,7 +4,87 @@ import zipfile
 
 
 # =========================================================
+# RECUPERAR SINAL POR ID EXATO DA EXECUÇÃO
+# =========================================================
+
+def sinal_por_id(github_get, github, repo, sinal_id):
+    sinal_id = str(sinal_id).strip()
+
+    if not sinal_id.isdigit():
+        raise RuntimeError("ID do sinal inválido.")
+
+    run_id = int(sinal_id)
+
+    url = (
+        f"{github}/repos/{repo}/actions/runs/"
+        f"{run_id}/artifacts"
+    )
+
+    dados = github_get(url).json()
+
+    artefatos = dados.get("artifacts", [])
+
+    artefato = next(
+        (
+            item for item in artefatos
+            if item["name"] == "resultado-agente-gemini"
+            and not item.get("expired", False)
+        ),
+        None
+    )
+
+    if not artefato:
+        raise RuntimeError(
+            f"Não encontrei o artefato do sinal {sinal_id}."
+        )
+
+    conteudo = github_get(
+        f"{github}/repos/{repo}/actions/artifacts/"
+        f"{artefato['id']}/zip"
+    ).content
+
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo:
+        caminho = next(
+            (
+                nome for nome in arquivo.namelist()
+                if nome.endswith("decisao_gemini.json")
+            ),
+            None
+        )
+
+        if not caminho:
+            raise RuntimeError(
+                "O artefato não contém decisao_gemini.json."
+            )
+
+        diagnostico = json.loads(
+            arquivo.read(caminho).decode("utf-8")
+        )
+
+    direcao = str(
+        diagnostico.get("decisao_gemini", "")
+    ).upper()
+
+    enviado = diagnostico.get("envio_telegram") is True
+
+    if direcao not in ("COMPRA", "VENDA"):
+        raise RuntimeError(
+            "A execução informada não contém sinal COMPRA ou VENDA."
+        )
+
+    if not enviado:
+        raise RuntimeError(
+            "O sinal informado não foi enviado ao Telegram."
+        )
+
+    diagnostico["_run_id"] = run_id
+
+    return diagnostico
+
+
+# =========================================================
 # LOCALIZAR ÚLTIMO SINAL REALMENTE ENVIADO
+# Mantido para compatibilidade com o código atual
 # =========================================================
 
 def ultimo_sinal(github_get, github, repo):
@@ -27,59 +107,18 @@ def ultimo_sinal(github_get, github, repo):
     for execucao in execucoes:
         run_id = execucao["id"]
 
-        artefatos = github_get(
-            f"{github}/repos/{repo}/actions/runs/"
-            f"{run_id}/artifacts"
-        ).json().get("artifacts", [])
-
-        artefato = next(
-            (
-                item for item in artefatos
-                if item["name"] == "resultado-agente-gemini"
-                and not item.get("expired", False)
-            ),
-            None
-        )
-
-        if not artefato:
-            continue
-
-        conteudo = github_get(
-            f"{github}/repos/{repo}/actions/artifacts/"
-            f"{artefato['id']}/zip"
-        ).content
-
-        with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo:
-            caminho = next(
-                (
-                    nome for nome in arquivo.namelist()
-                    if nome.endswith("decisao_gemini.json")
-                ),
-                None
+        try:
+            diagnostico = sinal_por_id(
+                github_get,
+                github,
+                repo,
+                run_id
             )
 
-            if not caminho:
-                continue
+            return diagnostico
 
-            diagnostico = json.loads(
-                arquivo.read(caminho).decode("utf-8")
-            )
-
-        direcao = str(
-            diagnostico.get("decisao_gemini", "")
-        ).upper()
-
-        enviado = diagnostico.get("envio_telegram") is True
-
-        if direcao not in ("COMPRA", "VENDA"):
+        except Exception:
             continue
-
-        if not enviado:
-            continue
-
-        diagnostico["_run_id"] = run_id
-
-        return diagnostico
 
     raise RuntimeError(
         "Não encontrei sinal COMPRA ou VENDA realmente enviado "
