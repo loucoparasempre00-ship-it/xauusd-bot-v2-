@@ -2903,5 +2903,42 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T22:31:50.526694+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T22:30:00+00:00",
+    "id_sinal": 42915961224,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 33.33,
+    "pontuacao_compra": 33.33,
+    "pontuacao_venda": 33.33,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 1.46246,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "decisao": "SEM_SINAL",
+      "confianca": 0,
+      "justificativa": "Gemini indisponivel. Decisor seguira pelo motor matematico. The read operation timed out",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "indisponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T22:30:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 4033.207,
+      "atr_14": 1.726,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T22:37:18.517094+00:00"
   }
 ]

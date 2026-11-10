@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T22:31:50.526694+00:00",
-  "total_registros": 241,
+  "atualizado_utc": "2026-11-10T22:37:18.517094+00:00",
+  "total_registros": 242,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3919,6 +3919,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T22:31:50.526694+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T22:30:00+00:00",
+      "id_sinal": 42915961224,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 0,
+      "pontuacao_final": 33.33,
+      "pontuacao_compra": 33.33,
+      "pontuacao_venda": 33.33,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Gemini indisponivel. Decisor seguira pelo motor matematico. The read operation timed out",
+      "atr14": 1.46246,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T22:37:18.517094+00:00"
     }
   ]
 }
