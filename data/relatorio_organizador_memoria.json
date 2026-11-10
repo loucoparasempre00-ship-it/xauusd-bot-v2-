@@ -1,23 +1,47 @@
 {
-  "versao": 1,
-  "executado_em_utc": "2026-11-10T20:08:13.979308+00:00",
-  "politica": {
-    "velas_ativas_dias": 90,
-    "velas_antigas": "Compactadas em gzip",
-    "operacoes": "Histórico e resultados preservados",
-    "modo": "NAO_DESTRUTIVO"
+  "versao": 2,
+  "executado_utc": "2026-11-10T21:07:55.778712+00:00",
+  "modulos_executados": 6,
+  "velas": {
+    "modulo": 1,
+    "nome": "graficos_velas",
+    "codigo_regra": "VELA-UTC-PRIORIDADE-FECHADA",
+    "total_velas_unicas": 5000,
+    "velas_ativas": 5000,
+    "velas_arquivadas": 0,
+    "duplicatas": 10000,
+    "conflitos_ohlc": 0,
+    "prioridade_fontes": [
+      "historico_velas_m5.csv",
+      "xauusd_m5.csv",
+      "xauusd_m5_fechados.csv"
+    ],
+    "arquivo_ativo": "data/velas_m5_ativas_90d.csv",
+    "arquivo_historico": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
+    "originais_preservados": true
+  },
+  "gerador_sinais": {
+    "arquivos": 4,
+    "registros": 187
+  },
+  "memoria_persistente": {
+    "arquivos": 3,
+    "registros": 776
+  },
+  "condutor": {
+    "arquivos": 4,
+    "registros": 78
   },
   "operacoes": {
-    "total_operacoes": 307,
-    "ocorrencias": 331
+    "conduzidas": 76,
+    "reais": 129,
+    "hipoteticas": 171,
+    "nao_classificadas": 0
   },
-  "velas": {
-    "total": 5000,
-    "ativas": 5000,
-    "arquivadas": 0,
-    "duplicatas": 10000,
-    "corte_utc": "2026-08-12T20:08:13.963763+00:00"
+  "estatisticas": {
+    "arquivos": 14,
+    "registros": 19825
   },
-  "arquivos_inventariados": 38,
+  "indice_geral": "data/indice_arquivos_memoria.json",
   "originais_removidos": 0
 }

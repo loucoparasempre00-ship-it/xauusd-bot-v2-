@@ -1,0 +1,18 @@
+{
+  "modulo": 1,
+  "nome": "graficos_velas",
+  "codigo_regra": "VELA-UTC-PRIORIDADE-FECHADA",
+  "total_velas_unicas": 5000,
+  "velas_ativas": 5000,
+  "velas_arquivadas": 0,
+  "duplicatas": 10000,
+  "conflitos_ohlc": 0,
+  "prioridade_fontes": [
+    "historico_velas_m5.csv",
+    "xauusd_m5.csv",
+    "xauusd_m5_fechados.csv"
+  ],
+  "arquivo_ativo": "data/velas_m5_ativas_90d.csv",
+  "arquivo_historico": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
+  "originais_preservados": true
+}
