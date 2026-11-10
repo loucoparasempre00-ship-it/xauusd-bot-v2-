@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T20:57:15.448931+00:00",
-  "total_registros": 222,
+  "atualizado_utc": "2026-11-10T21:01:10.772348+00:00",
+  "total_registros": 223,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3463,6 +3463,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T20:57:15.448931+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T20:55:00+00:00",
+      "id_sinal": 42900766639,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência estrutural no M5 seja de alta, há um conflito claro com as tendências de baixa no M15 e H1. O preço está comprimido entre suportes e resistências imediatas (4032.17 e 4032.50), sem volume ou impulso direcional claro para romper a consolidação atual. A leitura matemática não apresenta setup definido e a amostra de transições na região atual é insuficiente para garantir uma probabilidade estatística robusta. Recomenda-se aguardar um rompimento claro da zona 4032-4036 para definir o próximo movimento.",
+      "atr14": 3.13855,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T21:01:10.772348+00:00"
     }
   ]
 }
