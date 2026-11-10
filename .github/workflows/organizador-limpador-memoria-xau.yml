@@ -1,21 +1,21 @@
 
-name: Organizador e Limpador de Memoria XAUUSD
+name: Organizador Definitivo XAUUSD
 
 on:
-  workflow_dispatch:
-
   workflow_run:
     workflows:
-      - Central Inteligente XAUUSD
+      - "Condutor de Operacoes XAUUSD"
     types:
       - completed
+
+  workflow_dispatch:
 
 permissions:
   contents: write
   actions: read
 
 concurrency:
-  group: organizador-memoria-xauusd
+  group: organizador-definitivo-xauusd
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
       }}
 
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Baixar repositorio
@@ -41,47 +41,706 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Executar organizador
+      - name: Executar os seis modulos do organizador
         env:
           DIAS_VELAS_ATIVAS: "90"
-        run: python -u organizador_memoria_xau.py
-
-      - name: Validar arquivos
         run: |
           set -euo pipefail
 
-          test -s data/cadastro_mestre_operacoes.json
-          test -s data/velas_m5_ativas_90d.csv
-          test -s data/indice_arquivos_memoria.json
-          test -s data/relatorio_organizador_memoria.json
-          test -s data/arquivo_memoria/velas_m5_anteriores.csv.gz
+          python -u - <<'PY'
+          import csv
+          import gzip
+          import hashlib
+          import json
+          import sqlite3
+          import os
+          from pathlib import Path
+          from datetime import datetime, timezone, timedelta
+
+          DATA = Path("data")
+          ARQUIVO = DATA / "arquivo_memoria"
+          ATIVOS = DATA / "velas_m5_ativas_90d.csv"
+          ANTIGOS = ARQUIVO / "velas_m5_anteriores.csv.gz"
+
+          AGORA = datetime.now(timezone.utc)
+          DIAS = int(os.getenv("DIAS_VELAS_ATIVAS", "90"))
+
+          DATA.mkdir(exist_ok=True)
+          ARQUIVO.mkdir(parents=True, exist_ok=True)
+
+          def hash_texto(texto):
+              return hashlib.sha256(
+                  texto.encode("utf-8")
+              ).hexdigest()[:20].upper()
+
+          def hash_arquivo(path):
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for bloco in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(bloco)
+              return h.hexdigest()
+
+          def salvar_json(path, dados):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              temp = path.with_suffix(path.suffix + ".tmp")
+              temp.write_text(
+                  json.dumps(dados, ensure_ascii=False, indent=2) + "\n",
+                  encoding="utf-8"
+              )
+              temp.replace(path)
+
+          def ler_json(path):
+              if not path.exists() or path.stat().st_size == 0:
+                  return None
+              return json.loads(path.read_text(encoding="utf-8-sig"))
+
+          def ler_csv(path):
+              if not path.exists() or path.stat().st_size == 0:
+                  return []
+
+              with path.open(
+                  "r", encoding="utf-8-sig", newline=""
+              ) as f:
+                  primeira = f.readline()
+                  f.seek(0)
+                  delimitador = ";" if primeira.count(";") > primeira.count(",") else ","
+                  return list(csv.DictReader(f, delimiter=delimitador))
+
+          def registros_arquivo(path):
+              if path.suffix.lower() == ".csv":
+                  return ler_csv(path)
+
+              if path.suffix.lower() == ".json":
+                  obj = ler_json(path)
+
+                  if obj is None:
+                      return []
+
+                  if isinstance(obj, list):
+                      return [x for x in obj if isinstance(x, dict)]
+
+                  if isinstance(obj, dict):
+                      for chave in (
+                          "historico", "operacoes", "registros",
+                          "sinais", "decisoes", "eventos"
+                      ):
+                          if isinstance(obj.get(chave), list):
+                              return [
+                                  x for x in obj[chave]
+                                  if isinstance(x, dict)
+                              ]
+
+                      return [obj]
+
+              return []
+
+          def codigo_registro(modulo, registro):
+              texto = json.dumps(
+                  registro,
+                  ensure_ascii=False,
+                  sort_keys=True,
+                  default=str
+              )
+              return "XAU-M" + str(modulo) + "-" + hash_texto(texto)
+
+          def organizar_grupo(numero, nome, fontes):
+              registros = {}
+              arquivos = []
+
+              for relativo in fontes:
+                  path = DATA / relativo
+
+                  if not path.is_file():
+                      continue
+
+                  arquivos.append({
+                      "arquivo": str(path),
+                      "sha256": hash_arquivo(path),
+                      "bytes": path.stat().st_size
+                  })
+
+                  for registro in registros_arquivo(path):
+                      codigo = codigo_registro(numero, registro)
+
+                      if codigo not in registros:
+                          registros[codigo] = {
+                              "codigo": codigo,
+                              "origens": [],
+                              "ocorrencias": 0,
+                              "dados": registro
+                          }
+
+                      item = registros[codigo]
+                      item["ocorrencias"] += 1
+
+                      if relativo not in item["origens"]:
+                          item["origens"].append(relativo)
+
+              resultado = {
+                  "modulo": numero,
+                  "nome": nome,
+                  "atualizado_utc": AGORA.isoformat(),
+                  "arquivos_lidos": arquivos,
+                  "total_arquivos": len(arquivos),
+                  "total_registros_unicos": len(registros),
+                  "total_ocorrencias": sum(
+                      x["ocorrencias"] for x in registros.values()
+                  ),
+                  "registros": list(registros.values())
+              }
+
+              destino = DATA / f"organizado_{numero:02d}_{nome}.json"
+              salvar_json(destino, resultado)
+
+              print(
+                  f"MODULO {numero}: {nome} | "
+                  f"arquivos={len(arquivos)} | "
+                  f"registros={len(registros)}"
+              )
+
+              return resultado
+
+          # ==================================================
+          # MODULO 1 - GRAFICOS E VELAS
+          # Prioridade: historico < bruto < candle fechado.
+          # Uma vela por instante UTC.
+          # ==================================================
+
+          fontes_velas = [
+              ("historico_velas_m5.csv", 1),
+              ("xauusd_m5.csv", 2),
+              ("xauusd_m5_fechados.csv", 3)
+          ]
+
+          velas = {}
+          conflitos = 0
+          duplicatas = 0
+          campos = [
+              "timestamp_utc", "open", "high",
+              "low", "close", "volume"
+          ]
+
+          def ler_timestamp(linha):
+              for chave in (
+                  "timestamp_utc", "timestamp",
+                  "datetime", "datetime_utc", "time"
+              ):
+                  valor = str(linha.get(chave, "")).strip()
+                  if valor:
+                      dt = datetime.fromisoformat(
+                          valor.replace("Z", "+00:00")
+                      )
+                      if dt.tzinfo is None:
+                          dt = dt.replace(tzinfo=timezone.utc)
+                      return dt.astimezone(timezone.utc), valor
+              return None, None
+
+          for nome, prioridade in fontes_velas:
+              path = DATA / nome
+
+              if not path.exists():
+                  continue
+
+              with path.open(
+                  "r", encoding="utf-8-sig", newline=""
+              ) as f:
+                  leitor = csv.DictReader(f)
+                  if leitor.fieldnames:
+                      campos = list(leitor.fieldnames)
+
+                  for linha in leitor:
+                      try:
+                          instante, original = ler_timestamp(linha)
+                          if instante is None:
+                              continue
+                      except Exception:
+                          continue
+
+                      chave = instante.isoformat()
+
+                      if chave in velas:
+                          duplicatas += 1
+                          anterior = velas[chave]
+
+                          if any(
+                              str(anterior["linha"].get(k, "")) !=
+                              str(linha.get(k, ""))
+                              for k in ("open", "high", "low", "close")
+                          ):
+                              conflitos += 1
+
+                          if prioridade <= anterior["prioridade"]:
+                              continue
+
+                      linha_saida = dict(linha)
+                      linha_saida["timestamp_utc"] = original
+
+                      velas[chave] = {
+                          "prioridade": prioridade,
+                          "linha": linha_saida,
+                          "instante": instante
+                      }
+
+          # Recupera arquivo antigo sem perder o que ja foi arquivado.
+          if ANTIGOS.exists():
+              with gzip.open(
+                  ANTIGOS, "rt", encoding="utf-8", newline=""
+              ) as f:
+                  for linha in csv.DictReader(f):
+                      try:
+                          instante, original = ler_timestamp(linha)
+                          if instante is None:
+                              continue
+                      except Exception:
+                          continue
+
+                      chave = instante.isoformat()
+
+                      if chave not in velas:
+                          velas[chave] = {
+                              "prioridade": 0,
+                              "linha": linha,
+                              "instante": instante
+                          }
+
+          ordenadas = sorted(
+              velas.values(),
+              key=lambda x: x["instante"]
+          )
+
+          ativas = []
+          antigas = []
+
+          if ordenadas:
+              referencia = ordenadas[-1]["instante"]
+              corte = referencia - timedelta(days=DIAS)
+
+              for item in ordenadas:
+                  if item["instante"] >= corte:
+                      ativas.append(item["linha"])
+                  else:
+                      antigas.append(item["linha"])
+
+              def escrever_csv(path, linhas):
+                  with path.open(
+                      "w", encoding="utf-8", newline=""
+                  ) as f:
+                      escritor = csv.DictWriter(
+                          f, fieldnames=campos,
+                          extrasaction="ignore"
+                      )
+                      escritor.writeheader()
+                      escritor.writerows(linhas)
+
+              escrever_csv(
+                  ATIVOS,
+                  ativas
+              )
+
+              temp = ANTIGOS.with_suffix(".gz.tmp")
+
+              with gzip.open(
+                  temp, "wt", encoding="utf-8", newline=""
+              ) as f:
+                  escritor = csv.DictWriter(
+                      f, fieldnames=campos,
+                      extrasaction="ignore"
+                  )
+                  escritor.writeheader()
+                  escritor.writerows(antigas)
+
+              with gzip.open(temp, "rt", encoding="utf-8") as f:
+                  f.read(1)
+
+              temp.replace(ANTIGOS)
+
+          modulo1 = {
+              "modulo": 1,
+              "nome": "graficos_velas",
+              "codigo_regra": "VELA-UTC-PRIORIDADE-FECHADA",
+              "total_velas_unicas": len(ordenadas),
+              "velas_ativas": len(ativas),
+              "velas_arquivadas": len(antigas),
+              "duplicatas": duplicatas,
+              "conflitos_ohlc": conflitos,
+              "prioridade_fontes": [
+                  "historico_velas_m5.csv",
+                  "xauusd_m5.csv",
+                  "xauusd_m5_fechados.csv"
+              ],
+              "arquivo_ativo": str(ATIVOS),
+              "arquivo_historico": str(ANTIGOS),
+              "originais_preservados": True
+          }
+
+          salvar_json(
+              DATA / "organizado_01_graficos_velas.json",
+              modulo1
+          )
+
+          print("MODULO 1:", modulo1)
+
+          # ==================================================
+          # MODULO 2 - GERADOR DE SINAIS
+          # ==================================================
+
+          modulo2 = organizar_grupo(
+              2,
+              "gerador_sinais",
+              [
+                  "historico_decisoes_xau.json",
+                  "historico_sinais.json",
+                  "ranking_sinais_xau.json",
+                  "marcadores_sinais_xau.json",
+                  "pacote_memoria_condutor.json"
+              ]
+          )
+
+          # ==================================================
+          # MODULO 3 - MEMORIA PERSISTENTE
+          # ==================================================
+
+          modulo3 = organizar_grupo(
+              3,
+              "memoria_persistente",
+              [
+                  "memoria_agente.json",
+                  "memoria_agente.csv",
+                  "resultados_operacoes.csv",
+                  "parametros_adaptativos.json"
+              ]
+          )
+
+          # ==================================================
+          # MODULO 4 - CONDUTOR DE OPERACOES
+          # ==================================================
+
+          modulo4 = organizar_grupo(
+              4,
+              "condutor_operacoes",
+              [
+                  "resultados_operacoes.json",
+                  "acompanhamento_autonomo_estado.json",
+                  "condutor_ultima_memoria_run.json",
+                  "decisao_agente_operacional.json"
+              ]
+          )
+
+          # ==================================================
+          # MODULO 5 - CADASTRO MESTRE
+          # Separa sinais reais, hipoteticas e conduzidas.
+          # Preserva o cadastro legado integralmente.
+          # ==================================================
+
+          legado = ler_json(
+              DATA / "cadastro_mestre_operacoes.json"
+          )
+
+          conduzidas = {}
+          reais = {}
+          hipoteticas = {}
+          nao_classificadas = {}
+
+          def identidade_operacao(registro):
+              externo = registro.get("id_sinal") or registro.get(
+                  "signal_id"
+              )
+
+              if externo:
+                  base = "ID:" + str(externo)
+              else:
+                  campos_id = (
+                      "horario_sinal_utc", "candle_utc",
+                      "ativada_em", "direcao", "entrada",
+                      "entrada_real", "entrada_sinal",
+                      "stop", "stop_loss", "alvo", "take_profit"
+                  )
+                  base = "|".join(
+                      str(registro.get(k, ""))
+                      for k in campos_id
+                  )
+
+              return "XAU-OP-" + hash_texto(base)
+
+          def adicionar_operacao(grupo, registro, origem):
+              codigo = identidade_operacao(registro)
+
+              if codigo not in grupo:
+                  grupo[codigo] = {
+                      "codigo_interno": codigo,
+                      "origens": [],
+                      "ocorrencias": []
+                  }
+
+              item = grupo[codigo]
+
+              if origem not in item["origens"]:
+                  item["origens"].append(origem)
+
+              item["ocorrencias"].append(registro)
+
+          # Operacoes efetivamente acompanhadas pelo Condutor.
+          for registro in registros_arquivo(
+              DATA / "resultados_operacoes.json"
+          ):
+              adicionar_operacao(
+                  conduzidas,
+                  registro,
+                  "resultados_operacoes.json"
+              )
+
+          # CSV separa REAL, HIPOTETICA e nao classificada.
+          for registro in ler_csv(
+              DATA / "resultados_operacoes.csv"
+          ):
+              tipo = str(
+                  registro.get("tipo_avaliacao", "")
+              ).strip().upper()
+
+              if tipo == "REAL":
+                  grupo = reais
+              elif tipo == "HIPOTETICA":
+                  grupo = hipoteticas
+              else:
+                  grupo = nao_classificadas
+
+              adicionar_operacao(
+                  grupo,
+                  registro,
+                  "resultados_operacoes.csv"
+              )
+
+          cadastro = {
+              "versao": 2,
+              "atualizado_utc": AGORA.isoformat(),
+              "cadastro_legado_preservado": legado,
+              "operacoes_conduzidas": list(conduzidas.values()),
+              "sinais_reais": list(reais.values()),
+              "avaliacoes_hipoteticas": list(hipoteticas.values()),
+              "nao_classificados": list(nao_classificadas.values()),
+              "totais": {
+                  "conduzidas": len(conduzidas),
+                  "reais": len(reais),
+                  "hipoteticas": len(hipoteticas),
+                  "nao_classificadas": len(nao_classificadas)
+              },
+              "politica": "Separacao por origem; sem apagar registros."
+          }
+
+          salvar_json(
+              DATA / "cadastro_mestre_operacoes.json",
+              cadastro
+          )
+
+          modulo5 = {
+              "modulo": 5,
+              "nome": "organizador_memoria",
+              "cadastro": "data/cadastro_mestre_operacoes.json",
+              "totais": cadastro["totais"],
+              "legado_preservado": legado is not None
+          }
+
+          salvar_json(
+              DATA / "organizado_05_organizador_memoria.json",
+              modulo5
+          )
+
+          print("MODULO 5:", cadastro["totais"])
+
+          # ==================================================
+          # MODULO 6 - ESTATISTICAS E CONSOLIDACAO
+          # ==================================================
+
+          modulo6 = organizar_grupo(
+              6,
+              "estatisticas_consolidacao",
+              [
+                  "tabuleiro_m5.csv",
+                  "tabuleiro_estavel_m5.csv",
+                  "regioes_estaveis_m5.csv",
+                  "transicoes_estaveis_m5.csv",
+                  "eventos_bordas_m5.csv",
+                  "estatisticas_regioes_m5.csv",
+                  "transicoes_probabilidade_m5.csv",
+                  "sequencias_provaveis_m5.csv",
+                  "proximas_regioes_m5.json",
+                  "resultados_eventos_m5.csv",
+                  "resumo_resultados_m5.csv",
+                  "relatorio_tabuleiro_m5.json",
+                  "relatorio_tabuleiro_m5.csv",
+                  "contexto_tabuleiro_m5.json",
+                  "contexto_inteligente_acompanhador.json"
+              ]
+          )
+
+          # O banco SQLite e inventariado sem alterar suas tabelas.
+          banco = DATA / "tabuleiro_m5.db"
+          if banco.exists():
+              with sqlite3.connect(
+                  f"file:{banco.resolve()}?mode=ro",
+                  uri=True
+              ) as con:
+                  tabelas = con.execute(
+                      "SELECT name FROM sqlite_master "
+                      "WHERE type='table' ORDER BY name"
+                  ).fetchall()
+
+              modulo6["banco_sqlite"] = {
+                  "arquivo": str(banco),
+                  "sha256": hash_arquivo(banco),
+                  "tabelas": [x[0] for x in tabelas]
+              }
+
+              salvar_json(
+                  DATA / "organizado_06_estatisticas_consolidacao.json",
+                  modulo6
+              )
+
+          # ==================================================
+          # INDICE GERAL - NUMERACAO E CODIFICACAO
+          # ==================================================
+
+          grupos = [
+              modulo1,
+              modulo2,
+              modulo3,
+              modulo4,
+              modulo5,
+              modulo6
+          ]
+
+          inventario = []
+
+          for path in sorted(DATA.rglob("*")):
+              if not path.is_file():
+                  continue
+
+              if path.name.endswith(".tmp"):
+                  continue
+
+              inventario.append({
+                  "codigo_arquivo": "ARQ-XAU-" + hash_texto(
+                      str(path.relative_to(DATA))
+                  ),
+                  "arquivo": str(path),
+                  "bytes": path.stat().st_size,
+                  "sha256": hash_arquivo(path)
+              })
+
+          indice = {
+              "versao": 2,
+              "atualizado_utc": AGORA.isoformat(),
+              "modulos": [
+                  {
+                      "numero": x["modulo"],
+                      "nome": x["nome"],
+                      "total_registros": x.get(
+                          "total_registros_unicos",
+                          x.get("totais", {}).get("reais", 0)
+                      )
+                  }
+                  for x in grupos
+              ],
+              "total_arquivos": len(inventario),
+              "arquivos": inventario
+          }
+
+          salvar_json(
+              DATA / "indice_arquivos_memoria.json",
+              indice
+          )
+
+          relatorio = {
+              "versao": 2,
+              "executado_utc": AGORA.isoformat(),
+              "modulos_executados": 6,
+              "velas": modulo1,
+              "gerador_sinais": {
+                  "arquivos": modulo2["total_arquivos"],
+                  "registros": modulo2["total_registros_unicos"]
+              },
+              "memoria_persistente": {
+                  "arquivos": modulo3["total_arquivos"],
+                  "registros": modulo3["total_registros_unicos"]
+              },
+              "condutor": {
+                  "arquivos": modulo4["total_arquivos"],
+                  "registros": modulo4["total_registros_unicos"]
+              },
+              "operacoes": cadastro["totais"],
+              "estatisticas": {
+                  "arquivos": modulo6["total_arquivos"],
+                  "registros": modulo6["total_registros_unicos"]
+              },
+              "indice_geral": "data/indice_arquivos_memoria.json",
+              "originais_removidos": 0
+          }
+
+          salvar_json(
+              DATA / "relatorio_organizador_memoria.json",
+              relatorio
+          )
+
+          print(json.dumps(
+              relatorio,
+              ensure_ascii=False,
+              indent=2
+          ))
+
+          print("ORGANIZADOR_DEFINITIVO_XAU=OK")
+          PY
+
+      - name: Validar os seis modulos
+        run: |
+          set -euo pipefail
+
+          arquivos=(
+            data/organizado_01_graficos_velas.json
+            data/organizado_02_gerador_sinais.json
+            data/organizado_03_memoria_persistente.json
+            data/organizado_04_condutor_operacoes.json
+            data/organizado_05_organizador_memoria.json
+            data/organizado_06_estatisticas_consolidacao.json
+            data/cadastro_mestre_operacoes.json
+            data/indice_arquivos_memoria.json
+            data/relatorio_organizador_memoria.json
+            data/velas_m5_ativas_90d.csv
+            data/arquivo_memoria/velas_m5_anteriores.csv.gz
+          )
+
+          for arquivo in "${arquivos[@]}"; do
+            test -s "$arquivo" || {
+              echo "::error::Arquivo ausente ou vazio: $arquivo"
+              exit 1
+            }
+          done
 
           python - <<'PY'
-          import gzip
           import json
           from pathlib import Path
 
-          json.loads(
-              Path("data/cadastro_mestre_operacoes.json")
-              .read_text(encoding="utf-8")
-          )
+          nomes = [
+              "organizado_01_graficos_velas.json",
+              "organizado_02_gerador_sinais.json",
+              "organizado_03_memoria_persistente.json",
+              "organizado_04_condutor_operacoes.json",
+              "organizado_05_organizador_memoria.json",
+              "organizado_06_estatisticas_consolidacao.json",
+              "cadastro_mestre_operacoes.json",
+              "indice_arquivos_memoria.json",
+              "relatorio_organizador_memoria.json"
+          ]
 
-          json.loads(
-              Path("data/relatorio_organizador_memoria.json")
-              .read_text(encoding="utf-8")
-          )
+          for nome in nomes:
+              json.loads(
+                  (Path("data") / nome).read_text(encoding="utf-8")
+              )
 
-          with gzip.open(
-              "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
-              "rt",
-              encoding="utf-8"
-          ) as arquivo:
-              arquivo.readline()
-
-          print("Arquivos validados.")
+          print("Os seis modulos e os arquivos mestres foram validados.")
           PY
 
-      - name: Salvar memoria organizada
+      - name: Salvar organizacao no repositorio
+        if: success()
         run: |
           set -euo pipefail
 
@@ -89,28 +748,26 @@ jobs:
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add organizador_memoria_xau.py \
-            data/cadastro_mestre_operacoes.json \
-            data/velas_m5_ativas_90d.csv \
-            data/arquivo_memoria/velas_m5_anteriores.csv.gz \
-            data/indice_arquivos_memoria.json \
-            data/relatorio_organizador_memoria.json
+          git add data/
 
           if ! git diff --cached --quiet; then
-            git commit -m "Organiza memoria XAUUSD e arquiva velas antigas"
+            git commit -m "Organizador definitivo de dados XAUUSD"
             git push origin HEAD:main
           else
-            echo "Memoria ja estava organizada."
+            echo "Dados ja organizados. Nenhuma alteracao."
           fi
 
-      - name: Publicar relatorio
+      - name: Publicar relatorio organizado
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: relatorio-organizador-memoria-xau
+          name: organizador-definitivo-xauusd
           path: |
-            data/relatorio_organizador_memoria.json
+            data/organizado_*.json
             data/cadastro_mestre_operacoes.json
             data/indice_arquivos_memoria.json
+            data/relatorio_organizador_memoria.json
+            data/velas_m5_ativas_90d.csv
+            data/arquivo_memoria/velas_m5_anteriores.csv.gz
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 90
