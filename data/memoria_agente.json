@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T22:11:21.852603+00:00",
-  "total_registros": 237,
+  "atualizado_utc": "2026-11-10T22:16:07.806695+00:00",
+  "total_registros": 238,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3823,6 +3823,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T22:11:21.852603+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T22:10:00+00:00",
+      "id_sinal": 42912854657,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de indecisão estrutural, operando em uma zona de transição lateral. Embora as EMAs de curto prazo indiquem um alinhamento de alta no M5, o contexto macro (M15 e H1) é de baixa, criando um conflito de direções. O preço está oscilando em uma região de suporte imediato (4032.0 - 4033.5) com baixa liquidez e transições históricas dispersas, o que não oferece uma vantagem estatística clara para uma entrada direcional neste momento.",
+      "atr14": 1.83104,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T22:16:07.806695+00:00"
     }
   ]
 }
