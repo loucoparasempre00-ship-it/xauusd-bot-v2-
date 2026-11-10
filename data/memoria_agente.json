@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T18:51:36.258223+00:00",
-  "total_registros": 197,
+  "atualizado_utc": "2026-11-10T18:56:42.374630+00:00",
+  "total_registros": 198,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2863,6 +2863,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T18:51:36.258223+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T18:50:00+00:00",
+      "id_sinal": 42880064330,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de indecisão técnica clara. Embora o M5 apresente uma tendência de alta de curto prazo com o preço acima das EMAs 6 e 20, a estrutura macro (M15 e H1) permanece baixista. O preço está comprimido entre uma resistência imediata em 4028.95-4031.12 e um suporte próximo em 4027.87-4028.64, caracterizando uma zona de alta densidade de transições sem direção definida. A ausência de volume validado e a divergência entre as tendências de diferentes timeframes sugerem cautela, sendo prudente aguardar um rompimento claro da zona de consolidação atual antes de assumir qualquer posição.",
+      "atr14": 3.52486,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T18:56:42.374630+00:00"
     }
   ]
 }
