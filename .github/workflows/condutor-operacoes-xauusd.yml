@@ -1,0 +1,485 @@
+
+name: Condutor de Operacoes XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Memoria Persistente XAUUSD"
+    types:
+      - completed
+
+  workflow_dispatch:
+    inputs:
+      memoria_run_id:
+        description: "ID da execucao da Memoria Persistente (opcional)"
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+# Compartilha o bloqueio com a Memoria Persistente.
+# Evita que os dois workflows gravem data/ simultaneamente.
+concurrency:
+  group: memoria-persistente-xau
+  cancel-in-progress: false
+
+jobs:
+  condutor:
+    name: Condutor + Controle de Operacoes
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ==========================================
+      # 1. PREPARACAO
+      # ==========================================
+
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Preparar diretorios
+        run: mkdir -p data
+
+      # ==========================================
+      # 2. RECEPCAO DE EMERGENCIA - RESET
+      # ==========================================
+
+      - name: Verificar comando RESET
+        id: reset
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import requests
+          from pathlib import Path
+
+          token = os.environ["TELEGRAM_TOKEN"]
+          chat_id = str(os.environ["TELEGRAM_CHAT_ID"])
+
+          arquivo = Path("data/acompanhamento_autonomo_estado.json")
+          arquivo.parent.mkdir(parents=True, exist_ok=True)
+
+          estado = {
+              "ultimo_update_id": 0,
+              "operacao": None,
+              "operacoes": []
+          }
+
+          if arquivo.exists():
+              try:
+                  dados = json.loads(
+                      arquivo.read_text(encoding="utf-8")
+                  )
+                  if isinstance(dados, dict):
+                      estado.update(dados)
+              except Exception as erro:
+                  raise SystemExit(
+                      f"Estado operacional invalido: {erro}"
+                  )
+
+          url = f"https://api.telegram.org/bot{token}"
+
+          resposta = requests.get(
+              f"{url}/getUpdates",
+              params={
+                  "offset": int(estado.get("ultimo_update_id", 0)) + 1,
+                  "timeout": 0,
+                  "allowed_updates": json.dumps(["message"])
+              },
+              timeout=20
+          )
+
+          resposta.raise_for_status()
+          retorno = resposta.json()
+
+          if not retorno.get("ok"):
+              raise SystemExit("Telegram nao confirmou getUpdates.")
+
+          atualizacoes = retorno.get("result", [])
+          reset_encontrado = False
+
+          for item in atualizacoes:
+              mensagem = item.get("message", {})
+              chat = str(mensagem.get("chat", {}).get("id", ""))
+
+              if chat != chat_id:
+                  continue
+
+              texto = (mensagem.get("text") or "").strip()
+              comando = texto.split()[0].split("@")[0].upper() if texto else ""
+
+              if comando in ("RESET", "/RESET"):
+                  reset_encontrado = True
+
+          if not reset_encontrado:
+              with open(
+                  os.environ["GITHUB_OUTPUT"],
+                  "a",
+                  encoding="utf-8"
+              ) as saida:
+                  saida.write("activated=false\n")
+
+              print("Nenhum RESET recebido.")
+              raise SystemExit(0)
+
+          # Consome todos os comandos pendentes desta consulta.
+          # O RESET encerra o ciclo e impede que comandos antigos
+          # sejam executados depois dele.
+          if atualizacoes:
+              maior_id = max(
+                  int(item["update_id"])
+                  for item in atualizacoes
+              )
+
+              estado["ultimo_update_id"] = max(
+                  int(estado.get("ultimo_update_id", 0)),
+                  maior_id
+              )
+
+          # Limpa somente o estado operacional.
+          # O historico e os resultados nao sao apagados.
+          estado["operacao"] = None
+          estado["operacoes"] = []
+          estado["monitoramento_ativo"] = False
+
+          temporario = arquivo.with_suffix(".tmp")
+          temporario.write_text(
+              json.dumps(estado, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+          temporario.replace(arquivo)
+
+          resposta = requests.post(
+              f"{url}/sendMessage",
+              json={
+                  "chat_id": chat_id,
+                  "text": (
+                      "RESET DO CONDUTOR CONCLUIDO.\n\n"
+                      "Acompanhamento desligado.\n"
+                      "Operacoes ativas: 0.\n"
+                      "Comandos pendentes descartados.\n"
+                      "Historico e resultados preservados.\n\n"
+                      "Aguardando um novo comando."
+                  )
+              },
+              timeout=20
+          )
+
+          resposta.raise_for_status()
+
+          if not resposta.json().get("ok"):
+              raise SystemExit("Telegram nao confirmou a resposta do RESET.")
+
+          with open(
+              os.environ["GITHUB_OUTPUT"],
+              "a",
+              encoding="utf-8"
+          ) as saida:
+              saida.write("activated=true\n")
+
+          print("RESET aplicado. Acompanhamento interrompido.")
+          PY
+
+      # ==========================================
+      # 3. IDENTIFICAR A MEMORIA DESTA EXECUCAO
+      # ==========================================
+
+      - name: Identificar execucao da memoria
+        id: memoria
+        if: steps.reset.outputs.activated != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENTO_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID: ${{ inputs.memoria_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RUN_ID="$EVENTO_RUN_ID"
+
+          if [ -n "$INPUT_RUN_ID" ]; then
+            RUN_ID="$INPUT_RUN_ID"
+          fi
+
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow memoria-persistente-xauusd.yml \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')"
+          fi
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "::error::Execucao da Memoria nao encontrada."
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+          echo "Memoria identificada: $RUN_ID"
+
+      # ==========================================
+      # 4. PROTECAO CONTRA EXECUCAO DUPLICADA
+      # ==========================================
+
+      - name: Verificar se memoria ja foi processada
+        id: duplicidade
+        if: steps.reset.outputs.activated != 'true'
+        env:
+          RUN_ID: ${{ steps.memoria.outputs.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          caminho = Path("data/condutor_ultima_memoria_run.json")
+          atual = str(os.environ["RUN_ID"])
+
+          anterior = ""
+
+          if caminho.exists():
+              try:
+                  dados = json.loads(
+                      caminho.read_text(encoding="utf-8")
+                  )
+                  anterior = str(dados.get("memoria_run_id", ""))
+              except Exception:
+                  anterior = ""
+
+          repetido = anterior == atual
+
+          with open(
+              os.environ["GITHUB_OUTPUT"],
+              "a",
+              encoding="utf-8"
+          ) as saida:
+              saida.write(
+                  f"repetido={'true' if repetido else 'false'}\n"
+              )
+
+          if repetido:
+              print("Esta execucao da Memoria ja foi processada.")
+          else:
+              print("Nova execucao autorizada.")
+          PY
+
+      # ==========================================
+      # 5. RECEBER PACOTE DA MEMORIA PERSISTENTE
+      # ==========================================
+
+      - name: Baixar pacote da Memoria
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.memoria.outputs.run_id }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p /tmp/memoria-condutor
+
+          gh run download "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name memoria-xauusd-condutor \
+            --dir /tmp/memoria-condutor
+
+          if [ -f /tmp/memoria-condutor/memoria_agente.json ]; then
+            cp -a /tmp/memoria-condutor/. data/
+          elif [ -f /tmp/memoria-condutor/data/memoria_agente.json ]; then
+            cp -a /tmp/memoria-condutor/data/. data/
+          else
+            echo "::error::Memoria do Condutor nao encontrada no artefato."
+            find /tmp/memoria-condutor -maxdepth 3 -type f
+            exit 1
+          fi
+
+      # ==========================================
+      # 6. VALIDAR ENTRADAS
+      # ==========================================
+
+      - name: Validar pacote operacional
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        run: |
+          set -euo pipefail
+
+          required=(
+            data/memoria_agente.json
+            data/pacote_memoria_condutor.json
+            data/contexto_inteligente_acompanhador.json
+            data/historico_velas_m5.csv
+          )
+
+          for arquivo in "${required[@]}"; do
+            if [ ! -s "$arquivo" ]; then
+              echo "::error::Arquivo ausente ou vazio: $arquivo"
+              exit 1
+            fi
+          done
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          caminho = Path("data/pacote_memoria_condutor.json")
+          pacote = json.loads(caminho.read_text(encoding="utf-8"))
+
+          if not isinstance(pacote, dict):
+              raise SystemExit("Pacote da memoria invalido.")
+
+          candle = pacote.get("candle_utc")
+
+          if not candle:
+              raise SystemExit("Pacote sem candle_utc.")
+
+          print("Pacote operacional validado.")
+          print("Candle:", candle)
+          PY
+
+      # ==========================================
+      # 7. RECEBER E PROCESSAR COMANDOS
+      # ==========================================
+
+      - name: Executar acompanhamento operacional
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -u acompanhamento_autonomo_xau.py
+
+      # ==========================================
+      # 8. ATUALIZAR RESULTADOS E MEMORIA
+      # ==========================================
+
+      - name: Atualizar resultados das operacoes
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        run: |
+          python -u acompanhar_operacoes_xau.py
+
+      - name: Atualizar memoria adaptativa
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        run: |
+          python -u memoria_persistente_gemini.py
+
+      # ==========================================
+      # 9. MARCAR EXECUCAO CONCLUIDA
+      # ==========================================
+
+      - name: Registrar memoria processada
+        id: finalizar
+        if: >-
+          steps.reset.outputs.activated != 'true' &&
+          steps.duplicidade.outputs.repetido != 'true'
+        env:
+          RUN_ID: ${{ steps.memoria.outputs.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          pacote_path = Path("data/pacote_memoria_condutor.json")
+          pacote = json.loads(
+              pacote_path.read_text(encoding="utf-8")
+          )
+
+          registro = {
+              "memoria_run_id": str(os.environ["RUN_ID"]),
+              "candle_utc": pacote.get("candle_utc"),
+              "processado_utc": datetime.now(
+                  timezone.utc
+              ).isoformat()
+          }
+
+          Path("data/condutor_ultima_memoria_run.json").write_text(
+              json.dumps(registro, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print("Execucao registrada como concluida.")
+          PY
+
+      # ==========================================
+      # 10. PERSISTIR ESTADO
+      # ==========================================
+
+      - name: Salvar estado e historico
+        if: >-
+          always() &&
+          (
+            steps.reset.outputs.activated == 'true' ||
+            steps.finalizar.outcome == 'success'
+          )
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza Condutor de Operacoes XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "Nenhuma alteracao para salvar."
+          fi
+
+      # ==========================================
+      # 11. PUBLICAR ESTADO DO CONDUTOR
+      # ==========================================
+
+      - name: Publicar relatorio do Condutor
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-condutor-operacoes-xauusd
+          path: |
+            data/acompanhamento_autonomo_estado.json
+            data/resultados_operacoes.json
+            data/resultados_operacoes.csv
+            data/condutor_ultima_memoria_run.json
+            data/decisao_agente_operacional.json
+          if-no-files-found: warn
+          retention-days: 30
