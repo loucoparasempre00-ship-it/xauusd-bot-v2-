@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T22:16:07.806695+00:00",
-  "total_registros": 238,
+  "atualizado_utc": "2026-11-10T22:21:21.990670+00:00",
+  "total_registros": 239,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3847,6 +3847,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T22:16:07.806695+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T22:15:00+00:00",
+      "id_sinal": 42913660785,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de indecisão estrutural no M5, operando dentro de uma zona de suporte imediato (4032.09 - 4032.96) enquanto as tendências de prazos maiores (M15 e H1) permanecem baixistas. Embora as EMAs 6 e 20 indiquem um alinhamento de curta duração para alta, o preço está estagnado em uma região de transição com baixa probabilidade estatística de rompimento imediato. A ausência de volume validado e a divergência entre a tendência local e a macro sugerem cautela, sem gatilhos claros para uma entrada direcional.",
+      "atr14": 1.78675,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T22:21:21.990670+00:00"
     }
   ]
 }
