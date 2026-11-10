@@ -1046,5 +1046,48 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T18:26:22.541478+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T18:25:00+00:00",
+    "id_sinal": 42875887208,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 50.0,
+    "pontuacao_compra": 0.0,
+    "pontuacao_venda": 50.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 3.4292,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T18:25:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 55,
+      "justificativa": "Embora a tendência macro e as EMAs no M5 indiquem baixa, o preço está operando em uma zona de suporte imediato (4013-4021) com múltiplos fundos recentes próximos a 4015. O mercado mostra exaustão de venda no curto prazo, com o preço testando a base de uma região de consolidação. A relação risco-retorno atual é prejudicada pela proximidade do suporte, tornando a entrada de venda arriscada sem um rompimento claro e sustentado abaixo de 4013.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T18:25:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 0,
+      "pontuacao_venda": 4,
+      "diferenca": -4,
+      "motivos": [
+        "EMA9 abaixo da EMA21 no M5",
+        "Contexto M15 de baixa",
+        "Contexto H1 de baixa",
+        "RSI favorável à venda"
+      ],
+      "preco": 4021.564,
+      "atr_14": 4.006,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T18:31:28.705881+00:00"
   }
 ]

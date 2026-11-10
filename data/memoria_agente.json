@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T18:26:22.541478+00:00",
-  "total_registros": 193,
+  "atualizado_utc": "2026-11-10T18:31:28.705881+00:00",
+  "total_registros": 194,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2767,6 +2767,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T18:26:22.541478+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T18:25:00+00:00",
+      "id_sinal": 42875887208,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 55,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora a tendência macro e as EMAs no M5 indiquem baixa, o preço está operando em uma zona de suporte imediato (4013-4021) com múltiplos fundos recentes próximos a 4015. O mercado mostra exaustão de venda no curto prazo, com o preço testando a base de uma região de consolidação. A relação risco-retorno atual é prejudicada pela proximidade do suporte, tornando a entrada de venda arriscada sem um rompimento claro e sustentado abaixo de 4013.",
+      "atr14": 3.4292,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T18:31:28.705881+00:00"
     }
   ]
 }
