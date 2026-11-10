@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T20:11:16.648560+00:00",
-  "total_registros": 213,
+  "atualizado_utc": "2026-11-10T20:16:12.637789+00:00",
+  "total_registros": 214,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3247,6 +3247,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T20:11:16.648560+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T20:10:00+00:00",
+      "id_sinal": 42893482762,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora o M5 apresente uma tendência de alta de curto prazo com alinhamento de EMAs, o contexto macro (M15 e H1) permanece baixista, criando um conflito de forças. O preço está testando uma resistência imediata (4032.50) e a amostra de transições na região atual é insuficiente para confirmar um rompimento sustentável. A ausência de volume e a divergência entre os tempos gráficos sugerem cautela, sendo mais prudente aguardar um teste de suporte mais sólido ou a superação clara da resistência de 4032.58.",
+      "atr14": 2.91215,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T20:16:12.637789+00:00"
     }
   ]
 }
