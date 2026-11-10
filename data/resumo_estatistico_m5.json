@@ -1,10 +1,10 @@
 {
-  "atualizado_em": "2026-11-10T12:10:11.635682+00:00",
+  "atualizado_em": "2026-11-10T12:15:12.082630+00:00",
   "versao": 1,
   "total_velas": 5001,
   "total_regioes": 182,
   "total_visitas": 5001,
-  "total_transicoes": 2449,
+  "total_transicoes": 2450,
   "minimo_amostras": 20,
   "metodo_confianca": "Wilson 95%",
   "melhores_regioes_rejeicao": [
@@ -42,17 +42,17 @@
     },
     {
       "regiao": 2662,
-      "visitas": 529,
-      "toques": 445,
-      "rejeicoes": 420,
+      "visitas": 528,
+      "toques": 444,
+      "rejeicoes": 419,
       "rompimentos": 3,
-      "prob_rejeicao": 0.4839,
+      "prob_rejeicao": 0.4838,
       "prob_rompimento": 0.0035,
-      "limite_inferior_rejeicao": 0.4508,
-      "amostras": 868,
+      "limite_inferior_rejeicao": 0.4507,
+      "amostras": 866,
       "amostra_suficiente": "SIM",
       "rejeicoes_superiores": 130,
-      "rejeicoes_inferiores": 290,
+      "rejeicoes_inferiores": 289,
       "rompimentos_alta": 1,
       "rompimentos_baixa": 2
     },
@@ -208,7 +208,7 @@
       "transicoes": 2,
       "saidas_origem": 3,
       "probabilidade": 0.6667,
-      "visitas_origem": 5
+      "visitas_origem": 7
     },
     {
       "origem": 2609,
@@ -227,20 +227,20 @@
       "visitas_origem": 7
     },
     {
-      "origem": 2717,
-      "destino": 2716,
-      "transicoes": 4,
-      "saidas_origem": 7,
-      "probabilidade": 0.5714,
-      "visitas_origem": 9
-    },
-    {
       "origem": 2635,
       "destino": 2636,
       "transicoes": 5,
       "saidas_origem": 9,
       "probabilidade": 0.5556,
       "visitas_origem": 10
+    },
+    {
+      "origem": 2671,
+      "destino": 2672,
+      "transicoes": 11,
+      "saidas_origem": 22,
+      "probabilidade": 0.5,
+      "visitas_origem": 30
     }
   ]
 }
