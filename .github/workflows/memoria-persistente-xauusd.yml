@@ -264,6 +264,7 @@ jobs:
 
           registro = {
               "candle_utc": candle,
+              "id_sinal": decisao.get("id_sinal"),
               "sinal": lado,
               "decisao": lado,
               "decisao_final": lado,
@@ -314,6 +315,7 @@ jobs:
 
           item = {
               "candle_utc": candle,
+              "id_sinal": decisao.get("id_sinal"),
               "decisao_final": lado,
               "pontuacao_final": decisao.get("pontuacao_final"),
               "pontuacao_compra": decisao.get("pontuacao_compra"),
