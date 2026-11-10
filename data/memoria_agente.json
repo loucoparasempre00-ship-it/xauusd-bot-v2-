@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T18:21:16.490975+00:00",
-  "total_registros": 192,
+  "atualizado_utc": "2026-11-10T18:26:22.541478+00:00",
+  "total_registros": 193,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2743,6 +2743,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T18:21:16.490975+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T18:20:00+00:00",
+      "id_sinal": 42875043525,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4021.543,
+      "stop": 4026.533,
+      "stop_loss": 4026.533,
+      "gain": 4014.057,
+      "take_profit": 4014.057,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de topos e fundos descendentes no M5, corroborada pelo alinhamento das EMAs e pela tendência macro (M15/H1) de baixa. O preço atual encontra-se em uma região de transição delicada (4021.54), logo abaixo da resistência imediata de 4022.36. Embora o RSI não esteja em sobrecompra extrema, a pressão vendedora é consistente. A cautela é necessária pois o preço está testando uma zona de suporte local (4013-4021), mas a tendência de baixa prevalece e favorece a continuidade do movimento para buscar os alvos inferiores.",
+      "atr14": 3.32674,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T18:26:22.541478+00:00"
     }
   ]
 }
