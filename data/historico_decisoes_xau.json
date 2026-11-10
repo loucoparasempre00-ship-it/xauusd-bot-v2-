@@ -2677,5 +2677,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T22:01:51.036034+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T22:00:00+00:00",
+    "id_sinal": 42911258041,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 25.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 25.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.08753,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T22:00:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 45,
+      "justificativa": "O mercado encontra-se em um estado de indecisão estrutural, operando em uma zona de transição lateral. Embora as EMAs no M5 indiquem um alinhamento de alta, a tendência nos tempos gráficos superiores (M15 e H1) é de baixa, criando um conflito de fluxo. O preço está contido entre suportes e resistências imediatas sem volume ou impulso claro para romper a região de 4032-4036. A análise do tabuleiro estável mostra alta dispersão nas transições, confirmando a falta de uma direção definida no momento.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T22:00:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 4032.956,
+      "atr_14": 2.512,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T22:06:13.380835+00:00"
   }
 ]
