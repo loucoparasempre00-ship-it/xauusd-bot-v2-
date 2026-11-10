@@ -1,0 +1,116 @@
+
+name: Organizador e Limpador de Memoria XAUUSD
+
+on:
+  workflow_dispatch:
+
+  workflow_run:
+    workflows:
+      - Central Inteligente XAUUSD
+    types:
+      - completed
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: organizador-memoria-xauusd
+  cancel-in-progress: false
+
+jobs:
+  organizar:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Executar organizador
+        env:
+          DIAS_VELAS_ATIVAS: "90"
+        run: python -u organizador_memoria_xau.py
+
+      - name: Validar arquivos
+        run: |
+          set -euo pipefail
+
+          test -s data/cadastro_mestre_operacoes.json
+          test -s data/velas_m5_ativas_90d.csv
+          test -s data/indice_arquivos_memoria.json
+          test -s data/relatorio_organizador_memoria.json
+          test -s data/arquivo_memoria/velas_m5_anteriores.csv.gz
+
+          python - <<'PY'
+          import gzip
+          import json
+          from pathlib import Path
+
+          json.loads(
+              Path("data/cadastro_mestre_operacoes.json")
+              .read_text(encoding="utf-8")
+          )
+
+          json.loads(
+              Path("data/relatorio_organizador_memoria.json")
+              .read_text(encoding="utf-8")
+          )
+
+          with gzip.open(
+              "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
+              "rt",
+              encoding="utf-8"
+          ) as arquivo:
+              arquivo.readline()
+
+          print("Arquivos validados.")
+          PY
+
+      - name: Salvar memoria organizada
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add organizador_memoria_xau.py \
+            data/cadastro_mestre_operacoes.json \
+            data/velas_m5_ativas_90d.csv \
+            data/arquivo_memoria/velas_m5_anteriores.csv.gz \
+            data/indice_arquivos_memoria.json \
+            data/relatorio_organizador_memoria.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Organiza memoria XAUUSD e arquiva velas antigas"
+            git push origin HEAD:main
+          else
+            echo "Memoria ja estava organizada."
+          fi
+
+      - name: Publicar relatorio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-organizador-memoria-xau
+          path: |
+            data/relatorio_organizador_memoria.json
+            data/cadastro_mestre_operacoes.json
+            data/indice_arquivos_memoria.json
+          if-no-files-found: warn
+          retention-days: 30
