@@ -1,0 +1,762 @@
+
+name: Gerador de Sinal XAUUSD
+
+on:
+  workflow_run:
+    workflows:
+      - "Grafico XAUUSD"
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: gerador-sinal-xau
+  cancel-in-progress: false
+
+jobs:
+  gerar-sinal:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # RECEBE OS ARQUIVOS DO GRAFICO
+      - name: Receber contexto do Grafico
+        uses: actions/download-artifact@v4
+        with:
+          name: contexto-grafico-xau
+          path: data
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Receber candles M5 fechados
+        uses: actions/download-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data/candles
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Validar arquivos recebidos
+        run: |
+          set -euo pipefail
+
+          test -s data/contexto_inteligente_acompanhador.json
+          test -s data/candles/xauusd_m5_fechados.csv
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          d = json.loads(
+              Path("data/contexto_inteligente_acompanhador.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          if not isinstance(d.get("contexto_tecnico"), dict):
+              raise SystemExit("Contexto tecnico ausente.")
+
+          if not d.get("candle_utc"):
+              raise SystemExit("Candle UTC ausente.")
+
+          print("Arquivos do Grafico validados.")
+          print("Candle:", d["candle_utc"])
+          PY
+
+      # =====================================================
+      # PARTE 1 - SETUP MATEMATICO
+      # =====================================================
+
+      - name: "PARTE 1 - Identificar setup matematico"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          contexto = json.loads(
+              Path("data/contexto_inteligente_acompanhador.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          tecnico = contexto["contexto_tecnico"]
+
+          compra = int(tecnico.get("pontuacao_compra", 0))
+          venda = int(tecnico.get("pontuacao_venda", 0))
+
+          if not (0 <= compra <= 6 and 0 <= venda <= 6):
+              raise SystemExit("Pontuacao matematica invalida.")
+
+          diferenca = compra - venda
+          direcao = "SEM_SETUP"
+
+          if compra >= 4 and diferenca >= 2:
+              direcao = "COMPRA"
+
+          elif venda >= 4 and diferenca <= -2:
+              direcao = "VENDA"
+
+          resultado = {
+              "ativo": "XAUUSD",
+              "timeframe": "M5",
+              "candle_utc": contexto["candle_utc"],
+              "direcao": direcao,
+              "pontuacao_compra": compra,
+              "pontuacao_venda": venda,
+              "diferenca": diferenca,
+              "motivos": tecnico.get("motivos", []),
+              "preco": tecnico.get("preco"),
+              "atr_14": tecnico.get("atr_14"),
+              "tendencia_m5": tecnico.get("tendencia_m5"),
+              "tendencia_m15": tecnico.get("tendencia_m15"),
+              "tendencia_h1": tecnico.get("tendencia_h1")
+          }
+
+          Path("data/sinal_matematico.json").write_text(
+              json.dumps(resultado, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          PY
+
+      # =====================================================
+      # RECEBE O MODELO DO SELETOR EXTERNO
+      # NAO TESTA NEM ESCOLHE MODELOS AQUI
+      # =====================================================
+
+      - name: Receber modelo do Testador e Seletor Gemini
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p data/selecao_ia
+
+          TESTADOR_RUN=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow testador-gemini.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+
+          if [ -z "$TESTADOR_RUN" ]; then
+            echo "Nenhuma execucao bem-sucedida do Seletor encontrada."
+            exit 1
+          fi
+
+          gh run download "$TESTADOR_RUN" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name selecao-modelo-gemini \
+            --dir data/selecao_ia
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          arquivo = Path("data/selecao_ia/modelo_gemini.json")
+
+          if not arquivo.is_file():
+              raise SystemExit("Arquivo do Seletor nao encontrado.")
+
+          d = json.loads(arquivo.read_text(encoding="utf-8"))
+
+          modelo = d.get("modelo_escolhido", "")
+
+          if d.get("status") not in (
+              "pronto",
+              "pronto_com_aviso_api"
+          ):
+              raise SystemExit("Status do Seletor nao permite uso.")
+
+          if not isinstance(modelo, str):
+              raise SystemExit("Modelo invalido.")
+
+          if not modelo.startswith("models/gemini-"):
+              raise SystemExit("Modelo Gemini nao reconhecido.")
+
+          Path("data/modelo_ia_ativo.json").write_text(
+              json.dumps({
+                  "modelo": modelo,
+                  "status": d.get("status"),
+                  "atualizado_utc": d.get("atualizado_utc")
+              }, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print("Modelo recebido:", modelo)
+          PY
+
+      # =====================================================
+      # PARTE 2 - GEMINI
+      # AVALIACAO INDEPENDENTE
+      # =====================================================
+
+      - name: "PARTE 2 - Gemini interpreta o mercado"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+          import urllib.error
+          from pathlib import Path
+
+          chave = os.getenv("GEMINI_API_KEY", "").strip()
+
+          if not chave:
+              raise SystemExit("GEMINI_API_KEY ausente.")
+
+          modelo = json.loads(
+              Path("data/modelo_ia_ativo.json").read_text(
+                  encoding="utf-8"
+              )
+          )["modelo"]
+
+          contexto = json.loads(
+              Path("data/contexto_inteligente_acompanhador.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          setup = json.loads(
+              Path("data/sinal_matematico.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          pacote = {
+              "ativo": "XAUUSD",
+              "candle_utc": contexto.get("candle_utc"),
+              "preco_atual": contexto.get("preco_atual"),
+              "contexto_tecnico": contexto.get("contexto_tecnico"),
+              "contexto_matematico": contexto.get("contexto_matematico"),
+              "tabuleiro_estavel": contexto.get("tabuleiro_estavel"),
+              "estado_central": contexto.get("estado_central"),
+              "avisos": contexto.get("avisos", []),
+              "setup_matematico": setup
+          }
+
+          prompt = """
+          Voce e um analista independente do mercado XAUUSD no M5.
+
+          Analise o mercado com liberdade e adaptabilidade.
+          Nao exija alinhamento perfeito entre M5, M15 e H1.
+          Nao fique limitado a uma lista fixa de padroes.
+
+          Considere tendencia, impulso, estrutura, suportes,
+          resistencias, regioes estaveis, transicoes e qualidade
+          dos dados.
+
+          O setup matematico e uma leitura independente.
+          Voce pode concordar, discordar ou identificar ausencia
+          de oportunidade. Nao copie automaticamente a direcao
+          do setup matematico.
+
+          Nao invente precos ou indicadores.
+          Nao altere pesos, limiar, ATR, stop ou alvo.
+          Nao execute ordens.
+
+          Responda SOMENTE JSON valido:
+          {
+            "decisao": "COMPRA",
+            "confianca": 70,
+            "justificativa": "Explicacao da leitura"
+          }
+
+          A decisao deve ser COMPRA, VENDA ou SEM_SINAL.
+          A confianca deve ser um inteiro de 0 a 100.
+          Ela representa a qualidade da leitura, nao uma
+          probabilidade comprovada de lucro.
+          """
+
+          corpo = {
+              "contents": [{
+                  "parts": [{
+                      "text": prompt + "\n\nDADOS:\n" +
+                      json.dumps(pacote, ensure_ascii=False)
+                  }]
+              }],
+              "generationConfig": {
+                  "temperature": 0.25,
+                  "responseMimeType": "application/json",
+                  "maxOutputTokens": 1200
+              }
+          }
+
+          url = (
+              "https://generativelanguage.googleapis.com/v1beta/"
+              + modelo + ":generateContent"
+          )
+
+          resposta = None
+          ultimo_erro = None
+
+          for tentativa in range(3):
+              req = urllib.request.Request(
+                  url,
+                  data=json.dumps(corpo).encode("utf-8"),
+                  headers={
+                      "Content-Type": "application/json",
+                      "x-goog-api-key": chave
+                  },
+                  method="POST"
+              )
+
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      resposta = json.loads(r.read().decode("utf-8"))
+                  break
+
+              except urllib.error.HTTPError as e:
+                  detalhe = e.read().decode("utf-8", "replace")
+                  ultimo_erro = f"HTTP {e.code}: {detalhe[:800]}"
+
+                  if e.code not in (408, 429, 500, 502, 503, 504):
+                      raise SystemExit("Erro Gemini: " + ultimo_erro)
+
+                  if tentativa == 2:
+                      raise SystemExit("Gemini indisponivel: " + ultimo_erro)
+
+                  time.sleep(3 * (tentativa + 1))
+
+              except Exception as e:
+                  ultimo_erro = str(e)
+
+                  if tentativa == 2:
+                      raise SystemExit("Falha Gemini: " + ultimo_erro)
+
+                  time.sleep(3 * (tentativa + 1))
+
+          if resposta is None:
+              raise SystemExit("Gemini nao retornou resposta.")
+
+          partes = (
+              resposta.get("candidates", [{}])[0]
+              .get("content", {})
+              .get("parts", [])
+          )
+
+          texto = "".join(
+              p.get("text", "") for p in partes
+          ).strip()
+
+          if not texto:
+              raise SystemExit("Resposta vazia do Gemini.")
+
+          try:
+              decisao = json.loads(texto)
+          except json.JSONDecodeError:
+              inicio = texto.find("{")
+              fim = texto.rfind("}")
+
+              if inicio < 0 or fim <= inicio:
+                  raise SystemExit("JSON Gemini invalido.")
+
+              decisao = json.loads(texto[inicio:fim + 1])
+
+          lado = decisao.get("decisao")
+
+          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
+              raise SystemExit("Decisao Gemini invalida.")
+
+          confianca = int(decisao.get("confianca", 0))
+
+          if not 0 <= confianca <= 100:
+              raise SystemExit("Confianca Gemini invalida.")
+
+          resultado = {
+              "ativo": "XAUUSD",
+              "candle_utc": contexto.get("candle_utc"),
+              "decisao": lado,
+              "confianca": confianca,
+              "justificativa": str(
+                  decisao.get("justificativa", "")
+              )[:1800],
+              "modelo_utilizado": modelo
+          }
+
+          Path("data/avaliacao_gemini.json").write_text(
+              json.dumps(resultado, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          PY
+
+      # =====================================================
+      # PARTE 3 - DECISOR FINAL ALGORITMICO
+      # PARAMETROS CONTROLADOS SOMENTE AQUI
+      # =====================================================
+
+      - name: "PARTE 3 - Decisor Final algoritmico"
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import math
+          from pathlib import Path
+
+          setup = json.loads(
+              Path("data/sinal_matematico.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          ia = json.loads(
+              Path("data/avaliacao_gemini.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          # PARAMETROS FIXOS DO DECISOR FINAL
+          PESO_TECNICO = 75.0
+          PESO_GEMINI = 25.0
+          LIMIAR = 40.0
+          MULTIPLICADOR_ATR = 1.5
+          RR = 1.5
+
+          compra = int(setup["pontuacao_compra"])
+          venda = int(setup["pontuacao_venda"])
+
+          contribuicao_compra = (
+              PESO_GEMINI * ia["confianca"] / 100
+              if ia["decisao"] == "COMPRA" else 0
+          )
+
+          contribuicao_venda = (
+              PESO_GEMINI * ia["confianca"] / 100
+              if ia["decisao"] == "VENDA" else 0
+          )
+
+          score_compra = round(
+              (compra / 6) * PESO_TECNICO
+              + contribuicao_compra, 2
+          )
+
+          score_venda = round(
+              (venda / 6) * PESO_TECNICO
+              + contribuicao_venda, 2
+          )
+
+          if ia["decisao"] == "SEM_SINAL":
+              lado = "SEM_SINAL"
+              score = max(score_compra, score_venda)
+
+          elif score_compra >= LIMIAR and score_compra > score_venda:
+              lado = "COMPRA"
+              score = score_compra
+
+          elif score_venda >= LIMIAR and score_venda > score_compra:
+              lado = "VENDA"
+              score = score_venda
+
+          else:
+              lado = "SEM_SINAL"
+              score = max(score_compra, score_venda)
+
+          arquivo_csv = Path("data/candles/xauusd_m5_fechados.csv")
+
+          with arquivo_csv.open(
+              encoding="utf-8-sig",
+              newline=""
+          ) as f:
+              leitor = csv.DictReader(f)
+
+              def normalizar(s):
+                  return "".join(
+                      c.lower() for c in s.strip()
+                      if c.isalnum()
+                  )
+
+              colunas = {
+                  normalizar(x): x
+                  for x in (leitor.fieldnames or [])
+              }
+
+              def coluna(*nomes):
+                  for nome in nomes:
+                      if normalizar(nome) in colunas:
+                          return colunas[normalizar(nome)]
+
+                  raise SystemExit(
+                      "Coluna ausente: " + ", ".join(nomes)
+                  )
+
+              hi = coluna("high", "max", "maximum", "maxima", "máxima")
+              lo = coluna("low", "min", "minimum", "minima", "mínima")
+              cl = coluna("close", "fechamento", "last", "preco_fechamento")
+
+              linhas = list(leitor)
+
+          if len(linhas) < 15:
+              raise SystemExit("Historico insuficiente para ATR14.")
+
+          def numero(linha, campo):
+              valor = float(
+                  str(linha[campo]).strip().replace(",", ".")
+              )
+
+              if not math.isfinite(valor):
+                  raise ValueError("Preco invalido.")
+
+              return valor
+
+          candles = [
+              (
+                  numero(r, hi),
+                  numero(r, lo),
+                  numero(r, cl)
+              )
+              for r in linhas
+          ]
+
+          trs = []
+
+          for i in range(len(candles) - 14, len(candles)):
+              maxima, minima, fechamento = candles[i]
+              anterior = candles[i - 1][2]
+
+              trs.append(max(
+                  maxima - minima,
+                  abs(maxima - anterior),
+                  abs(minima - anterior)
+              ))
+
+          atr = sum(trs) / 14
+          entrada = candles[-1][2]
+
+          if atr <= 0 or not math.isfinite(atr):
+              raise SystemExit("ATR14 invalido.")
+
+          distancia_stop = atr * MULTIPLICADOR_ATR
+          distancia_alvo = distancia_stop * RR
+
+          stop = None
+          alvo = None
+
+          if lado == "COMPRA":
+              stop = entrada - distancia_stop
+              alvo = entrada + distancia_alvo
+
+          elif lado == "VENDA":
+              stop = entrada + distancia_stop
+              alvo = entrada - distancia_alvo
+
+          resultado = {
+              "ativo": "XAUUSD",
+              "timeframe": "M5",
+              "candle_utc": setup["candle_utc"],
+              "decisao_final": lado,
+              "pontuacao_final": score,
+              "pontuacao_compra": score_compra,
+              "pontuacao_venda": score_venda,
+              "setup_matematico": setup,
+              "avaliacao_gemini": ia,
+              "pesos": {
+                  "tecnico": PESO_TECNICO,
+                  "gemini": PESO_GEMINI
+              },
+              "limiar": LIMIAR,
+              "atr14": round(atr, 5),
+              "multiplicador_atr_stop": MULTIPLICADOR_ATR,
+              "rr": RR,
+              "entrada": round(entrada, 3) if stop is not None else None,
+              "stop_loss": round(stop, 3) if stop is not None else None,
+              "take_profit": round(alvo, 3) if alvo is not None else None,
+              "distancia_stop": round(distancia_stop, 3),
+              "distancia_alvo": round(distancia_alvo, 3),
+              "envio_telegram": False,
+              "execucao_ordens": False
+          }
+
+          Path("data/decisao_final.json").write_text(
+              json.dumps(resultado, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          print(json.dumps(resultado, ensure_ascii=False, indent=2))
+          PY
+
+      # =====================================================
+      # CONTROLE DE DUPLICIDADE
+      # =====================================================
+
+      - name: Recuperar historico de sinais
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data/historico_anterior
+
+          RUN_ID=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow gerador-sinal-xau.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" \
+              --repo "$GITHUB_REPOSITORY" \
+              --name historico-gerador-sinal-xau \
+              --dir data/historico_anterior || true
+          fi
+
+      - name: Enviar sinal aprovado e registrar historico
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.parse
+          from pathlib import Path
+
+          atual_path = Path("data/decisao_final.json")
+          atual = json.loads(
+              atual_path.read_text(encoding="utf-8")
+          )
+
+          historico_path = Path(
+              "data/historico_anterior/historico_sinais.json"
+          )
+
+          historico = []
+
+          if historico_path.exists():
+              try:
+                  historico = json.loads(
+                      historico_path.read_text(encoding="utf-8")
+                  )
+              except Exception:
+                  historico = []
+
+          if not isinstance(historico, list):
+              historico = []
+
+          lado = atual["decisao_final"]
+          candle = atual["candle_utc"]
+
+          duplicado = any(
+              isinstance(x, dict)
+              and x.get("candle_utc") == candle
+              and x.get("decisao_final") == lado
+              and x.get("envio_telegram") is True
+              for x in historico
+          )
+
+          if lado not in ("COMPRA", "VENDA"):
+              print("SEM_SINAL: nenhuma mensagem enviada.")
+
+          elif duplicado:
+              print("Sinal deste candle ja foi enviado anteriormente.")
+
+          else:
+              token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+              chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+              if not token or not chat:
+                  raise SystemExit("Secrets do Telegram ausentes.")
+
+              emoji = "🟢" if lado == "COMPRA" else "🔴"
+              ia = atual["avaliacao_gemini"]
+
+              msg = (
+                  "🥇 <b>XAUUSD · OURO</b>\n"
+                  "⏱ Timeframe: M5\n\n"
+                  f"{emoji} <b>{lado}</b>\n\n"
+                  f"💰 Entrada: <code>{atual['entrada']:.3f}</code>\n"
+                  f"🛑 Stop: <code>{atual['stop_loss']:.3f}</code>\n"
+                  f"🎯 Alvo: <code>{atual['take_profit']:.3f}</code>\n"
+                  f"📊 Pontuacao: <b>{atual['pontuacao_final']}/100</b>\n"
+                  f"🧠 Gemini: {ia['decisao']} ({ia['confianca']}%)\n"
+                  "⚖️ Pesos: 75% matematico / 25% Gemini\n"
+                  "📐 Stop: ATR14 x 1.5 | RR: 1:1.5\n\n"
+                  f"📝 {ia['justificativa'][:700]}\n\n"
+                  f"🕯️ Candle UTC: {candle}\n"
+                  "⚠️ Sinal informativo. Nenhuma ordem foi executada."
+              )
+
+              req = urllib.request.Request(
+                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  data=urllib.parse.urlencode({
+                      "chat_id": chat,
+                      "text": msg,
+                      "parse_mode": "HTML",
+                      "disable_web_page_preview": "true"
+                  }).encode(),
+                  headers={
+                      "Content-Type": "application/x-www-form-urlencoded"
+                  },
+                  method="POST"
+              )
+
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  retorno = json.loads(r.read().decode("utf-8"))
+
+              if not retorno.get("ok"):
+                  raise SystemExit("Telegram nao confirmou o envio.")
+
+              atual["envio_telegram"] = True
+              print("Sinal enviado ao Telegram.")
+
+          historico.append(atual)
+
+          historico = historico[-500:]
+
+          Path("data/historico_sinais.json").write_text(
+              json.dumps(historico, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+
+          atual_path.write_text(
+              json.dumps(atual, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+          PY
+
+      # =====================================================
+      # ENTREGA PARA MEMORIA E CONDUTOR
+      # =====================================================
+
+      - name: Publicar resultado do Gerador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-gerador-sinal-xau
+          path: |
+            data/sinal_matematico.json
+            data/avaliacao_gemini.json
+            data/decisao_final.json
+            data/modelo_ia_ativo.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Guardar historico do Gerador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historico-gerador-sinal-xau
+          path: data/historico_sinais.json
+          if-no-files-found: ignore
+          retention-days: 90
