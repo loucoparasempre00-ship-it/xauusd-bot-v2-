@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T11:06:24.898627+00:00",
-  "total_registros": 173,
+  "atualizado_utc": "2026-11-10T11:11:12.379334+00:00",
+  "total_registros": 174,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2304,6 +2304,29 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T11:06:24.898627+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T11:05:00+00:00",
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 62.5,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 62.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora a tendência macro e micro seja de baixa, o preço está operando em uma região de suporte imediato (4068.67 - 4068.93) e apresenta um RSI de 21.65, indicando exaustão vendedora no curto prazo. O risco de uma correção técnica ou repique é alto antes de qualquer continuação da queda, tornando a entrada de venda atual pouco atrativa em termos de Risco/Retorno.",
+      "atr14": 3.50402,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T11:11:12.379334+00:00"
     }
   ]
 }
