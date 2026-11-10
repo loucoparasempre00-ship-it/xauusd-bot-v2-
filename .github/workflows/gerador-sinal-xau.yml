@@ -793,10 +793,14 @@ jobs:
                   f"📝 {ia['justificativa'][:700]}\n\n"
                   f"🕯️ Candle UTC: {candle}\n\n"
                   "📲 <b>Copie para ativar o acompanhamento:</b>\n"
-                  f"<pre>ENTREI {atual['id_sinal']} {atual['entrada']:.3f}</pre>\n"
-                  "⚠️ Sinal informativo. Nenhuma ordem foi executada."
+                                     f"<pre>ENTREI 
+                  {atual['id_sinal']} {atual['entrada']:.3f}</
+                  pre>\n"
+                                     "⚠️ Sinal informativo. 
+                  Nenhuma ordem foi executada."
+                                )
 
-              req = urllib.request.Request(
+                                req = urllib.request.Request(
                   f"https://api.telegram.org/bot{token}/sendMessage",
                   data=urllib.parse.urlencode({
                       "chat_id": chat,
