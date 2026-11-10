@@ -2358,5 +2358,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T21:21:57.132557+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T21:20:00+00:00",
+    "id_sinal": 42904902957,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 25.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 25.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.55364,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T21:20:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado encontra-se em um ponto de indecisão técnica. Embora a tendência de curto prazo no M5 seja de alta, com o preço acima das EMAs, há uma divergência clara com as tendências de M15 e H1, que permanecem baixistas. O preço está operando em uma zona de resistência imediata (4032.42 - 4032.58) e o histograma do MACD mostra perda de momentum. A falta de volume (VWAP indisponível) e a baixa pontuação do setup matemático confirmam a ausência de um gatilho claro para entrada, sugerindo cautela e observação de uma possível exaustão compradora nesta região.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T21:20:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 4031.511,
+      "atr_14": 2.715,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T21:28:00.543256+00:00"
   }
 ]
