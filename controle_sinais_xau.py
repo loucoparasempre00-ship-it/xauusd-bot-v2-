@@ -1,3 +1,4 @@
+
 import io
 import json
 import zipfile
@@ -5,6 +6,7 @@ import zipfile
 
 # =========================================================
 # RECUPERAR SINAL POR ID EXATO DA EXECUÇÃO
+# Aceita o novo Gerador e mantém compatibilidade antiga
 # =========================================================
 
 def sinal_por_id(github_get, github, repo, sinal_id):
@@ -21,17 +23,32 @@ def sinal_por_id(github_get, github, repo, sinal_id):
     )
 
     dados = github_get(url).json()
-
     artefatos = dados.get("artifacts", [])
 
+    # Primeiro procura o artefato do novo Gerador
     artefato = next(
         (
             item for item in artefatos
-            if item["name"] == "resultado-agente-gemini"
+            if item.get("name") == "resultado-gerador-sinal-xau"
             and not item.get("expired", False)
         ),
         None
     )
+
+    arquivo_json = "decisao_final.json"
+    formato_novo = artefato is not None
+
+    # Compatibilidade com sinais do Agente Gemini antigo
+    if artefato is None:
+        artefato = next(
+            (
+                item for item in artefatos
+                if item.get("name") == "resultado-agente-gemini"
+                and not item.get("expired", False)
+            ),
+            None
+        )
+        arquivo_json = "decisao_gemini.json"
 
     if not artefato:
         raise RuntimeError(
@@ -47,23 +64,40 @@ def sinal_por_id(github_get, github, repo, sinal_id):
         caminho = next(
             (
                 nome for nome in arquivo.namelist()
-                if nome.endswith("decisao_gemini.json")
+                if nome.endswith(arquivo_json)
             ),
             None
         )
 
         if not caminho:
             raise RuntimeError(
-                "O artefato não contém decisao_gemini.json."
+                f"O artefato não contém {arquivo_json}."
             )
 
         diagnostico = json.loads(
             arquivo.read(caminho).decode("utf-8")
         )
 
-    direcao = str(
-        diagnostico.get("decisao_gemini", "")
-    ).upper()
+    if formato_novo:
+        id_registrado = diagnostico.get("id_sinal")
+
+        if str(id_registrado) != str(run_id):
+            raise RuntimeError(
+                "O ID registrado no sinal não corresponde "
+                "à execução informada."
+            )
+
+        direcao = str(
+            diagnostico.get("decisao_final", "")
+        ).upper()
+
+        # Compatibilidade com o restante do Acompanhador
+        diagnostico["decisao_gemini"] = direcao
+
+    else:
+        direcao = str(
+            diagnostico.get("decisao_gemini", "")
+        ).upper()
 
     enviado = diagnostico.get("envio_telegram") is True
 
@@ -145,7 +179,13 @@ def campo(dados, nomes):
 def preparar_sinal(dados):
     direcao = campo(
         dados,
-        ["decisao_gemini", "direcao", "decisao", "sinal"]
+        [
+            "decisao_gemini",
+            "decisao_final",
+            "direcao",
+            "decisao",
+            "sinal"
+        ]
     )
 
     entrada = campo(
