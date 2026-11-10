@@ -57,43 +57,57 @@ jobs:
           INPUT_GERADOR_RUN_ID: ${{ inputs.gerador_run_id }}
           INPUT_GRAFICO_RUN_ID: ${{ inputs.grafico_run_id }}
         run: |
+          
           set -euo pipefail
 
           GERADOR_RUN_ID="$INPUT_GERADOR_RUN_ID"
 
           if [ -z "$GERADOR_RUN_ID" ]; then
-            GERADOR_RUN_ID="$EVENTO_RUN_ID"
+          GERADOR_RUN_ID="$EVENTO_RUN_ID"
           fi
 
           if [ -z "$GERADOR_RUN_ID" ]; then
             GERADOR_RUN_ID="$(gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow gerador-sinal-xau.yml \
-              --status success \
-              --limit 1 \
-              --json databaseId \
-              --jq '.[0].databaseId // empty')"
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow gerador-sinal-xau.yml \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
           fi
 
           if [ -z "$GERADOR_RUN_ID" ]; then
-            echo "::error::Gerador bem-sucedido nao encontrado."
-            exit 1
+           echo "::error::Gerador nao encontrado."
+           exit 1
           fi
 
-          HEAD_SHA="$(gh api \
+          GERADOR_INICIO="$(gh api \
             "repos/$GITHUB_REPOSITORY/actions/runs/$GERADOR_RUN_ID" \
-            --jq '.head_sha')"
+            --jq '.run_started_at // .created_at')"
 
           GRAFICO_RUN_ID="$INPUT_GRAFICO_RUN_ID"
-
+          
           if [ -z "$GRAFICO_RUN_ID" ]; then
-            GRAFICO_RUN_ID="$(gh api \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/grafico.yml/runs?head_sha=$HEAD_SHA&status=success&per_page=20" \
-              --jq '[.workflow_runs[] | select(.name == "Grafico XAUUSD")] | sort_by(.run_started_at) | reverse | .[0].id // empty')"
+          GRAFICO_RUN_ID="$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/grafico.yml/runs?status=success&per_page=100" \
+          | jq -r --arg inicio "$GERADOR_INICIO" '
+            [
+             .workflow_runs[]
+             | select(
+                 .name == "Grafico XAUUSD"
+                 and .conclusion == "success"
+                 and 
+          (.run_started_at // .created_at) <= $inicio
+                  )
+                ]
+                | sort_by(.run_started_at // .created_at)
+                | last
+                | .id // empty
+              ')"
           fi
 
           if [ -z "$GRAFICO_RUN_ID" ]; then
-            echo "::error::Grafico correspondente nao encontrado."
+            echo "::error::Nenhum Grafico bem-sucedido anterior ao Gerador foi encontrado."
             exit 1
           fi
 
