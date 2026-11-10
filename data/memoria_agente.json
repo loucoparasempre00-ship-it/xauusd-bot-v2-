@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T19:36:05.143514+00:00",
-  "total_registros": 206,
+  "atualizado_utc": "2026-11-10T19:41:16.340014+00:00",
+  "total_registros": 207,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3079,6 +3079,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T19:36:05.143514+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T19:35:00+00:00",
+      "id_sinal": 42887606289,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4026.64,
+      "stop": 4031.092,
+      "stop_loss": 4031.092,
+      "gain": 4019.962,
+      "take_profit": 4019.962,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma divergência entre a tendência de curto prazo (M5 alta) e a estrutura macro (M15/H1 baixa). O preço está testando uma zona de suporte imediato (4026.0 - 4027.5) após uma falha em renovar topos, confirmada pelo rompimento de fundos recentes. Embora o alinhamento das EMAs ainda indique uma tentativa de alta, a pressão vendedora nos tempos gráficos maiores e a exaustão do movimento de alta sugerem uma transição para baixo. A entrada é validada pela confluência entre a estrutura de baixa e a probabilidade de saída da região atual em direção a suportes mais profundos.",
+      "atr14": 2.96807,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T19:41:16.340014+00:00"
     }
   ]
 }
