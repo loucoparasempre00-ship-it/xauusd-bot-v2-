@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T22:56:32.250478+00:00",
-  "total_registros": 246,
+  "atualizado_utc": "2026-11-10T23:02:14.661786+00:00",
+  "total_registros": 247,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4039,6 +4039,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T22:56:32.250478+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T22:55:00+00:00",
+      "id_sinal": 42919606824,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 0,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 16.67,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Gemini indisponivel. Decisor seguira pelo motor matematico. HTTP 503: {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n",
+      "atr14": 0.90521,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T23:02:14.661786+00:00"
     }
   ]
 }
