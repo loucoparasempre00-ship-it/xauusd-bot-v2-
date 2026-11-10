@@ -1,6 +1,6 @@
 {
-  "atualizado_utc": "2026-11-10T00:46:20.720654+00:00",
-  "total_registros": 155,
+  "atualizado_utc": "2026-11-10T00:51:10.057779+00:00",
+  "total_registros": 156,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2006,6 +2006,20 @@
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "justificativa": "O ativo mantém momentum vendedor no M5 com EMA9 abaixo da EMA21 e rompimento de mínima recente. Embora M15 e H1 indiquem tendência de alta, o RSI em 28.75 no M5 sugere sobrevenda, mas com forte pressão baixista. A pontuação de venda (3) supera a de compra (2). O contexto da Central Inteligente situa o preço em uma região de transição (2751) com histórico de saídas para faixas inferiores (2750, 2749), corroborando a probabilidade de continuidade do movimento baixista de curto prazo.",
       "registrado_utc": "2026-11-10T00:46:20.720613+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T00:45:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_ia_original": "VENDA",
+      "entrada": 4126.537,
+      "stop": 4132.178,
+      "gain": 4118.077,
+      "confianca": 65,
+      "pontuacao_final": 41.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo mantém momentum vendedor no M5 com EMA9 abaixo da EMA21 e rompimento de mínima recente. Embora M15 e H1 indiquem tendência de alta, o RSI em 28.75 no M5 sugere sobrevenda, mas com forte pressão baixista. A pontuação de venda (3) supera a de compra (2). O contexto da Central Inteligente situa o preço em uma região de transição (2751) com histórico de saídas para faixas inferiores (2750, 2749), corroborando a probabilidade de continuidade do movimento baixista de curto prazo.",
+      "registrado_utc": "2026-11-10T00:51:10.057744+00:00"
     }
   ]
 }
