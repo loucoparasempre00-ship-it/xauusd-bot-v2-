@@ -777,27 +777,8 @@ jobs:
               emoji = "🟢" if lado == "COMPRA" else "🔴"
               ia = atual["avaliacao_gemini"]
 
+              
               msg = (
-              msg = (
-                "🥇 <b>XAUUSD · OURO</b>\n"
-                "⏱ Timeframe: M5\n\n"
-                f"{emoji} <b>{lado}</b>\n\n"
-                f"💰 Entrada: <code>{atual['entrada']:.3f}</code>\n"
-                f"🛑 Stop: <code>{atual['stop_loss']:.3f}</code>\n"
-                f"🎯 Alvo: <code>{atual['take_profit']:.3f}</code>\n"
-               f"📊 Pontuacao: <b>{atual['pontuacao_final']}/100</b>\n"
-               f"🧠 Gemini: {ia['decisao']} ({ia['confianca']}%)\n"
-               f"⚖️ Pesos: {atual['pesos']['tecnico']:.0f}% "
-               f"matematico / {atual['pesos']['gemini']:.0f}% Gemini\n"
-               f"🔧 Modo: {atual.get('modo_operacao', 'NORMAL')}\n"
-              "📐 Stop: ATR14 x 1.5 | RR: 1:1.5\n\n"
-               f"📝 {ia['justificativa'][:700]}\n\n"
-               f"🕯️ Candle UTC: {candle}\n\n"
-               "📲 <b>Copie para ativar o acompanhamento:</b>\n"
-               f"<pre>ENTREI {atual['id_sinal']} {atual['entrada']:.3f}</pre>\n"
-               "⚠️ Sinal informativo. Nenhuma ordem foi executada."
-          )
-
                   "🥇 <b>XAUUSD · OURO</b>\n"
                   "⏱ Timeframe: M5\n\n"
                   f"{emoji} <b>{lado}</b>\n\n"
@@ -813,14 +794,11 @@ jobs:
                   f"📝 {ia['justificativa'][:700]}\n\n"
                   f"🕯️ Candle UTC: {candle}\n\n"
                   "📲 <b>Copie para ativar o acompanhamento:</b>\n"
-                                     f"<pre>ENTREI 
-                  {atual['id_sinal']} {atual['entrada']:.3f}</
-                  pre>\n"
-                                     "⚠️ Sinal informativo. 
-                  Nenhuma ordem foi executada."
-                                )
+                  f"<pre>ENTREI {atual['id_sinal']} {atual['entrada']:.3f}</pre>\n"
+                  "⚠️ Sinal informativo. Nenhuma ordem foi executada."
+              )
 
-                                req = urllib.request.Request(
+              req = urllib.request.Request(
                   f"https://api.telegram.org/bot{token}/sendMessage",
                   data=urllib.parse.urlencode({
                       "chat_id": chat,
