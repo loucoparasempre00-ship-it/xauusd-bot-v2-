@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T21:11:21.021250+00:00",
-  "total_registros": 225,
+  "atualizado_utc": "2026-11-10T21:15:59.603026+00:00",
+  "total_registros": 226,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3535,6 +3535,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T21:11:21.021250+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T21:10:00+00:00",
+      "id_sinal": 42903243994,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora o M5 apresente uma tendência de alta de curto prazo com alinhamento de EMAs, o contexto macro (M15 e H1) permanece baixista. O preço está comprimido entre uma resistência imediata em 4032.50 e um suporte próximo em 4029.33, com o histograma do MACD indicando perda de momentum comprador. A falta de volume validado e a baixa pontuação do setup matemático sugerem um cenário de consolidação lateral, sem gatilhos claros para uma entrada direcional de alta probabilidade.",
+      "atr14": 2.76812,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T21:15:59.603026+00:00"
     }
   ]
 }
