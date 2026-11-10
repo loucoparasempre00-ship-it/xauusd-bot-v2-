@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T22:06:13.380835+00:00",
-  "total_registros": 236,
+  "atualizado_utc": "2026-11-10T22:11:21.852603+00:00",
+  "total_registros": 237,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3799,6 +3799,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T22:06:13.380835+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T22:05:00+00:00",
+      "id_sinal": 42912055640,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora o M5 apresente um alinhamento de médias móveis de alta, a estrutura macro (M15 e H1) permanece baixista, criando um conflito de prazos. O preço está operando dentro de uma região de suporte imediato (4032.0 - 4033.5) com baixa liquidez e sem um rompimento claro das resistências superiores. A ausência de volume validado e a divergência entre a tendência de curto prazo e a estrutura de médio prazo sugerem cautela, não havendo gatilho matemático ou estrutural suficiente para uma operação direcional neste momento.",
+      "atr14": 1.90508,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T22:11:21.852603+00:00"
     }
   ]
 }
