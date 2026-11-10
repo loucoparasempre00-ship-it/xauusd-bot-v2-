@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T20:31:15.653747+00:00",
-  "total_registros": 217,
+  "atualizado_utc": "2026-11-10T20:36:21.914469+00:00",
+  "total_registros": 218,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3343,6 +3343,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T20:31:15.653747+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T20:30:00+00:00",
+      "id_sinal": 42896814000,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica no M5, operando logo abaixo de uma resistência imediata (4035.18 - 4038.60). Embora a tendência estrutural de curto prazo seja de alta, o alinhamento com M15 e H1 é baixista, criando um conflito de prazos. O preço está testando o limite superior da região atual (4035.0), mas sem volume ou impulso claro para romper a resistência. A falta de alinhamento entre as tendências e a ausência de um setup matemático claro sugerem cautela e aguardo por uma definição de fluxo.",
+      "atr14": 2.9811,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T20:36:21.914469+00:00"
     }
   ]
 }
