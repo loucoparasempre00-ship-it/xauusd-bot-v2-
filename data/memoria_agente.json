@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T19:32:29.757183+00:00",
-  "total_registros": 205,
+  "atualizado_utc": "2026-11-10T19:36:05.143514+00:00",
+  "total_registros": 206,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3055,6 +3055,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T19:32:29.757183+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T19:30:00+00:00",
+      "id_sinal": 42886794738,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 55,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a estrutura de curto prazo no M5 ainda apresente topos e fundos ascendentes, o preço está sendo pressionado por tendências de baixa nos tempos gráficos maiores (M15 e H1). O preço atual de 4028.36 está preso entre uma resistência imediata em 4028.68-4031.12 e um suporte próximo em 4027.87-4028.34. A falta de volume (VWAP indisponível) e a divergência entre a tendência estrutural de alta e a pressão vendedora dos tempos maiores recomendam cautela e aguardo de um rompimento claro de uma das zonas de suporte ou resistência.",
+      "atr14": 3.05424,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T19:36:05.143514+00:00"
     }
   ]
 }
