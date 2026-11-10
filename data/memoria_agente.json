@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T21:41:11.897494+00:00",
-  "total_registros": 231,
+  "atualizado_utc": "2026-11-10T21:46:06.650841+00:00",
+  "total_registros": 232,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3679,6 +3679,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T21:41:11.897494+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T21:40:00+00:00",
+      "id_sinal": 42908115456,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma estrutura de baixa consolidada em todos os tempos gráficos (M5, M15, H1). Embora o preço esteja tentando uma leve recuperação, ele permanece abaixo das EMAs e enfrenta resistências imediatas na zona de 4030-4032. A ausência de volume (VWAP indisponível) e a falta de um setup matemático claro indicam uma zona de indecisão. Não há força compradora suficiente para reverter a tendência estrutural, e a venda carece de um gatilho de exaustão mais definido no momento.",
+      "atr14": 2.6488,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T21:46:06.650841+00:00"
     }
   ]
 }
