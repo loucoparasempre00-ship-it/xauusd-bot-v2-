@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T19:11:14.762843+00:00",
-  "total_registros": 201,
+  "atualizado_utc": "2026-11-10T19:16:13.778837+00:00",
+  "total_registros": 202,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2959,6 +2959,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T19:11:14.762843+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T19:10:00+00:00",
+      "id_sinal": 42883439830,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a estrutura de curto prazo no M5 apresente uma tendência de alta com alinhamento de EMAs, o contexto macro (M15 e H1) permanece baixista, criando um conflito de forças. O preço está testando uma região de suporte imediato (4027.87 - 4029.69), mas a falta de volume validado e a divergência entre as tendências de diferentes timeframes sugerem cautela. Não há um setup claro de rompimento ou reversão consolidado, mantendo a neutralidade até que o preço defina uma direção fora desta zona de consolidação estreita.",
+      "atr14": 3.31434,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T19:16:13.778837+00:00"
     }
   ]
 }
