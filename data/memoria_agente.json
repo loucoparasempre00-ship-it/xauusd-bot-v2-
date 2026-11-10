@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T21:01:10.772348+00:00",
-  "total_registros": 223,
+  "atualizado_utc": "2026-11-10T21:06:39.205883+00:00",
+  "total_registros": 224,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3487,6 +3487,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T21:01:10.772348+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T21:00:00+00:00",
+      "id_sinal": 42901597148,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um ponto de equilíbrio técnico crítico. O preço está operando exatamente entre as EMAs 6 e 20, com o MACD apresentando um histograma quase nulo, indicando exaustão do movimento recente. Embora a estrutura de topos e fundos no M5 ainda sugira uma tendência de alta, a pressão vendedora nos tempos gráficos maiores (M15 e H1) cria um conflito de fluxo. A região de preço atual (4031) é uma zona de transição com baixa probabilidade estatística de rompimento imediato, reforçando a necessidade de aguardar uma definição clara de direção fora desta zona de consolidação.",
+      "atr14": 3.1594,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T21:06:39.205883+00:00"
     }
   ]
 }
