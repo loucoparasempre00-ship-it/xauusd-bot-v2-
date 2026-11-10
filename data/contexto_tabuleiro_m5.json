@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-10T12:55:13.253700+00:00",
+    "atualizado_em": "2026-11-10T13:00:12.857671+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -10,89 +10,40 @@
         "volume": "Não utilizado"
     },
     "diagnostico": {
-        "total_velas": 5005,
+        "total_velas": 5006,
         "total_regioes": 182,
         "total_transicoes": 1032,
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-10 12:50:00",
-        "eixo_x": 5004,
-        "preco": 4076.60352,
-        "atr": 2.83856,
+        "timestamp": "2026-11-10 12:55:00",
+        "eixo_x": 5005,
+        "preco": 4077.45626,
+        "atr": 2.76828,
         "direcao_vela": "ALTA",
-        "regiao": 2717,
-        "limite_inferior": 4075.5,
-        "limite_superior": 4077.0,
-        "visitas_regiao": 14
+        "regiao": 2718,
+        "limite_inferior": 4077.0,
+        "limite_superior": 4078.5,
+        "visitas_regiao": 10
     },
     "transicoes_historicas_da_regiao": [
         {
-            "origem": 2717,
+            "origem": 2718,
+            "destino": 2717,
+            "transicoes": 4,
+            "saidas_origem": 6,
+            "probabilidade": 66.67,
+            "amostra_suficiente": false
+        },
+        {
+            "origem": 2718,
             "destino": 2716,
-            "transicoes": 4,
-            "saidas_origem": 10,
-            "probabilidade": 40.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2718,
-            "transicoes": 4,
-            "saidas_origem": 10,
-            "probabilidade": 40.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2710,
-            "transicoes": 1,
-            "saidas_origem": 10,
-            "probabilidade": 10.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2715,
-            "transicoes": 1,
-            "saidas_origem": 10,
-            "probabilidade": 10.0,
-            "amostra_suficiente": true
+            "transicoes": 2,
+            "saidas_origem": 6,
+            "probabilidade": 33.33,
+            "amostra_suficiente": false
         }
     ],
-    "transicoes_com_amostra_minima": [
-        {
-            "origem": 2717,
-            "destino": 2716,
-            "transicoes": 4,
-            "saidas_origem": 10,
-            "probabilidade": 40.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2718,
-            "transicoes": 4,
-            "saidas_origem": 10,
-            "probabilidade": 40.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2710,
-            "transicoes": 1,
-            "saidas_origem": 10,
-            "probabilidade": 10.0,
-            "amostra_suficiente": true
-        },
-        {
-            "origem": 2717,
-            "destino": 2715,
-            "transicoes": 1,
-            "saidas_origem": 10,
-            "probabilidade": 10.0,
-            "amostra_suficiente": true
-        }
-    ],
+    "transicoes_com_amostra_minima": [],
     "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
 }
