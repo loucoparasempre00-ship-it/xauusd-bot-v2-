@@ -2559,5 +2559,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T21:46:06.650841+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T21:45:00+00:00",
+    "id_sinal": 42908910776,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 37.5,
+    "pontuacao_compra": 12.5,
+    "pontuacao_venda": 37.5,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.26571,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T21:45:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado encontra-se em um estado de compressão lateral dentro de uma tendência macro de baixa. O preço está operando exatamente entre as EMAs 6 e 20, indicando falta de momentum direcional imediato. Embora a estrutura de topos descendentes sugira pressão vendedora, o preço atual está em uma região de suporte imediato (4030.50), e o histograma do MACD mostra exaustão no movimento de queda. Sem um rompimento claro da zona de suporte ou uma falha de topo mais definida, não há vantagem estatística para entrada.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T21:45:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 1,
+      "pontuacao_venda": 3,
+      "diferenca": -2,
+      "motivos": [],
+      "preco": 4030.506,
+      "atr_14": 2.607,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T21:51:11.640691+00:00"
   }
 ]
