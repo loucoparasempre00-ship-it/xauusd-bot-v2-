@@ -750,6 +750,9 @@ jobs:
           lado = atual["decisao_final"]
           candle = atual["candle_utc"]
 
+          # ID unico: numero real desta execucao do Gerador
+          atual["id_sinal"] = int(os.environ["GITHUB_RUN_ID"])
+
           duplicado = any(
               isinstance(x, dict)
               and x.get("candle_utc") == candle
@@ -788,9 +791,10 @@ jobs:
                   f"🔧 Modo: {atual.get('modo_operacao', 'NORMAL')}\n"
                   "📐 Stop: ATR14 x 1.5 | RR: 1:1.5\n\n"
                   f"📝 {ia['justificativa'][:700]}\n\n"
-                  f"🕯️ Candle UTC: {candle}\n"
+                  f"🕯️ Candle UTC: {candle}\n\n"
+                  "📲 <b>Copie para ativar o acompanhamento:</b>\n"
+                  f"<pre>ENTREI {atual['id_sinal']} {atual['entrada']:.3f}</pre>\n"
                   "⚠️ Sinal informativo. Nenhuma ordem foi executada."
-              )
 
               req = urllib.request.Request(
                   f"https://api.telegram.org/bot{token}/sendMessage",
