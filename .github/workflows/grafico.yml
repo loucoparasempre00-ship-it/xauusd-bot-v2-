@@ -1,0 +1,147 @@
+name: Gráfico XAUUSD
+
+on:
+workflow_run:
+workflows:
+- "Integracao XAUUSD Bot V2"
+types:
+- completed
+
+permissions:
+contents: read
+actions: read
+
+concurrency:
+group: grafico-xauusd
+cancel-in-progress: false
+
+jobs:
+construir-grafico:
+if: github.event.workflow_run.conclusion == 'success'
+runs-on: ubuntu-latest
+timeout-minutes: 12
+
+steps:
+  - name: Baixar repositorio
+    uses: actions/checkout@v4
+
+  - name: Configurar Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.12"
+
+  - name: Instalar dependencias
+    run: |
+      python -m pip install --upgrade pip
+      if [ -f requirements.txt ]; then
+        pip install -r requirements.txt
+      fi
+
+  - name: Receber historico de candles M5
+    uses: actions/download-artifact@v4
+    with:
+      name: candles-xauusd-m5
+      path: data/candles
+      github-token: ${{ github.token }}
+      repository: ${{ github.repository }}
+      run-id: ${{ github.event.workflow_run.id }}
+
+  - name: Preparar base grafica
+    run: |
+      set -euo pipefail
+      mkdir -p data
+
+      if [ ! -f data/candles/xauusd_m5_fechados.csv ]; then
+        echo "::error::Arquivo de candles M5 fechados ausente."
+        exit 1
+      fi
+
+      cp data/candles/xauusd_m5_fechados.csv data/xauusd_m5_fechados.csv
+
+      if [ -f data/candles/xauusd_m5.csv ]; then
+        cp data/candles/xauusd_m5.csv data/xauusd_m5.csv
+      fi
+
+      echo "Base M5 recebida."
+
+  - name: Modulo 1 - Grafico M5
+    run: |
+      set -euo pipefail
+      FILE=$(find . -name coletor_tabuleiro_m5.py -not -path './.git/*' | head -n 1)
+      test -n "$FILE" || { echo "::error::coletor_tabuleiro_m5.py ausente"; exit 1; }
+      python "$FILE"
+
+  - name: Modulo 2 - Construir M15 e H1
+    run: |
+      set -euo pipefail
+      FILE=$(find . -name sequenciador_tabuleiro_m5.py -not -path './.git/*' | head -n 1)
+      test -n "$FILE" || { echo "::error::sequenciador_tabuleiro_m5.py ausente"; exit 1; }
+      python "$FILE"
+
+  - name: Modulo 3 - Indicadores e estrutura
+    run: |
+      set -euo pipefail
+      FILE=$(find . -name preparar_contexto_acompanhador.py -not -path './.git/*' | head -n 1)
+      test -n "$FILE" || { echo "::error::preparar_contexto_acompanhador.py ausente"; exit 1; }
+      python "$FILE"
+
+  - name: Modulo 4 - Matriz XY e banco de dados
+    run: |
+      set -euo pipefail
+      FILE=$(find . -name banco_dados_tabuleiro.py -not -path './.git/*' | head -n 1)
+      test -n "$FILE" || { echo "::error::banco_dados_tabuleiro.py ausente"; exit 1; }
+      python "$FILE"
+
+  - name: Modulo 5 - Regioes e bordas M5 M15 H1
+    run: |
+      set -euo pipefail
+
+      for MODULO in \
+        detector_bordas_m5.py \
+        processador_estatistico_m5.py \
+        avaliador_resultados_m5.py \
+        tabuleiro_estavel_m5.py
+      do
+        FILE=$(find . -name "$MODULO" -not -path './.git/*' | head -n 1)
+
+        if [ -z "$FILE" ]; then
+          echo "::error::Modulo $MODULO ausente."
+          exit 1
+        fi
+
+        echo "Executando $MODULO"
+        python "$FILE"
+      done
+
+  - name: Validar resultado grafico
+    run: |
+      python - <<'PY'
+      import json
+      from pathlib import Path
+
+      base = Path("data")
+
+      print("Arquivos produzidos:")
+      for arquivo in sorted(base.rglob("*")):
+          if arquivo.is_file():
+              print(arquivo)
+
+      contexto = base / "contexto_tabuleiro_m5.json"
+
+      if contexto.exists():
+          dados = json.loads(contexto.read_text(encoding="utf-8"))
+          if not isinstance(dados, dict):
+              raise SystemExit("Contexto grafico invalido.")
+          print("Contexto grafico validado.")
+      else:
+          print("Aviso: contexto_tabuleiro_m5.json nao encontrado.")
+      PY
+
+  - name: Publicar base grafica
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: base-grafica-xauusd
+      path: data/
+      if-no-files-found: warn
+      retention-days: 90
