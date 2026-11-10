@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T12:16:03.054241+00:00",
-  "total_registros": 187,
+  "atualizado_utc": "2026-11-10T12:21:11.318738+00:00",
+  "total_registros": 188,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2626,6 +2626,29 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T12:16:03.054241+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T12:15:00+00:00",
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4077.302,
+      "stop": 4081.645,
+      "stop_loss": 4081.645,
+      "gain": 4070.787,
+      "take_profit": 4070.787,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de baixa consolidada em múltiplos tempos gráficos (M5, M15, H1). Embora o preço atual apresente uma leve tentativa de recuperação no candle de 12:15, ele permanece contido abaixo da resistência imediata (4077.47 - 4079.24). A convergência das EMAs e o alinhamento negativo do setup matemático reforçam a pressão vendedora. A ausência de volume validado e a proximidade de suportes relevantes exigem cautela, mas a tendência macro e a falha em romper topos anteriores sustentam a preferência por posições vendedoras.",
+      "atr14": 2.89532,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T12:21:11.318738+00:00"
     }
   ]
 }
