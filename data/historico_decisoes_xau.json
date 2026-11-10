@@ -2396,5 +2396,42 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T21:28:00.543256+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T21:25:00+00:00",
+    "id_sinal": 42905706717,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 50.0,
+    "pontuacao_compra": 16.67,
+    "pontuacao_venda": 50.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.52441,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "decisao": "SEM_SINAL",
+      "confianca": 0,
+      "justificativa": "Gemini indisponivel. Decisor seguira pelo motor matematico. HTTP 503: {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "indisponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T21:25:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 1,
+      "pontuacao_venda": 3,
+      "diferenca": -2,
+      "motivos": [],
+      "preco": 4030.565,
+      "atr_14": 2.668,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T21:31:28.224987+00:00"
   }
 ]
