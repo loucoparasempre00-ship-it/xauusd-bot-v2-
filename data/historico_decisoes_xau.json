@@ -2244,5 +2244,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T21:06:39.205883+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T21:05:00+00:00",
+    "id_sinal": 42902417808,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 25.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 25.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 3.0412,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T21:05:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado encontra-se em um ponto de equilíbrio técnico (4030.65) entre a EMA6 e a EMA20, com o histograma MACD próximo a zero, indicando perda de momentum. Embora a estrutura de topos e fundos no M5 seja de alta, a tendência nos tempos gráficos maiores (M15 e H1) é de baixa, criando um conflito direcional. A região atual (2687) apresenta transições dispersas e falta de convicção, sugerindo um movimento lateralizado sem gatilho claro para entrada.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T21:05:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 4030.659,
+      "atr_14": 2.946,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T21:11:21.021250+00:00"
   }
 ]

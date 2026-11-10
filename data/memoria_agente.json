@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T21:06:39.205883+00:00",
-  "total_registros": 224,
+  "atualizado_utc": "2026-11-10T21:11:21.021250+00:00",
+  "total_registros": 225,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3511,6 +3511,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T21:06:39.205883+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T21:05:00+00:00",
+      "id_sinal": 42902417808,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um ponto de equilíbrio técnico (4030.65) entre a EMA6 e a EMA20, com o histograma MACD próximo a zero, indicando perda de momentum. Embora a estrutura de topos e fundos no M5 seja de alta, a tendência nos tempos gráficos maiores (M15 e H1) é de baixa, criando um conflito direcional. A região atual (2687) apresenta transições dispersas e falta de convicção, sugerindo um movimento lateralizado sem gatilho claro para entrada.",
+      "atr14": 3.0412,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T21:11:21.021250+00:00"
     }
   ]
 }
