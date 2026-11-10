@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T18:31:28.705881+00:00",
-  "total_registros": 194,
+  "atualizado_utc": "2026-11-10T18:41:07.275446+00:00",
+  "total_registros": 195,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -2791,6 +2791,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T18:31:28.705881+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T18:35:00+00:00",
+      "id_sinal": 42877574239,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de indecisão técnica. Embora o preço tenha rompido um topo recente e as EMAs (6 e 20) apresentem um alinhamento de curto prazo altista, a tendência estrutural nos tempos gráficos maiores (M15 e H1) permanece de baixa. O preço está operando em uma região de transição (2686) com alta densidade de visitas e sem uma direção clara nas transições históricas. A ausência de volume validado e a divergência entre o impulso de curto prazo e a tendência macro sugerem um cenário de consolidação ou possível armadilha, tornando qualquer entrada prematura.",
+      "atr14": 3.58826,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T18:41:07.275446+00:00"
     }
   ]
 }
