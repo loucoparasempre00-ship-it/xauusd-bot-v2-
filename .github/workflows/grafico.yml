@@ -1,147 +1,462 @@
-name: Gráfico XAUUSD
+name: Grafico XAUUSD
 
 on:
-workflow_run:
-workflows:
-- "Integracao XAUUSD Bot V2"
-types:
-- completed
+  workflow_dispatch:
 
 permissions:
-contents: read
-actions: read
+  contents: write
+  actions: read
 
 concurrency:
-group: grafico-xauusd
-cancel-in-progress: false
+  group: grafico-xauusd
+  cancel-in-progress: false
 
 jobs:
-construir-grafico:
-if: github.event.workflow_run.conclusion == 'success'
-runs-on: ubuntu-latest
-timeout-minutes: 12
+  grafico:
+    name: Grafico - 5 modulos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-steps:
-  - name: Baixar repositorio
-    uses: actions/checkout@v4
+    steps:
+      # ==================================================
+      # INICIALIZACAO
+      # ==================================================
 
-  - name: Configurar Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: "3.12"
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-  - name: Instalar dependencias
-    run: |
-      python -m pip install --upgrade pip
-      if [ -f requirements.txt ]; then
-        pip install -r requirements.txt
-      fi
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-  - name: Receber historico de candles M5
-    uses: actions/download-artifact@v4
-    with:
-      name: candles-xauusd-m5
-      path: data/candles
-      github-token: ${{ github.token }}
-      repository: ${{ github.repository }}
-      run-id: ${{ github.event.workflow_run.id }}
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-  - name: Preparar base grafica
-    run: |
-      set -euo pipefail
-      mkdir -p data
+      - name: Verificar segredo Twelve Data
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: |
+          test -n "$TWELVE_DATA_API_KEY" || {
+            echo "::error::Falta TWELVE_DATA_API_KEY"
+            exit 1
+          }
 
-      if [ ! -f data/candles/xauusd_m5_fechados.csv ]; then
-        echo "::error::Arquivo de candles M5 fechados ausente."
-        exit 1
-      fi
+          mkdir -p data
+          echo "Chave Twelve Data encontrada."
 
-      cp data/candles/xauusd_m5_fechados.csv data/xauusd_m5_fechados.csv
+      # ==================================================
+      # MODULO 1 - GRAFICO M5
+      # Coleta e valida somente candles fechados.
+      # ==================================================
 
-      if [ -f data/candles/xauusd_m5.csv ]; then
-        cp data/candles/xauusd_m5.csv data/xauusd_m5.csv
-      fi
+      - name: Aguardar fechamento M5
+        run: |
+          python -u - <<'PY'
+          import time
+          from datetime import datetime, timezone, timedelta
 
-      echo "Base M5 recebida."
+          agora = datetime.now(timezone.utc)
 
-  - name: Modulo 1 - Grafico M5
-    run: |
-      set -euo pipefail
-      FILE=$(find . -name coletor_tabuleiro_m5.py -not -path './.git/*' | head -n 1)
-      test -n "$FILE" || { echo "::error::coletor_tabuleiro_m5.py ausente"; exit 1; }
-      python "$FILE"
+          minuto_base = (agora.minute // 5) * 5
+          ultimo_fechamento = agora.replace(
+              minute=minuto_base,
+              second=3,
+              microsecond=0
+          )
 
-  - name: Modulo 2 - Construir M15 e H1
-    run: |
-      set -euo pipefail
-      FILE=$(find . -name sequenciador_tabuleiro_m5.py -not -path './.git/*' | head -n 1)
-      test -n "$FILE" || { echo "::error::sequenciador_tabuleiro_m5.py ausente"; exit 1; }
-      python "$FILE"
+          atraso = (agora - ultimo_fechamento).total_seconds()
 
-  - name: Modulo 3 - Indicadores e estrutura
-    run: |
-      set -euo pipefail
-      FILE=$(find . -name preparar_contexto_acompanhador.py -not -path './.git/*' | head -n 1)
-      test -n "$FILE" || { echo "::error::preparar_contexto_acompanhador.py ausente"; exit 1; }
-      python "$FILE"
+          if 0 <= atraso <= 30:
+              alvo = agora
+              espera = 0
+              motivo = "Aproveitando fechamento M5 recente."
+          else:
+              minutos_ate = 5 - (agora.minute % 5)
+              alvo = agora.replace(second=0, microsecond=0)
+              alvo += timedelta(minutes=minutos_ate, seconds=3)
+              espera = max(0, (alvo - agora).total_seconds())
+              motivo = "Aguardando proximo fechamento M5."
 
-  - name: Modulo 4 - Matriz XY e banco de dados
-    run: |
-      set -euo pipefail
-      FILE=$(find . -name banco_dados_tabuleiro.py -not -path './.git/*' | head -n 1)
-      test -n "$FILE" || { echo "::error::banco_dados_tabuleiro.py ausente"; exit 1; }
-      python "$FILE"
+          print("Agora UTC:", agora.isoformat())
+          print("Alvo UTC:", alvo.isoformat())
+          print("Motivo:", motivo)
+          print(f"Espera: {espera:.1f} segundos")
 
-  - name: Modulo 5 - Regioes e bordas M5 M15 H1
-    run: |
-      set -euo pipefail
+          if espera > 0:
+              time.sleep(espera)
 
-      for MODULO in \
-        detector_bordas_m5.py \
-        processador_estatistico_m5.py \
-        avaliador_resultados_m5.py \
-        tabuleiro_estavel_m5.py
-      do
-        FILE=$(find . -name "$MODULO" -not -path './.git/*' | head -n 1)
+          print(
+              "Fechamento M5 liberado:",
+              datetime.now(timezone.utc).isoformat()
+          )
+          PY
 
-        if [ -z "$FILE" ]; then
-          echo "::error::Modulo $MODULO ausente."
-          exit 1
-        fi
+      - name: Coletar candles M5
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: python -u coletar_candles.py
 
-        echo "Executando $MODULO"
-        python "$FILE"
-      done
+      - name: Filtrar candles fechados
+        run: python -u filtro_candles_fechados.py
 
-  - name: Validar resultado grafico
-    run: |
-      python - <<'PY'
-      import json
-      from pathlib import Path
+      - name: Validar candles e mercado
+        run: |
+          set -euo pipefail
+          test -s data/xauusd_m5_fechados.csv
+          python -u validador_mercado.py
 
-      base = Path("data")
+      - name: Atualizar historico sem duplicar candles
+        run: |
+          python -u - <<'PY'
+          import csv
+          from pathlib import Path
 
-      print("Arquivos produzidos:")
-      for arquivo in sorted(base.rglob("*")):
-          if arquivo.is_file():
-              print(arquivo)
+          atual = Path("data/xauusd_m5_fechados.csv")
+          historico = Path("data/historico_velas_m5.csv")
 
-      contexto = base / "contexto_tabuleiro_m5.json"
+          def carregar(caminho):
+              if not caminho.exists() or caminho.stat().st_size == 0:
+                  return [], []
 
-      if contexto.exists():
-          dados = json.loads(contexto.read_text(encoding="utf-8"))
-          if not isinstance(dados, dict):
-              raise SystemExit("Contexto grafico invalido.")
-          print("Contexto grafico validado.")
-      else:
-          print("Aviso: contexto_tabuleiro_m5.json nao encontrado.")
-      PY
+              with caminho.open(
+                  "r", encoding="utf-8-sig", newline=""
+              ) as arquivo:
+                  leitor = csv.DictReader(arquivo)
+                  campos = leitor.fieldnames or []
+                  linhas = list(leitor)
 
-  - name: Publicar base grafica
-    if: always()
-    uses: actions/upload-artifact@v4
-    with:
-      name: base-grafica-xauusd
-      path: data/
-      if-no-files-found: warn
-      retention-days: 90
+              return campos, linhas
+
+          campos_novos, linhas_novas = carregar(atual)
+
+          if not campos_novos or not linhas_novas:
+              raise SystemExit("CSV de candles fechados vazio.")
+
+          coluna_tempo = next(
+              (
+                  nome for nome in (
+                      "timestamp", "timestamp_utc",
+                      "datetime", "datetime_utc", "time"
+                  )
+                  if nome in campos_novos
+              ),
+              None
+          )
+
+          if not coluna_tempo:
+              raise SystemExit(
+                  "Nao foi encontrada coluna de timestamp no CSV M5."
+              )
+
+          campos_antigos, linhas_antigas = carregar(historico)
+
+          if campos_antigos and campos_antigos != campos_novos:
+              raise SystemExit(
+                  "O formato do historico mudou. "
+                  "Interrompendo para nao descartar colunas antigas."
+              )
+
+          por_tempo = {}
+
+          for linha in linhas_antigas + linhas_novas:
+              tempo = str(linha.get(coluna_tempo, "")).strip()
+              if tempo:
+                  por_tempo[tempo] = linha
+
+          ordenadas = [
+              por_tempo[chave]
+              for chave in sorted(por_tempo)
+          ]
+
+          historico.parent.mkdir(parents=True, exist_ok=True)
+
+          with historico.open(
+              "w", encoding="utf-8", newline=""
+          ) as arquivo:
+              escritor = csv.DictWriter(
+                  arquivo, fieldnames=campos_novos
+              )
+              escritor.writeheader()
+              escritor.writerows(ordenadas)
+
+          print("Candles recebidos:", len(linhas_novas))
+          print("Historico acumulado:", len(ordenadas))
+          print("Primeiro candle:", ordenadas[0][coluna_tempo])
+          print("Ultimo candle:", ordenadas[-1][coluna_tempo])
+          PY
+
+      # ==================================================
+      # MODULO 2 - M15 E H1
+      # 3 candles M5 formam M15; 12 formam H1.
+      # O motor existente produz os contextos temporais.
+      # ==================================================
+
+      - name: Construir contextos M5 M15 H1
+        run: python -u motor_contexto_xau.py
+
+      # ==================================================
+      # MODULO 3 - INDICADORES E MOTOR MATEMATICO
+      # O integrador existente e chamado pelo preparador
+      # de contexto: EMA, RSI, ATR, MACD e leitura estrutural.
+      # Nao executar scripts que apenas imprimem "carregado".
+      # ==================================================
+
+      - name: Consolidar indicadores e leitura matematica
+        run: |
+          python -u - <<'PY'
+          from pathlib import Path
+
+          obrigatorios = [
+              Path("data/xauusd_m5_fechados.csv"),
+              Path("data/historico_velas_m5.csv")
+          ]
+
+          for caminho in obrigatorios:
+              if not caminho.is_file() or caminho.stat().st_size == 0:
+                  raise SystemExit(f"Entrada ausente: {caminho}")
+
+          print("Entradas do motor matematico prontas.")
+          print(
+              "A consolidacao das funcoes matematicas "
+              "ocorre em preparar_contexto_acompanhador.py."
+          )
+          PY
+
+      # ==================================================
+      # MODULO 4 - MATRIZ XY ESTAVEL
+      # X = tempo; Y = faixas fixas de preco.
+      # ATR mede movimento e nao altera a largura da regiao.
+      # ==================================================
+
+      - name: Construir matriz XY estavel
+        run: python -u tabuleiro_estavel_m5.py
+
+      - name: Unificar entrada da matriz para detector e estatisticas
+        run: |
+          python -u - <<'PY'
+          import csv
+          from pathlib import Path
+
+          origem = Path("data/tabuleiro_estavel_m5.csv")
+          destino = Path("data/tabuleiro_m5.csv")
+
+          if not origem.is_file() or origem.stat().st_size == 0:
+              raise SystemExit("Matriz XY estavel nao foi criada.")
+
+          campos_saida = [
+              "timestamp", "eixo_x", "eixo_y",
+              "open", "high", "low", "close", "atr",
+              "largura_regiao", "amplitude", "corpo",
+              "direcao", "evento"
+          ]
+
+          with origem.open(
+              "r", encoding="utf-8-sig", newline=""
+          ) as arquivo:
+              leitor = csv.DictReader(arquivo)
+              linhas = list(leitor)
+
+          if not linhas:
+              raise SystemExit("Matriz XY sem registros.")
+
+          destino.parent.mkdir(parents=True, exist_ok=True)
+
+          with destino.open(
+              "w", encoding="utf-8", newline=""
+          ) as arquivo:
+              escritor = csv.DictWriter(
+                  arquivo, fieldnames=campos_saida
+              )
+              escritor.writeheader()
+
+              for linha in linhas:
+                  escritor.writerow({
+                      "timestamp": linha["timestamp"],
+                      "eixo_x": linha["eixo_x"],
+                      "eixo_y": linha["eixo_y"],
+                      "open": linha["open"],
+                      "high": linha["high"],
+                      "low": linha["low"],
+                      "close": linha["close"],
+                      "atr": linha["atr"],
+                      "largura_regiao": linha["largura_regiao"],
+                      "amplitude": linha["amplitude"],
+                      "corpo": linha["corpo"],
+                      "direcao": linha["direcao"],
+                      "evento": "VISITA"
+                  })
+
+          print("Matriz XY canonica:", len(linhas), "velas")
+          print("Faixas fixas de preco preservadas.")
+          PY
+
+      # ==================================================
+      # MODULO 5 - REGIOES, BORDAS E ESTATISTICAS
+      # O detector passa a receber a matriz XY estavel,
+      # nao a antiga matriz cuja largura variava com ATR.
+      # ==================================================
+
+      - name: Detectar regioes e bordas M5
+        run: python -u detector_bordas_m5.py
+
+      - name: Atualizar banco de dados do tabuleiro
+        run: python -u banco_dados_tabuleiro.py
+
+      - name: Calcular estatisticas das regioes
+        run: python -u processador_estatistico_m5.py
+
+      - name: Calcular sequencias e transicoes
+        run: python -u sequenciador_tabuleiro_m5.py
+
+      - name: Avaliar historico dos eventos
+        run: python -u avaliador_resultados_m5.py
+
+      # ==================================================
+      # CONTEXTO UNICO PARA O GEMINI E ACOMPANHAMENTO
+      # Reune grafico, indicadores, motor matematico e XY.
+      # ==================================================
+
+      - name: Preparar contexto unificado
+        run: python -u preparar_contexto_acompanhador.py
+
+      - name: Validar grafico e contexto
+        run: |
+          set -euo pipefail
+
+          obrigatorios=(
+            data/xauusd_m5_fechados.csv
+            data/historico_velas_m5.csv
+            data/analise_tecnica_contexto.json
+            data/tabuleiro_estavel_m5.csv
+            data/regioes_estaveis_m5.csv
+            data/transicoes_estaveis_m5.csv
+            data/contexto_tabuleiro_m5.json
+            data/tabuleiro_m5.csv
+            data/eventos_bordas_m5.csv
+            data/estatisticas_regioes_m5.csv
+            data/transicoes_probabilidade_m5.csv
+            data/sequencias_provaveis_m5.csv
+            data/proximas_regioes_m5.json
+            data/resultados_eventos_m5.csv
+            data/resumo_resultados_m5.csv
+            data/contexto_inteligente_acompanhador.json
+          )
+
+          for arquivo in "${obrigatorios[@]}"; do
+            if [ ! -s "$arquivo" ]; then
+              echo "::error::Arquivo ausente ou vazio: $arquivo"
+              exit 1
+            fi
+          done
+
+          python -u - <<'PY'
+          import json
+          from pathlib import Path
+
+          caminho = Path(
+              "data/contexto_inteligente_acompanhador.json"
+          )
+          dados = json.loads(caminho.read_text(encoding="utf-8"))
+
+          obrigatorios = [
+              "contexto_tecnico",
+              "contexto_matematico",
+              "grafico_m5",
+              "tabuleiro_estavel"
+          ]
+
+          ausentes = [
+              chave for chave in obrigatorios
+              if chave not in dados
+          ]
+
+          if ausentes:
+              raise SystemExit(
+                  f"Contexto inteligente incompleto: {ausentes}"
+              )
+
+          serie = dados["grafico_m5"].get("serie", [])
+
+          if not serie:
+              raise SystemExit("Serie do grafico M5 vazia.")
+
+          print("Grafico e contexto validados.")
+          print("Candles no grafico:", len(serie))
+          print(
+              "Sincronizacao:",
+              dados.get("validacao_temporal", {})
+          )
+          PY
+
+      # ==================================================
+      # PERSISTENCIA
+      # ==================================================
+
+      - name: Salvar historico e resultados no repositorio
+        if: success()
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza Grafico e Matriz XY XAUUSD"
+            git push origin HEAD:main
+          else
+            echo "Nenhuma alteracao para salvar."
+          fi
+
+      # ==================================================
+      # ARTEFATOS PARA A PROXIMA ETAPA DE INTEGRACAO
+      # Mantem nomes conhecidos enquanto os outros workflows
+      # forem adaptados gradualmente.
+      # ==================================================
+
+      - name: Publicar candles M5
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candles-xauusd-m5
+          path: data/xauusd_m5_fechados.csv
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publicar analise tecnica
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-tecnica-xau
+          path: data/analise_tecnica_contexto.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publicar contexto completo do grafico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contexto-grafico-xau
+          path: |
+            data/contexto_inteligente_acompanhador.json
+            data/contexto_tabuleiro_m5.json
+            data/tabuleiro_estavel_m5.csv
+            data/regioes_estaveis_m5.csv
+            data/transicoes_estaveis_m5.csv
+            data/eventos_bordas_m5.csv
+            data/estatisticas_regioes_m5.csv
+            data/transicoes_probabilidade_m5.csv
+            data/sequencias_provaveis_m5.csv
+            data/proximas_regioes_m5.json
+            data/resultados_eventos_m5.csv
+            data/resumo_resultados_m5.csv
+          if-no-files-found: warn
+          retention-days: 30
