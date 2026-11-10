@@ -1,0 +1,44 @@
+[
+  {
+    "candle_utc": "2026-11-10T07:10:00+00:00",
+    "decisao_final": "VENDA",
+    "pontuacao_final": 66.25,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 66.25,
+    "entrada": 4118.791,
+    "stop_loss": 4124.197,
+    "take_profit": 4110.682,
+    "atr14": 3.60412,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T07:10:00+00:00",
+      "decisao": "VENDA",
+      "confianca": 65,
+      "justificativa": "O preço rompeu a estrutura de suporte imediato (4119.12) e encontra-se abaixo das EMAs de curto prazo (6 e 20), confirmando o momentum vendedor no M5. Embora a tendência de H1 e M5 seja de alta, o alinhamento do M15 e o rompimento recente da mínima sugerem uma correção ou teste de liquidez em direção à região de 4114.04. A leitura matemática corrobora a pressão vendedora, apesar da cautela necessária devido à divergência com a tendência macro de H1.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T07:10:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 4,
+      "diferenca": -2,
+      "motivos": [
+        "Contexto M15 de baixa",
+        "Impulso vendedor",
+        "Rompimento da mínima recente",
+        "RSI favorável à venda"
+      ],
+      "preco": 4118.791,
+      "atr_14": 3.795,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "ALTA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T07:16:23.655853+00:00"
+  }
+]
