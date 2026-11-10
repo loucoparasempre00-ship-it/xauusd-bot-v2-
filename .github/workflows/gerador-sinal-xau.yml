@@ -798,12 +798,29 @@ jobs:
                   "⚠️ Sinal informativo. Nenhuma ordem foi executada."
               )
 
+              comando = (
+                  f"ENTREI {atual['id_sinal']} "
+                  f"{atual['entrada']:.3f}"
+              )
+
+              teclado = {
+                  "inline_keyboard": [[
+                      {
+                          "text": "📋 COPIAR COMANDO",
+                          "copy_text": {
+                              "text": comando
+                          }
+                      }
+                  ]]
+              }
+
               req = urllib.request.Request(
                   f"https://api.telegram.org/bot{token}/sendMessage",
                   data=urllib.parse.urlencode({
                       "chat_id": chat,
                       "text": msg,
                       "parse_mode": "HTML",
+                      "reply_markup": json.dumps(teclado, ensure_ascii=False),
                       "disable_web_page_preview": "true"
                   }).encode(),
                   headers={
