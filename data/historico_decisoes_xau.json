@@ -1856,5 +1856,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-10T20:16:12.637789+00:00"
+  },
+  {
+    "candle_utc": "2026-11-10T20:15:00+00:00",
+    "id_sinal": 42894316303,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 25.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 25.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.86119,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-10T20:15:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 45,
+      "justificativa": "O mercado apresenta uma divergência clara entre o micro (M5) e o macro (M15/H1). Embora o preço esteja acima das EMAs de curto prazo, a estrutura recente mostra topos descendentes (4034 -> 4032.5 -> 4032.4) e uma resistência imediata em 4032.50. O preço está preso em uma zona de consolidação estreita, sem força direcional clara para romper a resistência ou confirmar um suporte sólido. A ausência de volume e a indecisão nas transições históricas recomendam cautela.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-10T20:15:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 4031.05,
+      "atr_14": 3.239,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-10T20:21:15.198522+00:00"
   }
 ]
