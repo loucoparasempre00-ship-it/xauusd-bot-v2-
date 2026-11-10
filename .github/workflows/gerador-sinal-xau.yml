@@ -31,7 +31,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      # =====================================================
       # RECEBE OS ARQUIVOS DO GRAFICO
+      # =====================================================
+
       - name: Receber contexto do Grafico
         uses: actions/download-artifact@v4
         with:
@@ -135,8 +138,8 @@ jobs:
           PY
 
       # =====================================================
-      # RECEBE O MODELO DO SELETOR EXTERNO
-      # NAO TESTA NEM ESCOLHE MODELOS AQUI
+      # RECEBE O MODELO DO TESTADOR EXTERNO
+      # FALHA DO SELETOR NAO INTERROMPE A PRODUCAO
       # =====================================================
 
       - name: Receber modelo do Testador e Seletor Gemini
@@ -147,64 +150,69 @@ jobs:
 
           mkdir -p data/selecao_ia
 
+          TESTADOR_RUN=""
+
           TESTADOR_RUN=$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow testador-gemini.yml \
             --status success \
             --limit 1 \
             --json databaseId \
-            --jq '.[0].databaseId // empty')
+            --jq '.[0].databaseId // empty' 2>/dev/null || true)
 
-          if [ -z "$TESTADOR_RUN" ]; then
-            echo "Nenhuma execucao bem-sucedida do Seletor encontrada."
-            exit 1
+          if [ -n "$TESTADOR_RUN" ]; then
+            gh run download "$TESTADOR_RUN" \
+              --repo "$GITHUB_REPOSITORY" \
+              --name selecao-modelo-gemini \
+              --dir data/selecao_ia || true
           fi
-
-          gh run download "$TESTADOR_RUN" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name selecao-modelo-gemini \
-            --dir data/selecao_ia
 
           python - <<'PY'
           import json
           from pathlib import Path
 
           arquivo = Path("data/selecao_ia/modelo_gemini.json")
+          destino = Path("data/modelo_ia_ativo.json")
 
-          if not arquivo.is_file():
-              raise SystemExit("Arquivo do Seletor nao encontrado.")
+          modelo = None
+          status = "indisponivel"
 
-          d = json.loads(arquivo.read_text(encoding="utf-8"))
+          if arquivo.is_file():
+              try:
+                  d = json.loads(arquivo.read_text(encoding="utf-8"))
+                  candidato = d.get("modelo_escolhido", "")
 
-          modelo = d.get("modelo_escolhido", "")
+                  if (
+                      d.get("status") in ("pronto", "pronto_com_aviso_api")
+                      and isinstance(candidato, str)
+                      and candidato.startswith("models/gemini-")
+                  ):
+                      modelo = candidato
+                      status = d.get("status")
 
-          if d.get("status") not in (
-              "pronto",
-              "pronto_com_aviso_api"
-          ):
-              raise SystemExit("Status do Seletor nao permite uso.")
+              except Exception as e:
+                  print("Falha ao ler Seletor:", str(e))
 
-          if not isinstance(modelo, str):
-              raise SystemExit("Modelo invalido.")
+          resultado = {
+              "modelo": modelo,
+              "status": status
+          }
 
-          if not modelo.startswith("models/gemini-"):
-              raise SystemExit("Modelo Gemini nao reconhecido.")
-
-          Path("data/modelo_ia_ativo.json").write_text(
-              json.dumps({
-                  "modelo": modelo,
-                  "status": d.get("status"),
-                  "atualizado_utc": d.get("atualizado_utc")
-              }, ensure_ascii=False, indent=2),
+          destino.write_text(
+              json.dumps(resultado, ensure_ascii=False, indent=2),
               encoding="utf-8"
           )
 
-          print("Modelo recebido:", modelo)
+          if modelo:
+              print("Modelo recebido:", modelo)
+          else:
+              print("Seletor indisponivel. Gerador seguira sem Gemini.")
           PY
 
       # =====================================================
       # PARTE 2 - GEMINI
       # AVALIACAO INDEPENDENTE
+      # NUNCA BLOQUEIA A PRODUCAO POR INDISPONIBILIDADE
       # =====================================================
 
       - name: "PARTE 2 - Gemini interpreta o mercado"
@@ -219,187 +227,217 @@ jobs:
           import urllib.error
           from pathlib import Path
 
-          chave = os.getenv("GEMINI_API_KEY", "").strip()
+          destino = Path("data/avaliacao_gemini.json")
 
-          if not chave:
-              raise SystemExit("GEMINI_API_KEY ausente.")
-
-          modelo = json.loads(
-              Path("data/modelo_ia_ativo.json").read_text(
-                  encoding="utf-8"
-              )
-          )["modelo"]
-
-          contexto = json.loads(
-              Path("data/contexto_inteligente_acompanhador.json").read_text(
-                  encoding="utf-8"
-              )
-          )
-
-          setup = json.loads(
-              Path("data/sinal_matematico.json").read_text(
-                  encoding="utf-8"
-              )
-          )
-
-          pacote = {
-              "ativo": "XAUUSD",
-              "candle_utc": contexto.get("candle_utc"),
-              "preco_atual": contexto.get("preco_atual"),
-              "contexto_tecnico": contexto.get("contexto_tecnico"),
-              "contexto_matematico": contexto.get("contexto_matematico"),
-              "tabuleiro_estavel": contexto.get("tabuleiro_estavel"),
-              "estado_central": contexto.get("estado_central"),
-              "avisos": contexto.get("avisos", []),
-              "setup_matematico": setup
-          }
-
-          prompt = """
-          Voce e um analista independente do mercado XAUUSD no M5.
-
-          Analise o mercado com liberdade e adaptabilidade.
-          Nao exija alinhamento perfeito entre M5, M15 e H1.
-          Nao fique limitado a uma lista fixa de padroes.
-
-          Considere tendencia, impulso, estrutura, suportes,
-          resistencias, regioes estaveis, transicoes e qualidade
-          dos dados.
-
-          O setup matematico e uma leitura independente.
-          Voce pode concordar, discordar ou identificar ausencia
-          de oportunidade. Nao copie automaticamente a direcao
-          do setup matematico.
-
-          Nao invente precos ou indicadores.
-          Nao altere pesos, limiar, ATR, stop ou alvo.
-          Nao execute ordens.
-
-          Responda SOMENTE JSON valido:
-          {
-            "decisao": "COMPRA",
-            "confianca": 70,
-            "justificativa": "Explicacao da leitura"
-          }
-
-          A decisao deve ser COMPRA, VENDA ou SEM_SINAL.
-          A confianca deve ser um inteiro de 0 a 100.
-          Ela representa a qualidade da leitura, nao uma
-          probabilidade comprovada de lucro.
-          """
-
-          corpo = {
-              "contents": [{
-                  "parts": [{
-                      "text": prompt + "\n\nDADOS:\n" +
-                      json.dumps(pacote, ensure_ascii=False)
-                  }]
-              }],
-              "generationConfig": {
-                  "temperature": 0.25,
-                  "responseMimeType": "application/json",
-                  "maxOutputTokens": 1200
+          def indisponivel(motivo, modelo=None):
+              resultado = {
+                  "ativo": "XAUUSD",
+                  "decisao": "SEM_SINAL",
+                  "confianca": 0,
+                  "justificativa": (
+                      "Gemini indisponivel. "
+                      "Decisor seguira pelo motor matematico. "
+                      + str(motivo)[:500]
+                  ),
+                  "modelo_utilizado": modelo,
+                  "status": "indisponivel"
               }
-          }
 
-          url = (
-              "https://generativelanguage.googleapis.com/v1beta/"
-              + modelo + ":generateContent"
-          )
-
-          resposta = None
-          ultimo_erro = None
-
-          for tentativa in range(3):
-              req = urllib.request.Request(
-                  url,
-                  data=json.dumps(corpo).encode("utf-8"),
-                  headers={
-                      "Content-Type": "application/json",
-                      "x-goog-api-key": chave
-                  },
-                  method="POST"
+              destino.write_text(
+                  json.dumps(resultado, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
               )
 
-              try:
-                  with urllib.request.urlopen(req, timeout=60) as r:
-                      resposta = json.loads(r.read().decode("utf-8"))
-                  break
-
-              except urllib.error.HTTPError as e:
-                  detalhe = e.read().decode("utf-8", "replace")
-                  ultimo_erro = f"HTTP {e.code}: {detalhe[:800]}"
-
-                  if e.code not in (408, 429, 500, 502, 503, 504):
-                      raise SystemExit("Erro Gemini: " + ultimo_erro)
-
-                  if tentativa == 2:
-                      raise SystemExit("Gemini indisponivel: " + ultimo_erro)
-
-                  time.sleep(3 * (tentativa + 1))
-
-              except Exception as e:
-                  ultimo_erro = str(e)
-
-                  if tentativa == 2:
-                      raise SystemExit("Falha Gemini: " + ultimo_erro)
-
-                  time.sleep(3 * (tentativa + 1))
-
-          if resposta is None:
-              raise SystemExit("Gemini nao retornou resposta.")
-
-          partes = (
-              resposta.get("candidates", [{}])[0]
-              .get("content", {})
-              .get("parts", [])
-          )
-
-          texto = "".join(
-              p.get("text", "") for p in partes
-          ).strip()
-
-          if not texto:
-              raise SystemExit("Resposta vazia do Gemini.")
+              print("GEMINI_INDISPONIVEL")
+              print(json.dumps(resultado, ensure_ascii=False, indent=2))
 
           try:
-              decisao = json.loads(texto)
-          except json.JSONDecodeError:
-              inicio = texto.find("{")
-              fim = texto.rfind("}")
+              chave = os.getenv("GEMINI_API_KEY", "").strip()
 
-              if inicio < 0 or fim <= inicio:
-                  raise SystemExit("JSON Gemini invalido.")
+              ativo = json.loads(
+                  Path("data/modelo_ia_ativo.json").read_text(
+                      encoding="utf-8"
+                  )
+              )
 
-              decisao = json.loads(texto[inicio:fim + 1])
+              modelo = ativo.get("modelo")
 
-          lado = decisao.get("decisao")
+              if not chave:
+                  raise RuntimeError("GEMINI_API_KEY ausente.")
 
-          if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
-              raise SystemExit("Decisao Gemini invalida.")
+              if not modelo:
+                  raise RuntimeError("Modelo do Seletor indisponivel.")
 
-          confianca = int(decisao.get("confianca", 0))
+              contexto = json.loads(
+                  Path("data/contexto_inteligente_acompanhador.json").read_text(
+                      encoding="utf-8"
+                  )
+              )
 
-          if not 0 <= confianca <= 100:
-              raise SystemExit("Confianca Gemini invalida.")
+              setup = json.loads(
+                  Path("data/sinal_matematico.json").read_text(
+                      encoding="utf-8"
+                  )
+              )
 
-          resultado = {
-              "ativo": "XAUUSD",
-              "candle_utc": contexto.get("candle_utc"),
-              "decisao": lado,
-              "confianca": confianca,
-              "justificativa": str(
-                  decisao.get("justificativa", "")
-              )[:1800],
-              "modelo_utilizado": modelo
-          }
+              pacote = {
+                  "ativo": "XAUUSD",
+                  "candle_utc": contexto.get("candle_utc"),
+                  "preco_atual": contexto.get("preco_atual"),
+                  "contexto_tecnico": contexto.get("contexto_tecnico"),
+                  "contexto_matematico": contexto.get("contexto_matematico"),
+                  "tabuleiro_estavel": contexto.get("tabuleiro_estavel"),
+                  "estado_central": contexto.get("estado_central"),
+                  "avisos": contexto.get("avisos", []),
+                  "setup_matematico": setup
+              }
 
-          Path("data/avaliacao_gemini.json").write_text(
-              json.dumps(resultado, ensure_ascii=False, indent=2),
-              encoding="utf-8"
-          )
+              prompt = """
+              Voce e um analista independente do mercado XAUUSD no M5.
 
-          print(json.dumps(resultado, ensure_ascii=False, indent=2))
-          PY
+              Analise o mercado com liberdade e adaptabilidade.
+              Nao exija alinhamento perfeito entre M5, M15 e H1.
+              Nao fique limitado a uma lista fixa de padroes.
+
+              Considere tendencia, impulso, estrutura, suportes,
+              resistencias, regioes estaveis, transicoes e qualidade
+              dos dados.
+
+              O setup matematico e uma leitura independente.
+              Voce pode concordar, discordar ou identificar ausencia
+              de oportunidade. Nao copie automaticamente a direcao
+              do setup matematico.
+
+              Nao invente precos ou indicadores.
+              Nao altere pesos, limiar, ATR, stop ou alvo.
+              Nao execute ordens.
+
+              Responda SOMENTE JSON valido:
+              {
+                "decisao": "COMPRA",
+                "confianca": 70,
+                "justificativa": "Explicacao da leitura"
+              }
+
+              A decisao deve ser COMPRA, VENDA ou SEM_SINAL.
+              A confianca deve ser um inteiro de 0 a 100.
+              Ela representa a qualidade da leitura, nao uma
+              probabilidade comprovada de lucro.
+              """
+
+              corpo = {
+                  "contents": [{
+                      "parts": [{
+                          "text": prompt + "\n\nDADOS:\n" +
+                          json.dumps(pacote, ensure_ascii=False)
+                      }]
+                  }],
+                  "generationConfig": {
+                      "temperature": 0.25,
+                      "responseMimeType": "application/json",
+                      "maxOutputTokens": 1200
+                  }
+              }
+
+              url = (
+                  "https://generativelanguage.googleapis.com/v1beta/"
+                  + modelo + ":generateContent"
+              )
+
+              resposta = None
+              ultimo_erro = "Sem resposta."
+
+              for tentativa in range(3):
+                  req = urllib.request.Request(
+                      url,
+                      data=json.dumps(corpo).encode("utf-8"),
+                      headers={
+                          "Content-Type": "application/json",
+                          "x-goog-api-key": chave
+                      },
+                      method="POST"
+                  )
+
+                  try:
+                      with urllib.request.urlopen(req, timeout=60) as r:
+                          resposta = json.loads(r.read().decode("utf-8"))
+                      break
+
+                  except urllib.error.HTTPError as e:
+                      detalhe = e.read().decode("utf-8", "replace")
+                      ultimo_erro = f"HTTP {e.code}: {detalhe[:500]}"
+
+                      if e.code not in (408, 429, 500, 502, 503, 504):
+                          break
+
+                      if tentativa < 2:
+                          time.sleep(3 * (tentativa + 1))
+
+                  except Exception as e:
+                      ultimo_erro = str(e)
+
+                      if tentativa < 2:
+                          time.sleep(3 * (tentativa + 1))
+
+              if resposta is None:
+                  raise RuntimeError(ultimo_erro)
+
+              partes = (
+                  resposta.get("candidates", [{}])[0]
+                  .get("content", {})
+                  .get("parts", [])
+              )
+
+              texto = "".join(
+                  p.get("text", "") for p in partes
+              ).strip()
+
+              if not texto:
+                  raise RuntimeError("Resposta vazia do Gemini.")
+
+              try:
+                  decisao = json.loads(texto)
+              except json.JSONDecodeError:
+                  inicio = texto.find("{")
+                  fim = texto.rfind("}")
+
+                  if inicio < 0 or fim <= inicio:
+                      raise RuntimeError("JSON Gemini invalido.")
+
+                  decisao = json.loads(texto[inicio:fim + 1])
+
+              lado = decisao.get("decisao")
+
+              if lado not in ("COMPRA", "VENDA", "SEM_SINAL"):
+                  raise RuntimeError("Decisao Gemini invalida.")
+
+              confianca = int(decisao.get("confianca", 0))
+
+              if not 0 <= confianca <= 100:
+                  raise RuntimeError("Confianca Gemini invalida.")
+
+              resultado = {
+                  "ativo": "XAUUSD",
+                  "candle_utc": contexto.get("candle_utc"),
+                  "decisao": lado,
+                  "confianca": confianca,
+                  "justificativa": str(
+                      decisao.get("justificativa", "")
+                  )[:1800],
+                  "modelo_utilizado": modelo,
+                  "status": "disponivel"
+              }
+
+              destino.write_text(
+                  json.dumps(resultado, ensure_ascii=False, indent=2),
+                  encoding="utf-8"
+              )
+
+              print("Gemini respondeu normalmente.")
+              print(json.dumps(resultado, ensure_ascii=False, indent=2))
+
+          except Exception as e:
+              indisponivel(str(e), locals().get("modelo"))
 
       # =====================================================
       # PARTE 3 - DECISOR FINAL ALGORITMICO
@@ -426,9 +464,16 @@ jobs:
               )
           )
 
-          # PARAMETROS FIXOS DO DECISOR FINAL
-          PESO_TECNICO = 75.0
-          PESO_GEMINI = 25.0
+          # PARAMETROS VALIDADOS
+          GEMINI_DISPONIVEL = ia.get("status") == "disponivel"
+
+          if GEMINI_DISPONIVEL:
+              PESO_TECNICO = 75.0
+              PESO_GEMINI = 25.0
+          else:
+              PESO_TECNICO = 100.0
+              PESO_GEMINI = 0.0
+
           LIMIAR = 40.0
           MULTIPLICADOR_ATR = 1.5
           RR = 1.5
@@ -436,15 +481,19 @@ jobs:
           compra = int(setup["pontuacao_compra"])
           venda = int(setup["pontuacao_venda"])
 
-          contribuicao_compra = (
-              PESO_GEMINI * ia["confianca"] / 100
-              if ia["decisao"] == "COMPRA" else 0
-          )
+          contribuicao_compra = 0.0
+          contribuicao_venda = 0.0
 
-          contribuicao_venda = (
-              PESO_GEMINI * ia["confianca"] / 100
-              if ia["decisao"] == "VENDA" else 0
-          )
+          if GEMINI_DISPONIVEL:
+              if ia["decisao"] == "COMPRA":
+                  contribuicao_compra = (
+                      PESO_GEMINI * ia["confianca"] / 100
+                  )
+
+              elif ia["decisao"] == "VENDA":
+                  contribuicao_venda = (
+                      PESO_GEMINI * ia["confianca"] / 100
+                  )
 
           score_compra = round(
               (compra / 6) * PESO_TECNICO
@@ -456,7 +505,24 @@ jobs:
               + contribuicao_venda, 2
           )
 
-          if ia["decisao"] == "SEM_SINAL":
+          if not GEMINI_DISPONIVEL:
+              # SEM GEMINI, EXIGE O SETUP MATEMATICO VALIDADO
+              if setup["direcao"] == "COMPRA":
+                  lado = "COMPRA"
+                  score = score_compra
+
+              elif setup["direcao"] == "VENDA":
+                  lado = "VENDA"
+                  score = score_venda
+
+              else:
+                  lado = "SEM_SINAL"
+                  score = max(score_compra, score_venda)
+
+              if score < LIMIAR:
+                  lado = "SEM_SINAL"
+
+          elif ia["decisao"] == "SEM_SINAL":
               lado = "SEM_SINAL"
               score = max(score_compra, score_venda)
 
@@ -471,6 +537,22 @@ jobs:
           else:
               lado = "SEM_SINAL"
               score = max(score_compra, score_venda)
+
+          print(
+              "Gemini:",
+              "DISPONIVEL" if GEMINI_DISPONIVEL else "CONTINGENCIA"
+          )
+          print(
+              f"Pesos: tecnico={PESO_TECNICO}% "
+              f"Gemini={PESO_GEMINI}%"
+          )
+          print("Setup matematico:", setup["direcao"])
+          print("Decisao Gemini:", ia["decisao"])
+          print("Decisao final:", lado)
+
+          # =================================================
+          # ATR14 E PRECOS
+          # =================================================
 
           arquivo_csv = Path("data/candles/xauusd_m5_fechados.csv")
 
@@ -500,9 +582,16 @@ jobs:
                       "Coluna ausente: " + ", ".join(nomes)
                   )
 
-              hi = coluna("high", "max", "maximum", "maxima", "máxima")
-              lo = coluna("low", "min", "minimum", "minima", "mínima")
-              cl = coluna("close", "fechamento", "last", "preco_fechamento")
+              hi = coluna(
+                  "high", "max", "maximum", "maxima", "máxima"
+              )
+              lo = coluna(
+                  "low", "min", "minimum", "minima", "mínima"
+              )
+              cl = coluna(
+                  "close", "fechamento", "last",
+                  "preco_fechamento"
+              )
 
               linhas = list(leitor)
 
@@ -570,6 +659,10 @@ jobs:
               "pontuacao_venda": score_venda,
               "setup_matematico": setup,
               "avaliacao_gemini": ia,
+              "modo_operacao": (
+                  "NORMAL" if GEMINI_DISPONIVEL
+                  else "CONTINGENCIA_SEM_GEMINI"
+              ),
               "pesos": {
                   "tecnico": PESO_TECNICO,
                   "gemini": PESO_GEMINI
@@ -690,7 +783,9 @@ jobs:
                   f"🎯 Alvo: <code>{atual['take_profit']:.3f}</code>\n"
                   f"📊 Pontuacao: <b>{atual['pontuacao_final']}/100</b>\n"
                   f"🧠 Gemini: {ia['decisao']} ({ia['confianca']}%)\n"
-                  "⚖️ Pesos: 75% matematico / 25% Gemini\n"
+                  f"⚖️ Pesos: {atual['pesos']['tecnico']:.0f}% "
+                  f"matematico / {atual['pesos']['gemini']:.0f}% Gemini\n"
+                  f"🔧 Modo: {atual.get('modo_operacao', 'NORMAL')}\n"
                   "📐 Stop: ATR14 x 1.5 | RR: 1:1.5\n\n"
                   f"📝 {ia['justificativa'][:700]}\n\n"
                   f"🕯️ Candle UTC: {candle}\n"
@@ -721,7 +816,6 @@ jobs:
               print("Sinal enviado ao Telegram.")
 
           historico.append(atual)
-
           historico = historico[-500:]
 
           Path("data/historico_sinais.json").write_text(
