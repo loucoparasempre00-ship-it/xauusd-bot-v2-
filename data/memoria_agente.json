@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T20:01:12.094199+00:00",
-  "total_registros": 211,
+  "atualizado_utc": "2026-11-10T20:06:13.192706+00:00",
+  "total_registros": 212,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -3199,6 +3199,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T20:01:12.094199+00:00"
+    },
+    {
+      "candle_utc": "2026-11-10T20:00:00+00:00",
+      "id_sinal": 42891772939,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o contexto macro (H1/M15) seja de baixa e o setup matemático indique venda, o mercado no M5 encontra-se em uma zona de suporte imediato (4027.87) e apresenta uma estrutura de topos e fundos ascendentes recentes. A divergência entre a tendência de curto prazo (alta) e a pressão vendedora maior sugere uma fase de transição ou lateralização. Com o preço operando acima das EMAs 6 e 20, não há convicção técnica suficiente para uma entrada de venda agressiva neste nível de preço.",
+      "atr14": 2.6733,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-10T20:06:13.192706+00:00"
     }
   ]
 }
