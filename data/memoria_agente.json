@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T19:21:44.428607+00:00",
-  "total_registros": 320,
+  "atualizado_utc": "2026-11-11T22:41:27.666203+00:00",
+  "total_registros": 321,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5815,6 +5815,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T19:21:44.428607+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T22:35:00+00:00",
+      "id_sinal": 43113763443,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de consolidação estreita no M5, operando exatamente entre as EMAs 6 e 20, o que reflete a falta de momentum direcional. A estrutura de preços mostra topos e fundos recentes sem renovação clara, e a divergência entre a tendência de curto prazo (M5 alta) e as tendências de médio/longo prazo (M15/H1 baixa) cria um cenário de indecisão. As transições históricas na região atual (2658) não apresentam uma probabilidade dominante, reforçando a ausência de um setup técnico ou matemático de alta qualidade no momento.",
+      "atr14": 0.8285,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T22:41:27.666203+00:00"
     }
   ]
 }
