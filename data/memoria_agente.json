@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T23:16:31.672972+00:00",
-  "total_registros": 325,
+  "atualizado_utc": "2026-11-11T23:28:54.897878+00:00",
+  "total_registros": 326,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5935,6 +5935,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T23:16:31.672972+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T23:20:00+00:00",
+      "id_sinal": 43119700754,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 55,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o contexto técnico e as EMAs apontem para uma tendência de baixa, o preço atual encontra-se em uma zona de transição lateralizada. O rompimento recente do fundo sugere pressão vendedora, mas a proximidade com o suporte em 3982.65 e a falta de volume validado (VWAP indisponível) aumentam o risco de uma armadilha de baixa. A estrutura atual mostra uma consolidação em torno de 3987, tornando a entrada de venda prematura sem um teste de resistência mais claro ou um impulso de rompimento mais definido abaixo dos 3980.",
+      "atr14": 1.95026,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T23:28:54.897878+00:00"
     }
   ]
 }
