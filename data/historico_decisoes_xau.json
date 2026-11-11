@@ -4432,5 +4432,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-11T14:51:26.350161+00:00"
+  },
+  {
+    "candle_utc": "2026-11-11T14:55:00+00:00",
+    "id_sinal": 43043957726,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 37.5,
+    "pontuacao_compra": 0.0,
+    "pontuacao_venda": 37.5,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 5.4108,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-11T14:55:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado apresenta uma tendência de baixa consolidada em todos os tempos gráficos (M5, M15, H1) e o RSI em 29.84 indica uma condição de sobrevenda, o que sugere cautela para novas vendas. Embora o preço esteja em uma região de suporte imediato (4015.91), não há sinais de reversão ou exaustão da força vendedora. A estrutura de topos e fundos descendentes permanece intacta, tornando arriscada qualquer tentativa de compra contra a tendência principal.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-11T14:55:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 0,
+      "pontuacao_venda": 3,
+      "diferenca": -3,
+      "motivos": [],
+      "preco": 4016.517,
+      "atr_14": 4.786,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-11T15:05:03.483599+00:00"
   }
 ]

@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T14:51:26.350161+00:00",
-  "total_registros": 279,
+  "atualizado_utc": "2026-11-11T15:05:03.483599+00:00",
+  "total_registros": 281,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4831,6 +4831,54 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T14:51:26.350161+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T14:45:00+00:00",
+      "id_sinal": 43042403673,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4012.851,
+      "stop": 4020.843,
+      "stop_loss": 4020.843,
+      "gain": 4000.863,
+      "take_profit": 4000.863,
+      "confianca": 85,
+      "pontuacao_final": 71.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 71.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um forte alinhamento de baixa em todos os tempos gráficos (M5, M15, H1). O RSI de 22.2 indica uma condição de sobrevenda, porém, em tendências de forte impulso vendedor, o preço tende a buscar suportes mais profundos antes de qualquer correção. A estrutura de topos e fundos descendentes é clara, e o preço atual está testando uma região de suporte imediato (4012.03), onde a probabilidade histórica de transição para níveis inferiores é relevante. A ausência de sinais de reversão e o alinhamento das EMAs confirmam a continuidade da pressão vendedora.",
+      "atr14": 5.32779,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T14:51:54.970197+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T14:55:00+00:00",
+      "id_sinal": 43043957726,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma tendência de baixa consolidada em todos os tempos gráficos (M5, M15, H1) e o RSI em 29.84 indica uma condição de sobrevenda, o que sugere cautela para novas vendas. Embora o preço esteja em uma região de suporte imediato (4015.91), não há sinais de reversão ou exaustão da força vendedora. A estrutura de topos e fundos descendentes permanece intacta, tornando arriscada qualquer tentativa de compra contra a tendência principal.",
+      "atr14": 5.4108,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T15:05:03.483599+00:00"
     }
   ]
 }
