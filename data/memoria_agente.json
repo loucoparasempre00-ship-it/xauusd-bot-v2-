@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T03:01:33.615513+00:00",
-  "total_registros": 257,
+  "atualizado_utc": "2026-11-11T03:06:15.505606+00:00",
+  "total_registros": 258,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4303,6 +4303,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T03:01:33.615513+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T03:00:00+00:00",
+      "id_sinal": 42950400086,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 50.0,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o setup matemático e a tendência de curto prazo (M5/M15) indiquem alta, o preço atual está testando uma zona de resistência imediata (4045.79 - 4053.67) com histórico de alta densidade de transições. A divergência com a tendência de H1 e a proximidade do preço com o topo anterior (4054.67) sugerem um risco elevado de exaustão do movimento comprador antes de uma correção. Prefiro aguardar um rompimento confirmado da resistência ou um recuo para a zona de suporte em 4038.69 para uma entrada com melhor relação risco-retorno.",
+      "atr14": 2.97976,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:06:15.505606+00:00"
     }
   ]
 }
