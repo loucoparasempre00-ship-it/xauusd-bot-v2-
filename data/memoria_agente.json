@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T03:26:08.328130+00:00",
-  "total_registros": 262,
+  "atualizado_utc": "2026-11-11T03:32:01.954220+00:00",
+  "total_registros": 263,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4423,6 +4423,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T03:26:08.328130+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T03:25:00+00:00",
+      "id_sinal": 42953192465,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência estrutural no M5 e M15 seja de alta, o preço está operando logo abaixo de uma resistência imediata (4047.69 - 4053.67) e apresentou uma vela de baixa no fechamento atual. O alinhamento das EMAs sugere força compradora, mas a divergência com a tendência de baixa no H1 e a falta de volume validado (VWAP indisponível) tornam o cenário atual de consolidação local pouco atrativo para novas entradas. Aguardo um rompimento claro da resistência ou um reteste mais sólido em suportes próximos.",
+      "atr14": 2.93068,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:32:01.954220+00:00"
     }
   ]
 }
