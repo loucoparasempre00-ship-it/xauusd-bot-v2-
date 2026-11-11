@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -13,29 +14,24 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
-DATA.mkdir(exist_ok=True)
+SAIDA = DATA / "coletor_saida"
+MANIFESTO = SAIDA / "manifesto_coletor.json"
 
-ARQUIVO_ESTADO = DATA / "acompanhamento_autonomo_estado.json"
-ARQUIVO_RELATORIO = DATA / "relatorio_organizador_xauusd.json"
+GRUPOS = (
+    "graficos",
+    "sinais",
+    "memoria",
+    "operacoes",
+    "estatisticas_m5",
+    "resultados_operacoes",
+)
 
 BANCOS = {
-    "graficos": DATA / "graficos.db",
-    "sinais": DATA / "sinais.db",
-    "memoria": DATA / "memoria.db",
-    "operacoes": DATA / "operacoes.db",
-    "estatisticas_m5": DATA / "estatisticas_m5.db",
-    "resultados_operacoes": DATA / "resultados_operacoes.db",
+    nome: DATA / f"{nome}.db"
+    for nome in GRUPOS
 }
 
-COMPACTADOS = {
-    nome: Path(str(caminho) + ".gz")
-    for nome, caminho in BANCOS.items()
-}
-
-EXTENSOES = {
-    ".json", ".jsonl", ".csv", ".gz",
-    ".txt", ".db", ".sqlite", ".sqlite3"
-}
+RELATORIO = DATA / "relatorio_organizador_xauusd.json"
 
 
 def agora():
@@ -47,165 +43,73 @@ def json_texto(objeto):
         objeto,
         ensure_ascii=False,
         sort_keys=True,
-        default=str
+        default=str,
     )
 
 
-def hash_bytes(conteudo):
+def sha256(conteudo):
     return hashlib.sha256(conteudo).hexdigest()
 
 
 def preparar_bancos():
-    """Restaura os bancos compactados antes de abrir o SQLite."""
+    DATA.mkdir(exist_ok=True)
+
     for nome, banco in BANCOS.items():
-        compactado = COMPACTADOS[nome]
+        compactado = Path(str(banco) + ".gz")
 
         if not banco.exists() and compactado.exists():
-            banco.write_bytes(
-                gzip.decompress(compactado.read_bytes())
-            )
+            banco.write_bytes(gzip.decompress(compactado.read_bytes()))
 
 
 def compactar_bancos():
-    """Compacta os bancos depois que todas as conexões forem fechadas."""
-    for nome, banco in BANCOS.items():
+    for banco in BANCOS.values():
         if banco.exists():
-            dados = banco.read_bytes()
+            destino = Path(str(banco) + ".gz")
 
-            COMPACTADOS[nome].write_bytes(
+            destino.write_bytes(
                 gzip.compress(
-                    dados,
+                    banco.read_bytes(),
                     compresslevel=9,
-                    mtime=0
+                    mtime=0,
                 )
             )
 
             banco.unlink()
 
 
-def ler_estado():
-    if not ARQUIVO_ESTADO.is_file():
-        return {}
+def validar_coletor():
+    if not MANIFESTO.is_file():
+        raise RuntimeError("Manifesto do Coletor não encontrado.")
 
-    try:
-        objeto = json.loads(
-            ARQUIVO_ESTADO.read_text(encoding="utf-8")
+    manifesto = json.loads(MANIFESTO.read_text(encoding="utf-8"))
+
+    if manifesto.get("status") != "SUCESSO":
+        raise RuntimeError(
+            "Coletor não terminou com sucesso. "
+            "Organizador bloqueado para proteger os bancos."
         )
-        return objeto if isinstance(objeto, dict) else {}
-    except Exception:
-        return {}
+
+    for grupo in GRUPOS:
+        pasta = SAIDA / grupo
+
+        if not pasta.is_dir():
+            raise RuntimeError(f"Saída ausente: {grupo}")
 
 
-def classificar(arquivo):
-    nome = arquivo.name.lower()
-
-    if nome == ARQUIVO_ESTADO.name.lower():
-        return "operacoes"
-
-    if any(x in nome for x in (
-        "resultado-agente-gemini",
-        "historico-agente-gemini",
-        "decisao_gemini",
-        "decisão_gemini",
-        "historico_decisoes",
-        "historico_decisões",
-        "analise_tecnica_contexto",
-    )):
-        return "sinais"
-
-    if any(x in nome for x in (
-        "estatisticas_regioes_m5",
-        "proximas_regioes_m5",
-        "regioes_estaveis_m5",
-        "resultados_eventos_m5",
-        "resumo_estatistico_m5",
-        "transicoes_estaveis_m5",
-        "transicoes_probabilidade_m5",
-        "organizado_06_estatisticas",
-    )):
-        return "estatisticas_m5"
-
-    if any(x in nome for x in (
-        "resultados_operacoes",
-        "resultado_operacoes",
-        "resumo_resultados_m5",
-        "eventos_operacao",
-        "cadastro_mestre",
-        "condutor",
-        "acompanhamento",
-        "acompanhador",
-        "agente_operacional",
-        "decisao_agente_operacional",
-        "organizado_04_condutor",
-        "organizado_05_organizador",
-    )):
-        return "resultados_operacoes"
-
-    if any(x in nome for x in (
-        "xauusd_m5",
-        "vela",
-        "grafico",
-        "gráfico",
-        "tabuleiro",
-        "regiao",
-        "região",
-        "borda",
-        "transicao",
-        "transição",
-        "sequencia",
-        "sequência",
-        "ohlc",
-        "organizado_01_graficos",
-    )):
-        return "graficos"
-
-    if any(x in nome for x in (
-        "sinal",
-        "ranking",
-        "marcador",
-        "setup_matematico",
-        "setup_matemático",
-        "decisao_sinal",
-        "decisão_sinal",
-        "organizado_02_gerador",
-    )):
-        return "sinais"
-
-    if any(x in nome for x in (
-        "memoria",
-        "memória",
-        "gemini",
-        "aprendizado",
-        "aprendizagem",
-        "parametro_adaptativo",
-        "parâmetro_adaptativo",
-        "estatisticas_consolidacao",
-        "estatísticas_consolidação",
-        "indice_arquivos",
-        "índice_arquivos",
-        "organizado_03_memoria",
-        "relatorio_organizador_memoria",
-    )):
-        return "memoria"
-
-    return None
-
-
-class ModuloBase:
+class Modulo:
 
     def __init__(self, grupo):
         self.grupo = grupo
         self.tabela = grupo
-        self.caminho_banco = BANCOS[grupo]
-        self.db = sqlite3.connect(self.caminho_banco)
-
+        self.banco = BANCOS[grupo]
+        self.db = sqlite3.connect(self.banco)
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
-
         self.erros = []
-        self.criar_estrutura()
 
-    def criar_estrutura(self):
+        self.criar_tabelas()
+
+    def criar_tabelas(self):
         self.db.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.tabela} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -265,9 +169,6 @@ class ModuloBase:
 
     def gravar(self, caminho, tipo, numero, objeto, chave=None):
         texto = json_texto(objeto)
-        resumo = hashlib.sha256(
-            texto.encode("utf-8")
-        ).hexdigest()
 
         self.db.execute(f"""
             INSERT OR REPLACE INTO {self.tabela} (
@@ -286,15 +187,12 @@ class ModuloBase:
             numero,
             str(chave) if chave is not None else None,
             texto,
-            resumo,
-            agora()
+            sha256(texto.encode("utf-8")),
+            agora(),
         ))
 
     def ler_json(self, caminho, conteudo):
-        objeto = json.loads(
-            conteudo.decode("utf-8-sig")
-        )
-
+        objeto = json.loads(conteudo.decode("utf-8-sig"))
         numero = 0
 
         def registrar(valor, tipo, chave=None):
@@ -312,11 +210,7 @@ class ModuloBase:
             for chave, valor in objeto.items():
                 if isinstance(valor, list):
                     for item in valor:
-                        registrar(
-                            item,
-                            "item_" + str(chave),
-                            chave
-                        )
+                        registrar(item, "item_" + str(chave), chave)
 
         else:
             registrar(objeto, "valor_principal")
@@ -335,7 +229,7 @@ class ModuloBase:
                 caminho,
                 "linha_jsonl",
                 numero,
-                json.loads(linha)
+                json.loads(linha),
             )
 
         return numero
@@ -346,42 +240,35 @@ class ModuloBase:
         try:
             dialeto = csv.Sniffer().sniff(
                 texto[:8192],
-                delimiters=",;\t|"
+                delimiters=",;\t|",
             )
         except csv.Error:
             dialeto = csv.excel
 
         leitor = csv.DictReader(
             io.StringIO(texto),
-            dialect=dialeto
+            dialect=dialeto,
         )
 
         numero = 0
 
         for linha in leitor:
             numero += 1
-            self.gravar(
-                caminho,
-                "linha_csv",
-                numero,
-                linha
-            )
+            self.gravar(caminho, "linha_csv", numero, linha)
 
         return numero
 
     def ler_sqlite(self, caminho, conteudo):
-        temporario = DATA / (
-            ".temporario_" + self.grupo + ".db"
-        )
-
+        temporario = DATA / f".temporario_{self.grupo}.db"
         temporario.write_bytes(conteudo)
+
         origem = None
         numero = 0
 
         try:
             origem = sqlite3.connect(
                 f"file:{temporario}?mode=ro",
-                uri=True
+                uri=True,
             )
 
             tabelas = origem.execute("""
@@ -408,7 +295,7 @@ class ModuloBase:
                         "tabela_" + nome_tabela,
                         numero,
                         dict(zip(colunas, linha)),
-                        nome_tabela
+                        nome_tabela,
                     )
 
         finally:
@@ -419,10 +306,13 @@ class ModuloBase:
 
         return numero
 
-    def processar(self, arquivo):
-        caminho = arquivo.relative_to(ROOT).as_posix()
+    def importar(self, arquivo, pasta_grupo):
+        # Usa o caminho original lógico, sem o prefixo coletor_saida/grupo.
+        relativo = arquivo.relative_to(pasta_grupo)
+        caminho = "data/" + relativo.as_posix()
+
         original = arquivo.read_bytes()
-        sha = hash_bytes(original)
+        resumo = sha256(original)
 
         anterior = self.db.execute("""
             SELECT hash_sha256
@@ -430,7 +320,7 @@ class ModuloBase:
             WHERE caminho = ?
         """, (caminho,)).fetchone()
 
-        if anterior and anterior[0] == sha:
+        if anterior and anterior[0] == resumo:
             return "INALTERADO"
 
         try:
@@ -447,15 +337,15 @@ class ModuloBase:
             """, (
                 caminho,
                 arquivo.name,
-                sha,
+                resumo,
                 len(original),
                 agora(),
-                sqlite3.Binary(original)
+                sqlite3.Binary(original),
             ))
 
             self.db.execute(
                 f"DELETE FROM {self.tabela} WHERE arquivo_origem=?",
-                (caminho,)
+                (caminho,),
             )
 
             nome = arquivo.name.lower()
@@ -464,15 +354,21 @@ class ModuloBase:
             if nome.endswith(".csv.gz"):
                 quantidade = self.ler_csv(
                     caminho,
-                    gzip.decompress(original)
+                    gzip.decompress(original),
+                )
+
+            elif nome.endswith(".json.gz"):
+                quantidade = self.ler_json(
+                    caminho,
+                    gzip.decompress(original),
                 )
 
             elif extensao == ".gz":
                 bruto = gzip.decompress(original)
 
-                if nome.endswith(".json.gz"):
+                try:
                     quantidade = self.ler_json(caminho, bruto)
-                else:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     quantidade = self.ler_csv(caminho, bruto)
 
             elif extensao == ".json":
@@ -488,16 +384,12 @@ class ModuloBase:
                 quantidade = self.ler_sqlite(caminho, original)
 
             else:
-                texto = original.decode(
-                    "utf-8-sig",
-                    errors="replace"
-                )
-
+                texto = original.decode("utf-8-sig", errors="replace")
                 self.gravar(
                     caminho,
                     "arquivo_texto",
                     1,
-                    {"conteudo": texto}
+                    {"conteudo": texto},
                 )
                 quantidade = 1
 
@@ -515,49 +407,31 @@ class ModuloBase:
                 caminho,
                 self.grupo,
                 quantidade,
-                sha,
+                resumo,
                 "SUCESSO",
-                agora()
+                agora(),
             ))
 
             self.db.commit()
-            return "IMPORTADO"
+            return f"IMPORTADO ({quantidade} registros)"
 
         except Exception as erro:
             self.db.rollback()
             self.erros.append({
                 "arquivo": caminho,
-                "erro": str(erro)
+                "erro": str(erro),
             })
             return "ERRO"
 
-    def fechar(self):
-        self.db.commit()
-        self.db.close()
 
-
-class ModuloOperacoes(ModuloBase):
-
-    def __init__(self):
-        super().__init__("operacoes")
-
-    def codigo_existente(self, sinal_id, anterior):
-        # Mantém o código da operação enquanto ela continuar ativa.
-        if sinal_id in anterior:
-            return anterior[sinal_id]
-
-        return None
+class ModuloOperacoes(Modulo):
 
     def reconstruir_ativas(self):
-        estado = ler_estado()
-
-        # Guarda os códigos das operações que ainda estavam ativas
-        # antes de limpar a tabela.
+        # Preserva os códigos já atribuídos às operações ativas.
         anteriores = {}
 
         linhas = self.db.execute("""
-            SELECT payload_json
-            FROM operacoes
+            SELECT payload_json FROM operacoes
         """).fetchall()
 
         for (texto,) in linhas:
@@ -580,8 +454,16 @@ class ModuloOperacoes(ModuloBase):
             if sinal_id is not None and codigo:
                 anteriores[str(sinal_id)] = str(codigo)
 
-        # A tabela será reconstruída somente com ATIVAS.
-        self.db.execute("DELETE FROM operacoes")
+        pasta = SAIDA / "operacoes"
+        estados = list(pasta.rglob("acompanhamento_autonomo_estado.json"))
+
+        if not estados:
+            raise RuntimeError(
+                "Estado do acompanhamento não foi coletado. "
+                "Banco de operações não será alterado."
+            )
+
+        estado = json.loads(estados[0].read_text(encoding="utf-8"))
 
         lista = estado.get("operacoes", [])
 
@@ -605,12 +487,7 @@ class ModuloOperacoes(ModuloBase):
             if not isinstance(original, dict):
                 continue
 
-            status = str(
-                original.get("status", "")
-            ).strip().upper()
-
-            # Somente operações efetivamente ativas entram no banco.
-            if status != "ATIVA":
+            if str(original.get("status", "")).upper() != "ATIVA":
                 continue
 
             sinal_id = (
@@ -633,21 +510,15 @@ class ModuloOperacoes(ModuloBase):
 
             codigo = (
                 item.get("codigo_operacao")
-                or item.get("operacao_id")
-                or item.get("id")
-                or self.codigo_existente(sinal_id, anteriores)
+                or anteriores.get(sinal_id)
             )
 
             if not isinstance(codigo, str) or not re.fullmatch(
                 r"OP-[0-9]{6,}", codigo
             ):
-                while f"OP-{numero:06d}" in codigos_usados:
-                    numero += 1
+                codigo = None
 
-                codigo = f"OP-{numero:06d}"
-                numero += 1
-
-            if codigo in codigos_usados:
+            if codigo is None or codigo in codigos_usados:
                 while f"OP-{numero:06d}" in codigos_usados:
                     numero += 1
 
@@ -663,86 +534,73 @@ class ModuloOperacoes(ModuloBase):
 
             ativos.append(item)
 
+        self.db.execute("DELETE FROM operacoes")
+
         for indice, item in enumerate(ativos, start=1):
             self.gravar(
                 "ENTREI_CONFIRMADO",
                 "operacao_ativa",
                 indice,
                 item,
-                item["sinal_run_id"]
+                item["sinal_run_id"],
             )
 
         self.db.commit()
         return len(ativos)
 
 
-class OrganizadorXAUUSD:
+def executar():
+    validar_coletor()
+    preparar_bancos()
 
-    def __init__(self):
-        self.modulos = {
-            "graficos": ModuloBase("graficos"),
-            "sinais": ModuloBase("sinais"),
-            "memoria": ModuloBase("memoria"),
-            "operacoes": ModuloOperacoes(),
-            "estatisticas_m5": ModuloBase("estatisticas_m5"),
-            "resultados_operacoes": ModuloBase("resultados_operacoes"),
-        }
+    modulos = {}
 
-        self.relatorio = {
-            "versao": 5,
+    try:
+        for grupo in GRUPOS:
+            if grupo == "operacoes":
+                modulos[grupo] = ModuloOperacoes(grupo)
+            else:
+                modulos[grupo] = Modulo(grupo)
+
+        relatorio = {
+            "versao": 6,
             "data_utc": agora(),
             "status": "INICIADO",
             "modulos": {},
-            "arquivos_sem_classificacao": [],
             "erros": [],
             "operacoes_ativas": 0,
         }
 
-    def arquivos_para_processar(self):
-        bancos = {
-            caminho.resolve()
-            for caminho in BANCOS.values()
-        }
+        print("ORGANIZADOR XAUUSD - SEIS MÓDULOS")
 
-        compactados = {
-            caminho.resolve()
-            for caminho in COMPACTADOS.values()
-        }
+        for grupo in GRUPOS:
+            pasta = SAIDA / grupo
+            modulo = modulos[grupo]
 
-        encontrados = []
+            arquivos = sorted(
+                arquivo for arquivo in pasta.rglob("*")
+                if arquivo.is_file()
+            )
 
-        for arquivo in DATA.rglob("*"):
-            if not arquivo.is_file():
-                continue
+            for arquivo in arquivos:
+                resultado = modulo.importar(arquivo, pasta)
+                print(f"[{grupo.upper()}] {arquivo.name}: {resultado}")
 
-            if arquivo.resolve() in bancos:
-                continue
-
-            if arquivo.resolve() in compactados:
-                continue
-
-            if arquivo.name.startswith("."):
-                continue
-
-            if arquivo.name == ARQUIVO_RELATORIO.name:
-                continue
-
-            if arquivo.suffix.lower() not in EXTENSOES:
-                continue
-
-            encontrados.append(arquivo)
-
-        return sorted(encontrados)
-
-    def registrar_referencias(self):
-        for modulo in self.modulos.values():
-            for outro_nome, outro in self.modulos.items():
-                if modulo.grupo == outro_nome:
+                if resultado == "ERRO":
                     continue
 
-                resumo = hash_bytes(
-                    outro.caminho_banco.read_bytes()
+            if grupo == "operacoes":
+                relatorio["operacoes_ativas"] = (
+                    modulo.reconstruir_ativas()
                 )
+
+        # Referências cruzadas entre os seis bancos.
+        for nome, modulo in modulos.items():
+            for outro_nome, outro in modulos.items():
+                if nome == outro_nome:
+                    continue
+
+                resumo = sha256(outro.banco.read_bytes())
 
                 modulo.db.execute("""
                     INSERT OR IGNORE INTO referencias_modulos (
@@ -754,130 +612,77 @@ class OrganizadorXAUUSD:
                     VALUES (?, ?, ?, ?)
                 """, (
                     outro_nome,
-                    outro.caminho_banco.name,
+                    outro.banco.name,
                     resumo,
-                    agora()
+                    agora(),
                 ))
 
             modulo.db.commit()
 
-    def executar(self):
-        try:
-            print("ORGANIZADOR XAUUSD")
+        for nome, modulo in modulos.items():
+            integridade = modulo.db.execute(
+                "PRAGMA integrity_check"
+            ).fetchone()[0]
 
-            for arquivo in self.arquivos_para_processar():
-                grupo = classificar(arquivo)
+            total = modulo.db.execute(
+                f"SELECT COUNT(*) FROM {nome}"
+            ).fetchone()[0]
 
-                if grupo is None:
-                    self.relatorio[
-                        "arquivos_sem_classificacao"
-                    ].append(
-                        arquivo.relative_to(ROOT).as_posix()
-                    )
-                    continue
+            origens = modulo.db.execute(
+                "SELECT COUNT(*) FROM arquivos_origem"
+            ).fetchone()[0]
 
-                # O estado é lido diretamente pelo módulo de operações.
-                # Não é importado como histórico de operações.
-                if (
-                    grupo == "operacoes"
-                    and arquivo.name == ARQUIVO_ESTADO.name
-                ):
-                    continue
+            relatorio["modulos"][nome] = {
+                "banco": nome + ".db.gz",
+                "registros": total,
+                "arquivos_origem": origens,
+                "integridade": integridade,
+            }
 
-                resultado = self.modulos[grupo].processar(arquivo)
+            relatorio["erros"].extend(modulo.erros)
 
-                print(
-                    f"[{grupo.upper()}] "
-                    f"{arquivo.name}: {resultado}"
-                )
+            if integridade != "ok":
+                relatorio["erros"].append({
+                    "banco": nome,
+                    "erro": "Falha no integrity_check",
+                })
 
-            quantidade = (
-                self.modulos["operacoes"].reconstruir_ativas()
+        relatorio["total_erros"] = len(relatorio["erros"])
+
+        relatorio["status"] = (
+            "SUCESSO"
+            if relatorio["total_erros"] == 0
+            else "CONCLUIDO_COM_ERROS"
+        )
+
+        RELATORIO.write_text(
+            json_texto(relatorio),
+            encoding="utf-8",
+        )
+
+        print("OPERAÇÕES ATIVAS:", relatorio["operacoes_ativas"])
+
+        for nome, dados in relatorio["modulos"].items():
+            print(
+                nome.upper(),
+                "| registros:", dados["registros"],
+                "| integridade:", dados["integridade"],
             )
 
-            self.relatorio["operacoes_ativas"] = quantidade
+        print("ERROS:", relatorio["total_erros"])
+        print("STATUS:", relatorio["status"])
 
-            self.registrar_referencias()
+        if relatorio["status"] != "SUCESSO":
+            raise RuntimeError("Organizador terminou com erros.")
 
-            for nome, modulo in self.modulos.items():
-                integridade = modulo.db.execute(
-                    "PRAGMA integrity_check"
-                ).fetchone()[0]
+    finally:
+        for modulo in modulos.values():
+            modulo.db.commit()
+            modulo.db.close()
 
-                total = modulo.db.execute(
-                    f"SELECT COUNT(*) FROM {modulo.tabela}"
-                ).fetchone()[0]
-
-                origens = modulo.db.execute(
-                    "SELECT COUNT(*) FROM arquivos_origem"
-                ).fetchone()[0]
-
-                self.relatorio["modulos"][nome] = {
-                    "banco": COMPACTADOS[nome].name,
-                    "registros": total,
-                    "arquivos_origem": origens,
-                    "integridade": integridade,
-                }
-
-                self.relatorio["erros"].extend(modulo.erros)
-
-                if integridade != "ok":
-                    self.relatorio["erros"].append({
-                        "banco": nome,
-                        "erro": "Falha no integrity_check"
-                    })
-
-            sem_grupo = len(
-                self.relatorio["arquivos_sem_classificacao"]
-            )
-
-            erros = len(self.relatorio["erros"])
-
-            self.relatorio["total_arquivos_sem_grupo"] = sem_grupo
-            self.relatorio["total_erros"] = erros
-
-            self.relatorio["status"] = (
-                "SUCESSO"
-                if erros == 0 and sem_grupo == 0
-                else "CONCLUIDO_COM_PENDENCIAS"
-            )
-
-            ARQUIVO_RELATORIO.write_text(
-                json_texto(self.relatorio),
-                encoding="utf-8"
-            )
-
-            print("OPERAÇÕES ATIVAS:", quantidade)
-
-            for nome, dados in self.relatorio["modulos"].items():
-                print(
-                    nome.upper(),
-                    "| registros:", dados["registros"],
-                    "| integridade:", dados["integridade"]
-                )
-
-            print("Arquivos sem classificação:", sem_grupo)
-            print("Erros:", erros)
-            print("STATUS:", self.relatorio["status"])
-
-            return self.relatorio
-
-        finally:
-            for modulo in self.modulos.values():
-                modulo.fechar()
+    compactar_bancos()
+    print("SEIS BANCOS COMPACTADOS.")
 
 
 if __name__ == "__main__":
-    preparar_bancos()
-
-    resultado = OrganizadorXAUUSD().executar()
-
-    compactar_bancos()
-
-    if (
-        resultado["total_erros"] > 0
-        or resultado["total_arquivos_sem_grupo"] > 0
-    ):
-        raise SystemExit(1)
-
-    print("ORGANIZADOR XAUUSD FINALIZADO.")
+    executar()
