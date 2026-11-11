@@ -1,10 +1,10 @@
 {
-  "atualizado_em": "2026-11-11T15:55:19.716710+00:00",
+  "atualizado_em": "2026-11-11T16:00:19.345650+00:00",
   "versao": 1,
-  "total_velas": 5002,
+  "total_velas": 5001,
   "total_regioes": 182,
-  "total_visitas": 5002,
-  "total_transicoes": 2693,
+  "total_visitas": 5001,
+  "total_transicoes": 2694,
   "minimo_amostras": 20,
   "metodo_confianca": "Wilson 95%",
   "melhores_regioes_rejeicao": [
@@ -58,17 +58,17 @@
     },
     {
       "regiao": 2662,
-      "visitas": 197,
-      "toques": 129,
-      "rejeicoes": 121,
+      "visitas": 195,
+      "toques": 128,
+      "rejeicoes": 119,
       "rompimentos": 3,
-      "prob_rejeicao": 0.4783,
-      "prob_rompimento": 0.0119,
-      "limite_inferior_rejeicao": 0.4175,
-      "amostras": 253,
+      "prob_rejeicao": 0.476,
+      "prob_rompimento": 0.012,
+      "limite_inferior_rejeicao": 0.4149,
+      "amostras": 250,
       "amostra_suficiente": "SIM",
       "rejeicoes_superiores": 37,
-      "rejeicoes_inferiores": 84,
+      "rejeicoes_inferiores": 82,
       "rompimentos_alta": 1,
       "rompimentos_baixa": 2
     },
@@ -86,6 +86,22 @@
       "rejeicoes_superiores": 4,
       "rejeicoes_inferiores": 4,
       "rompimentos_alta": 3,
+      "rompimentos_baixa": 4
+    },
+    {
+      "regiao": 2671,
+      "visitas": 32,
+      "toques": 9,
+      "rejeicoes": 7,
+      "rompimentos": 4,
+      "prob_rejeicao": 0.35,
+      "prob_rompimento": 0.2,
+      "limite_inferior_rejeicao": 0.1812,
+      "amostras": 20,
+      "amostra_suficiente": "SIM",
+      "rejeicoes_superiores": 1,
+      "rejeicoes_inferiores": 6,
+      "rompimentos_alta": 0,
       "rompimentos_baixa": 4
     },
     {
@@ -151,22 +167,6 @@
       "rejeicoes_inferiores": 5,
       "rompimentos_alta": 3,
       "rompimentos_baixa": 5
-    },
-    {
-      "regiao": 2713,
-      "visitas": 45,
-      "toques": 22,
-      "rejeicoes": 7,
-      "rompimentos": 3,
-      "prob_rejeicao": 0.2188,
-      "prob_rompimento": 0.0938,
-      "limite_inferior_rejeicao": 0.1102,
-      "amostras": 32,
-      "amostra_suficiente": "SIM",
-      "rejeicoes_superiores": 5,
-      "rejeicoes_inferiores": 2,
-      "rompimentos_alta": 3,
-      "rompimentos_baixa": 0
     }
   ],
   "transicoes_mais_frequentes": [
@@ -288,7 +288,7 @@
       "transicoes": 12,
       "saidas_origem": 23,
       "probabilidade": 0.5217,
-      "visitas_origem": 31
+      "visitas_origem": 32
     }
   ]
 }
