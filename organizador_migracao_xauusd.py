@@ -615,6 +615,7 @@ class ModuloOperacoes(ModuloBase):
 
         self.db.commit()
 
+
     def recuperar_codigos_antigos(self):
         linhas = self.db.execute("""
             SELECT payload_json
@@ -624,7 +625,12 @@ class ModuloOperacoes(ModuloBase):
         for (texto,) in linhas:
             try:
                 item = json.loads(texto)
-            except Exception:
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            # Alguns registros antigos são textos ou listas.
+            # Somente objetos podem fornecer dados de operação.
+            if not isinstance(item, dict):
                 continue
 
             codigo = (
@@ -632,6 +638,7 @@ class ModuloOperacoes(ModuloBase):
                 or item.get("id")
                 or item.get("operacao_id")
             )
+
             sinal_id = (
                 item.get("sinal_run_id")
                 or item.get("id_sinal")
@@ -639,59 +646,27 @@ class ModuloOperacoes(ModuloBase):
             )
 
             if (
-                sinal_id
+                sinal_id is not None
                 and isinstance(codigo, str)
                 and codigo.startswith("OP-")
             ):
-                self.db.execute("""
-                    INSERT OR IGNORE INTO controle_codigos_operacoes
-                    (sinal_id, codigo_operacao, criado_utc)
-                    VALUES (?, ?, ?)
-                """, (str(sinal_id), codigo, agora()))
+                try:
+                    self.db.execute("""
+                        INSERT OR IGNORE INTO controle_codigos_operacoes
+                        (sinal_id, codigo_operacao, criado_utc)
+                        VALUES (?, ?, ?)
+                    """, (
+                        str(sinal_id),
+                        codigo,
+                        agora()
+                    ))
+                except sqlite3.IntegrityError:
+                    # Não reutiliza código que já pertence
+                    # a outra operação.
+                    continue
 
         self.db.commit()
-
-    def proximo_codigo(self):
-        codigos = self.db.execute("""
-            SELECT codigo_operacao
-            FROM controle_codigos_operacoes
-        """).fetchall()
-
-        maior = 0
-        for (codigo,) in codigos:
-            try:
-                maior = max(
-                    maior,
-                    int(str(codigo).replace("OP-", ""))
-                )
-            except ValueError:
-                continue
-
-        return f"OP-{maior + 1:06d}"
-
-    def obter_codigo(self, sinal_id):
-        sinal_id = str(sinal_id)
-
-        existente = self.db.execute("""
-            SELECT codigo_operacao
-            FROM controle_codigos_operacoes
-            WHERE sinal_id = ?
-        """, (sinal_id,)).fetchone()
-
-        if existente:
-            return existente[0]
-
-        codigo = self.proximo_codigo()
-
-        self.db.execute("""
-            INSERT INTO controle_codigos_operacoes (
-                sinal_id, codigo_operacao, criado_utc
-            )
-            VALUES (?, ?, ?)
-        """, (sinal_id, codigo, agora()))
-
-        self.db.commit()
-        return codigo
+        
 
     def carregar_confirmadas(self):
         if not ARQUIVO_ESTADO.is_file():
