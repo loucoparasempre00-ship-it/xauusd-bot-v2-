@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  migrar:
+  organizar:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
@@ -41,26 +41,33 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Executar migracao
+      - name: Verificar codigo Python
         run: |
           set -euo pipefail
           python -m py_compile organizador_migracao_xauusd.py
+
+      - name: Executar Organizador
+        run: |
+          set -euo pipefail
           python -u organizador_migracao_xauusd.py
 
       - name: Validar quatro bancos
         run: |
+          set -euo pipefail
+
           python - <<'PY'
+          import json
           import sqlite3
           from pathlib import Path
 
-          nomes = [
-              "graficos.db",
-              "sinais.db",
-              "memoria.db",
-              "operacoes.db"
-          ]
+          grupos = {
+              "graficos.db": "graficos",
+              "sinais.db": "sinais",
+              "memoria.db": "memoria",
+              "operacoes.db": "operacoes",
+          }
 
-          for nome in nomes:
+          for nome, tabela in grupos.items():
               caminho = Path("data") / nome
 
               if not caminho.is_file():
@@ -72,20 +79,73 @@ jobs:
                   "PRAGMA integrity_check"
               ).fetchone()[0]
 
+              tabelas = {
+                  linha[0]
+                  for linha in con.execute(
+                      "SELECT name FROM sqlite_master "
+                      "WHERE type='table'"
+                  )
+              }
+
+              if tabela not in tabelas:
+                  raise SystemExit(
+                      f"Tabela principal ausente em {nome}: {tabela}"
+                  )
+
+              if "arquivos_origem" not in tabelas:
+                  raise SystemExit(
+                      f"Tabela arquivos_origem ausente em {nome}"
+                  )
+
               total = con.execute(
-                  "SELECT COUNT(*) FROM origens"
+                  f"SELECT COUNT(*) FROM {tabela}"
+              ).fetchone()[0]
+
+              origens = con.execute(
+                  "SELECT COUNT(*) FROM arquivos_origem"
               ).fetchone()[0]
 
               con.close()
 
-              if integridade != "ok" or total < 1:
+              if integridade != "ok":
                   raise SystemExit(
-                      f"Banco invalido: {nome}"
+                      f"Falha de integridade: {nome}"
                   )
 
-              print(f"OK: {nome} - {total} arquivos")
+              if origens < 1:
+                  raise SystemExit(
+                      f"Nenhum arquivo de origem em {nome}"
+                  )
+
+              print(
+                  f"OK: {nome} | "
+                  f"registros={total} | "
+                  f"origens={origens}"
+              )
+
+          relatorio = Path(
+              "data/relatorio_organizador_xauusd.json"
+          )
+
+          if not relatorio.is_file():
+              raise SystemExit("Relatorio nao encontrado")
+
+          dados = json.loads(
+              relatorio.read_text(encoding="utf-8")
+          )
+
+          if dados.get("status") != "SUCESSO":
+              raise SystemExit(
+                  "Organizador nao terminou com SUCESSO"
+              )
+
+          if dados.get("total_erros", 0) != 0:
+              raise SystemExit(
+                  "Relatorio apresenta erros"
+              )
 
           print("QUATRO_BANCOS_VALIDOS")
+          print("RELATORIO_VALIDADO")
           PY
 
       - name: Salvar bancos no repositorio
@@ -101,24 +161,25 @@ jobs:
             data/sinais.db \
             data/memoria.db \
             data/operacoes.db \
-            relatorio_migracao_xauusd.json
+            data/relatorio_organizador_xauusd.json
 
           if git diff --cached --quiet; then
-            echo "Bancos ja atualizados."
+            echo "Nenhuma alteracao nos bancos."
           else
             git commit -m \
-              "Migrar XAUUSD para quatro bancos SQLite"
+              "Organizar XAUUSD em quatro bancos por modulo"
+
             git push origin HEAD:main
           fi
 
       - name: Guardar copia de validacao
         uses: actions/upload-artifact@v4
         with:
-          name: migracao-xauusd-validada
+          name: organizador-xauusd-validado
           path: |
             data/graficos.db
             data/sinais.db
             data/memoria.db
             data/operacoes.db
-            relatorio_migracao_xauusd.json
+            data/relatorio_organizador_xauusd.json
           retention-days: 30
