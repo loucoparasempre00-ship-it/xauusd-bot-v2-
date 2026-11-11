@@ -1,6 +1,6 @@
 {
   "versao": 3,
-  "executado_utc": "2026-11-11T15:23:29.495070+00:00",
+  "executado_utc": "2026-11-11T15:33:08.734372+00:00",
   "operacoes": {
     "total": 166,
     "ativas": 0,
@@ -12,11 +12,11 @@
     "identidade": "fechamento_utc",
     "intervalo": "M5",
     "regra": "timestamp_utc + 5 minutos",
-    "total_unicas": 5219,
-    "ativas": 5219,
+    "total_unicas": 5220,
+    "ativas": 5220,
     "arquivadas": 0,
-    "duplicatas_consolidadas": 14998,
-    "conflitos_ohlc": 0,
+    "duplicatas_consolidadas": 14999,
+    "conflitos_ohlc": 1,
     "arquivo_ativo": "data/velas_m5_ativas_90d.csv",
     "arquivo_historico": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
     "arquivo_conflitos": "data/arquivo_memoria/conflitos_velas_m5.json"

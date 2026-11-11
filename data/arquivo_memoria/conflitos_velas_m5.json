@@ -1,5 +1,20 @@
 {
-  "atualizado_utc": "2026-11-11T15:23:29.495070+00:00",
-  "total_conflitos": 0,
-  "registros": []
+  "atualizado_utc": "2026-11-11T15:33:08.734372+00:00",
+  "total_conflitos": 1,
+  "registros": [
+    {
+      "fechamento_utc": "2026-11-11T15:20:00+00:00",
+      "fonte_anterior": "velas_m5_ativas_90d.csv",
+      "fonte_nova": "historico_velas_m5.csv",
+      "campos_divergentes": [
+        "close"
+      ],
+      "valores_anteriores": {
+        "close": "4014.27695"
+      },
+      "valores_novos": {
+        "close": "4015.19042"
+      }
+    }
+  ]
 }
