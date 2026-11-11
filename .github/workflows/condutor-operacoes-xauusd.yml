@@ -483,3 +483,11 @@ jobs:
             data/decisao_agente_operacional.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Disparar Organizador Definitivo XAUUSD
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/dispatches" \
+            -f event_type='organizar-xauusd'
