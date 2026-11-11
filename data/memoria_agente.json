@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T02:51:08.589711+00:00",
-  "total_registros": 255,
+  "atualizado_utc": "2026-11-11T02:56:09.149155+00:00",
+  "total_registros": 256,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4255,6 +4255,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T02:51:08.589711+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:50:00+00:00",
+      "id_sinal": 42949275291,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência de curto prazo (M5/M15) seja de alta, o preço está sendo pressionado pela EMA6 e EMA20, com o histograma do MACD negativo, indicando perda de momentum comprador. A estrutura mostra uma lateralização recente após o topo em 4054.67, e o preço atual (4041.48) está exatamente em uma região de suporte imediato (4041.0 - 4042.5). Sem um rompimento claro das resistências próximas ou um sinal de exaustão vendedora mais robusto, a cautela é recomendada.",
+      "atr14": 3.42648,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T02:56:09.149155+00:00"
     }
   ]
 }
