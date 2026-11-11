@@ -1,19 +1,22 @@
 {
-  "atualizado_utc": "2026-11-11T04:07:08.591175+00:00",
+  "atualizado_utc": "2026-11-11T04:11:44.735788+00:00",
   "total_conflitos": 1,
   "registros": [
     {
-      "fechamento_utc": "2026-11-11T04:00:00+00:00",
+      "fechamento_utc": "2026-11-11T04:05:00+00:00",
       "fonte_anterior": "velas_m5_ativas_90d.csv",
       "fonte_nova": "historico_velas_m5.csv",
       "campos_divergentes": [
+        "high",
         "close"
       ],
       "valores_anteriores": {
-        "close": "4046.23236"
+        "high": "4048.2552",
+        "close": "4047.95807"
       },
       "valores_novos": {
-        "close": "4046.9504"
+        "high": "4048.65305",
+        "close": "4048.33665"
       }
     }
   ]
