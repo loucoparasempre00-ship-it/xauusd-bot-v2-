@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T18:06:06.829005+00:00",
-  "total_registros": 306,
+  "atualizado_utc": "2026-11-11T18:11:11.732775+00:00",
+  "total_registros": 307,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5479,6 +5479,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T18:06:06.829005+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T18:05:00+00:00",
+      "id_sinal": 43075208226,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 60,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora a tendência macro (H1/M15) e as EMAs no M5 indiquem baixa, o preço encontra-se em uma zona de suporte imediato (3988-3990) com alta densidade de visitas históricas. O RSI em 31.14 sugere um esgotamento de curto prazo, e o candle atual apresenta uma tentativa de recuperação (direção de alta). Entrar em venda agora seria operar contra um suporte local relevante e com risco de exaustão do movimento vendedor imediato.",
+      "atr14": 3.15834,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T18:11:11.732775+00:00"
     }
   ]
 }
