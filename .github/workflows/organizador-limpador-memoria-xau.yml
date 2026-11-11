@@ -23,7 +23,7 @@ jobs:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
-        github.event.workflow_run.conclusion == 'success'
+        github.event_name == 'workflow_run'
       }}
 
     runs-on: ubuntu-latest
@@ -62,22 +62,16 @@ jobs:
               "data/arquivo_memoria/velas_m5_anteriores.csv.gz"
           ]
 
-          destino = Path(
-              "/tmp/backup-organizador-xauusd.zip"
-          )
+          destino = Path("/tmp/backup-organizador-xauusd.zip")
 
           with zipfile.ZipFile(
               destino, "w", zipfile.ZIP_DEFLATED
           ) as backup:
-
               for nome in arquivos:
                   caminho = Path(nome)
 
                   if caminho.is_file():
-                      backup.write(
-                          caminho,
-                          arcname=nome
-                      )
+                      backup.write(caminho, arcname=nome)
                       print("Backup:", nome)
 
           if not destino.exists() or destino.stat().st_size == 0:
@@ -192,10 +186,7 @@ jobs:
 
           historico = ler_json(HISTORICO, [])
 
-          cadastro = ler_json(
-              CADASTRO,
-              {}
-          )
+          cadastro = ler_json(CADASTRO, {})
 
           if not isinstance(estado, dict):
               raise RuntimeError("Estado operacional invalido.")
@@ -209,9 +200,7 @@ jobs:
           if not isinstance(estado.get("operacoes"), list):
               estado["operacoes"] = []
 
-          mapa_antigo = cadastro.get(
-              "mapa_identidades", {}
-          )
+          mapa_antigo = cadastro.get("mapa_identidades", {})
 
           if not isinstance(mapa_antigo, dict):
               mapa_antigo = {}
@@ -236,7 +225,6 @@ jobs:
                       "dados": registro
                   })
 
-          # Compatibilidade com o campo legado "operacao".
           legado = estado.get("operacao")
 
           if isinstance(legado, dict):
@@ -290,7 +278,6 @@ jobs:
                   registro.get("alvo", "")
               ).strip()
 
-              # A ativacao distingue reentradas no mesmo sinal.
               if sinal_run and ativada:
                   base = (
                       "RUN|" + sinal_run +
@@ -319,8 +306,6 @@ jobs:
                   ])
 
               else:
-                  # Sem identidade suficiente, nao presumir
-                  # que duas operacoes diferentes sao iguais.
                   conteudo = json.dumps(
                       registro,
                       ensure_ascii=False,
@@ -337,9 +322,6 @@ jobs:
 
               return hash_curto(base)
 
-          # Agrupamento por identidade persistente.
-          # O ID antigo nao sera mantido no registro final.
-
           grupos = {}
 
           for item in entradas:
@@ -355,8 +337,6 @@ jobs:
 
               grupos.setdefault(fingerprint, []).append(item)
 
-          # Junta tambem registros que ja possuem o mesmo
-          # codigo OP de uma execucao anterior.
           por_codigo = {}
 
           for fingerprint, itens in list(grupos.items()):
@@ -463,7 +443,6 @@ jobs:
                   codigo = f"OP-{proximo:06d}"
                   proximo += 1
 
-              # Mescla os dados mais recentes.
               ordenados = sorted(
                   itens,
                   key=lambda x: instante_registro(x["dados"])
@@ -474,8 +453,6 @@ jobs:
               for item in ordenados:
                   mesclado.update(item["dados"])
 
-              # Encerramento tem prioridade sobre uma copia
-              # antiga que ainda apareca como ativa.
               encerrados = [
                   item for item in itens
                   if str(
@@ -496,16 +473,12 @@ jobs:
 
               mesclado["id"] = codigo
 
-              # Remove identificadores antigos concorrentes.
               for chave in (
                   "codigo_mestre",
                   "codigo_operacao",
                   "id_operacao"
               ):
                   mesclado.pop(chave, None)
-
-              # O sinal_run_id permanece como referencia interna
-              # de origem; nao e outro ID da operacao.
 
               status = str(
                   mesclado.get("status", "")
@@ -546,7 +519,6 @@ jobs:
               if len(itens) > 1:
                   total_consolidadas += len(itens) - 1
 
-          # Nunca manter duas operações ativas com o mesmo ID.
           ids_ativos = [
               op["id"] for op in operacoes_ativas
           ]
@@ -556,7 +528,6 @@ jobs:
                   "Falha: codigo repetido entre operacoes ativas."
               )
 
-          # Atualiza as duas bases que o Condutor utiliza.
           estado["operacoes"] = operacoes_ativas
 
           estado["operacao"] = (
@@ -653,7 +624,6 @@ jobs:
                       continue
 
                   fechamento = abertura + timedelta(minutes=5)
-
                   chave = fechamento.isoformat()
 
                   linha_saida = dict(linha)
@@ -675,12 +645,26 @@ jobs:
                       duplicatas_velas += 1
                       anterior = velas[chave]
 
+                      # CORRECAO: garante que o registro anterior
+                      # tenha a estrutura esperada.
+                      if not isinstance(anterior, dict):
+                          raise RuntimeError(
+                              f"Registro de vela invalido: {chave}"
+                          )
+
+                      linha_anterior = anterior.get("linha")
+
+                      if not isinstance(linha_anterior, dict):
+                          raise RuntimeError(
+                              f"Vela sem campo linha: {chave}"
+                          )
+
                       diferencas = [
                           campo for campo in (
                               "open", "high", "low", "close"
                           )
                           if str(
-                              anterior["linha"].get(campo, "")
+                              linha_anterior.get(campo, "")
                           ) != str(linha_saida.get(campo, ""))
                       ]
 
@@ -691,7 +675,7 @@ jobs:
                               "fonte_nova": nome,
                               "campos_divergentes": diferencas,
                               "valores_anteriores": {
-                                  k: anterior["linha"].get(k)
+                                  k: linha_anterior.get(k)
                                   for k in diferencas
                               },
                               "valores_novos": {
@@ -731,14 +715,16 @@ jobs:
           referencia = ordenadas[-1]["fechamento"]
           corte = referencia - timedelta(days=DIAS)
 
+          # CORRECAO PRINCIPAL:
+          # guardar o registro completo, nao somente a linha.
           ativas = []
           antigas = []
 
           for item in ordenadas:
               if item["fechamento"] >= corte:
-                  ativas.append(item["linha"])
+                  ativas.append(item)
               else:
-                  antigas.append(item["linha"])
+                  antigas.append(item)
 
           def escrever_csv(caminho, linhas):
               temporario = caminho.with_suffix(
@@ -785,7 +771,6 @@ jobs:
                   item["linha"] for item in antigas
               )
 
-          # Testa o arquivo comprimido antes de substituir.
           with gzip.open(
               temporario,
               "rt",
