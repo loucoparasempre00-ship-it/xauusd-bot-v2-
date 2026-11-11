@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T18:46:12.345994+00:00",
-  "total_registros": 314,
+  "atualizado_utc": "2026-11-11T18:51:13.276203+00:00",
+  "total_registros": 315,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5671,6 +5671,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T18:46:12.345994+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T18:45:00+00:00",
+      "id_sinal": 43081552540,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3989.421,
+      "stop": 3994.071,
+      "stop_loss": 3994.071,
+      "gain": 3982.445,
+      "take_profit": 3982.445,
+      "confianca": 75,
+      "pontuacao_final": 93.75,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 93.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento de baixa em todos os timeframes analisados (M5, M15, H1). O preço atual encontra-se abaixo das EMAs de curto prazo e o RSI indica espaço para continuidade do movimento vendedor. Embora o preço esteja testando uma região de suporte imediato (3988.99), a estrutura de topos e fundos descendentes e a ausência de sinais de reversão sugerem que a pressão vendedora deve prevalecer, buscando os alvos inferiores próximos a 3983.00.",
+      "atr14": 3.10028,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T18:51:13.276203+00:00"
     }
   ]
 }
