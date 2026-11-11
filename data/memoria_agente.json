@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T02:56:09.149155+00:00",
-  "total_registros": 256,
+  "atualizado_utc": "2026-11-11T03:01:33.615513+00:00",
+  "total_registros": 257,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4279,6 +4279,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T02:56:09.149155+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:55:00+00:00",
+      "id_sinal": 42949812815,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência de curto prazo (M5/M15) seja de alta, o preço está pressionado contra uma resistência imediata (4041.87 - 4043.07) e apresenta divergência com a tendência de H1. O histograma do MACD está negativo e o preço está operando entre as EMAs 6 e 20, indicando perda de momentum direcional. A ausência de um rompimento claro da resistência ou de um suporte consolidado torna qualquer entrada prematura.",
+      "atr14": 2.94848,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:01:33.615513+00:00"
     }
   ]
 }
