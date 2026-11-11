@@ -1,7 +1,7 @@
 {
   "versao": 3,
-  "atualizado_utc": "2026-11-11T03:51:53.833888+00:00",
-  "proximo_numero": 161,
+  "atualizado_utc": "2026-11-11T03:56:59.388584+00:00",
+  "proximo_numero": 163,
   "mapa_identidades": {
     "002CDBAA9C4527D2D7048F90": "OP-000001",
     "01B678CD3AE9B904476F455D": "OP-000002",
@@ -54,6 +54,7 @@
     "455FF931B929820C4DBBA1C7": "OP-000034",
     "4972058DE2E07670E808DBA1": "OP-000035",
     "4B0D074206C653EB189BD732": "OP-000036",
+    "4F52F8EFB15218C2140F14CC": "OP-000161",
     "50363C90691C1A319985F1AF": "OP-000037",
     "50A67A069AEA202B94D729ED": "OP-000038",
     "53086C728C36AF1674D179C4": "OP-000039",
@@ -87,6 +88,7 @@
     "7AA0782530AD7033ADF4884E": "OP-000061",
     "7AA564BB4FD88ED0C3D83AB5": "OP-000143",
     "7B29188D0FEDDDE60289D6C6": "OP-000062",
+    "7B5E7E4653942504C2FA5901": "OP-000162",
     "7D37789D06FD5564F9B6BEB7": "OP-000063",
     "7F0B755D5A2526F266C7C02D": "OP-000064",
     "7FECEC3C3AB192F65A27CD8D": "OP-000065",
@@ -164,7 +166,7 @@
     "F93D7CE545CB4643E669132B": "OP-000127",
     "FE18970D4694C9FF1D256E3D": "OP-000128"
   },
-  "total_operacoes": 160,
+  "total_operacoes": 162,
   "operacoes": [
     {
       "id": "OP-000001",
@@ -575,6 +577,14 @@
       "ocorrencias_consolidadas": 1
     },
     {
+      "id": "OP-000161",
+      "status": "STOP",
+      "origens": [
+        "historico"
+      ],
+      "ocorrencias_consolidadas": 1
+    },
+    {
       "id": "OP-000037",
       "status": "STOP",
       "origens": [
@@ -833,6 +843,14 @@
     {
       "id": "OP-000062",
       "status": "ALVO",
+      "origens": [
+        "historico"
+      ],
+      "ocorrencias_consolidadas": 1
+    },
+    {
+      "id": "OP-000162",
+      "status": "STOP",
       "origens": [
         "historico"
       ],
