@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T18:36:48.953757+00:00",
-  "total_registros": 312,
+  "atualizado_utc": "2026-11-11T18:41:17.560662+00:00",
+  "total_registros": 313,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5623,6 +5623,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T18:36:48.953757+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T18:35:00+00:00",
+      "id_sinal": 43080016219,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3991.263,
+      "stop": 3995.743,
+      "stop_loss": 3995.743,
+      "gain": 3984.543,
+      "take_profit": 3984.543,
+      "confianca": 75,
+      "pontuacao_final": 81.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 81.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de tendência de baixa em todos os tempos gráficos (M5, M15, H1). O preço atual de 3991.26 está abaixo das EMAs de curto prazo, confirmando a pressão vendedora. Embora o preço esteja se aproximando de uma zona de suporte relevante entre 3985 e 3990, o momentum atual favorece a continuidade da queda, com o RSI em 36.54 indicando espaço para desvalorização antes de atingir condições de sobrevenda extrema.",
+      "atr14": 2.98661,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T18:41:17.560662+00:00"
     }
   ]
 }
