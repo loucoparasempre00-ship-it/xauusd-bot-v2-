@@ -1,26 +1,15 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-"""
-ORGANIZADOR XAUUSD
-Seis módulos, seis bancos SQLite.
-Organiza, cruza e elimina duplicidades.
-Gera códigos oficiais OP-000001.
-operacoes.db guarda somente operações ATIVAS confirmadas por ENTREI.
-Não executa ordens financeiras.
-"""
 
 import csv
 import gzip
 import hashlib
 import io
 import json
+import re
 import sqlite3
-
 from datetime import datetime, timezone
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -36,6 +25,11 @@ BANCOS = {
     "operacoes": DATA / "operacoes.db",
     "estatisticas_m5": DATA / "estatisticas_m5.db",
     "resultados_operacoes": DATA / "resultados_operacoes.db",
+}
+
+COMPACTADOS = {
+    nome: Path(str(caminho) + ".gz")
+    for nome, caminho in BANCOS.items()
 }
 
 EXTENSOES = {
@@ -57,19 +51,50 @@ def json_texto(objeto):
     )
 
 
-def hash_texto(texto):
-    return hashlib.sha256(
-        texto.encode("utf-8")
-    ).hexdigest()
-
-
 def hash_bytes(conteudo):
     return hashlib.sha256(conteudo).hexdigest()
 
 
-# =========================================================
-# CLASSIFICAÇÃO DOS ARQUIVOS
-# =========================================================
+def preparar_bancos():
+    """Restaura os bancos compactados antes de abrir o SQLite."""
+    for nome, banco in BANCOS.items():
+        compactado = COMPACTADOS[nome]
+
+        if not banco.exists() and compactado.exists():
+            banco.write_bytes(
+                gzip.decompress(compactado.read_bytes())
+            )
+
+
+def compactar_bancos():
+    """Compacta os bancos depois que todas as conexões forem fechadas."""
+    for nome, banco in BANCOS.items():
+        if banco.exists():
+            dados = banco.read_bytes()
+
+            COMPACTADOS[nome].write_bytes(
+                gzip.compress(
+                    dados,
+                    compresslevel=9,
+                    mtime=0
+                )
+            )
+
+            banco.unlink()
+
+
+def ler_estado():
+    if not ARQUIVO_ESTADO.is_file():
+        return {}
+
+    try:
+        objeto = json.loads(
+            ARQUIVO_ESTADO.read_text(encoding="utf-8")
+        )
+        return objeto if isinstance(objeto, dict) else {}
+    except Exception:
+        return {}
+
 
 def classificar(arquivo):
     nome = arquivo.name.lower()
@@ -77,8 +102,6 @@ def classificar(arquivo):
     if nome == ARQUIVO_ESTADO.name.lower():
         return "operacoes"
 
-    # Produção e histórico de decisões do Gemini pertencem
-    # ao banco de sinais, não à memória adaptativa.
     if any(x in nome for x in (
         "resultado-agente-gemini",
         "historico-agente-gemini",
@@ -86,6 +109,7 @@ def classificar(arquivo):
         "decisão_gemini",
         "historico_decisoes",
         "historico_decisões",
+        "analise_tecnica_contexto",
     )):
         return "sinais"
 
@@ -135,9 +159,6 @@ def classificar(arquivo):
     )):
         return "graficos"
 
-    if "analise_tecnica_contexto" in nome:
-        return "sinais"
-
     if any(x in nome for x in (
         "sinal",
         "ranking",
@@ -170,10 +191,6 @@ def classificar(arquivo):
     return None
 
 
-# =========================================================
-# BASE DOS MÓDULOS
-# =========================================================
-
 class ModuloBase:
 
     def __init__(self, grupo):
@@ -182,13 +199,10 @@ class ModuloBase:
         self.caminho_banco = BANCOS[grupo]
         self.db = sqlite3.connect(self.caminho_banco)
 
-        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
 
-        self.arquivos = 0
-        self.registros = 0
         self.erros = []
-
         self.criar_estrutura()
 
     def criar_estrutura(self):
@@ -247,21 +261,13 @@ class ModuloBase:
             )
         """)
 
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS duplicatas_registros (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                hash_duplicado TEXT NOT NULL,
-                arquivo_duplicado TEXT NOT NULL,
-                registro_original_id INTEGER NOT NULL,
-                removido_utc TEXT NOT NULL
-            )
-        """)
-
         self.db.commit()
 
     def gravar(self, caminho, tipo, numero, objeto, chave=None):
         texto = json_texto(objeto)
-        resumo = hash_texto(texto)
+        resumo = hashlib.sha256(
+            texto.encode("utf-8")
+        ).hexdigest()
 
         self.db.execute(f"""
             INSERT OR REPLACE INTO {self.tabela} (
@@ -285,7 +291,10 @@ class ModuloBase:
         ))
 
     def ler_json(self, caminho, conteudo):
-        objeto = json.loads(conteudo.decode("utf-8-sig"))
+        objeto = json.loads(
+            conteudo.decode("utf-8-sig")
+        )
+
         numero = 0
 
         def registrar(valor, tipo, chave=None):
@@ -413,7 +422,7 @@ class ModuloBase:
     def processar(self, arquivo):
         caminho = arquivo.relative_to(ROOT).as_posix()
         original = arquivo.read_bytes()
-        hash_atual = hash_bytes(original)
+        sha = hash_bytes(original)
 
         anterior = self.db.execute("""
             SELECT hash_sha256
@@ -421,27 +430,31 @@ class ModuloBase:
             WHERE caminho = ?
         """, (caminho,)).fetchone()
 
-        if anterior and anterior[0] == hash_atual:
+        if anterior and anterior[0] == sha:
             return "INALTERADO"
 
         try:
             self.db.execute("""
                 INSERT OR REPLACE INTO arquivos_origem (
-                    caminho, nome, hash_sha256,
-                    tamanho_bytes, data_importacao, conteudo
+                    caminho,
+                    nome,
+                    hash_sha256,
+                    tamanho_bytes,
+                    data_importacao,
+                    conteudo
                 )
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 caminho,
                 arquivo.name,
-                hash_atual,
+                sha,
                 len(original),
                 agora(),
                 sqlite3.Binary(original)
             ))
 
             self.db.execute(
-                f"DELETE FROM {self.tabela} WHERE arquivo_origem = ?",
+                f"DELETE FROM {self.tabela} WHERE arquivo_origem=?",
                 (caminho,)
             )
 
@@ -455,18 +468,12 @@ class ModuloBase:
                 )
 
             elif extensao == ".gz":
-                descompactado = gzip.decompress(original)
+                bruto = gzip.decompress(original)
 
                 if nome.endswith(".json.gz"):
-                    quantidade = self.ler_json(
-                        caminho,
-                        descompactado
-                    )
+                    quantidade = self.ler_json(caminho, bruto)
                 else:
-                    quantidade = self.ler_csv(
-                        caminho,
-                        descompactado
-                    )
+                    quantidade = self.ler_csv(caminho, bruto)
 
             elif extensao == ".json":
                 quantidade = self.ler_json(caminho, original)
@@ -485,6 +492,7 @@ class ModuloBase:
                     "utf-8-sig",
                     errors="replace"
                 )
+
                 self.gravar(
                     caminho,
                     "arquivo_texto",
@@ -495,22 +503,24 @@ class ModuloBase:
 
             self.db.execute("""
                 INSERT OR REPLACE INTO controle_importacao (
-                    caminho, grupo, quantidade_registros,
-                    hash_sha256, status, atualizado_utc
+                    caminho,
+                    grupo,
+                    quantidade_registros,
+                    hash_sha256,
+                    status,
+                    atualizado_utc
                 )
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 caminho,
                 self.grupo,
                 quantidade,
-                hash_atual,
+                sha,
                 "SUCESSO",
                 agora()
             ))
 
             self.db.commit()
-            self.arquivos += 1
-            self.registros += quantidade
             return "IMPORTADO"
 
         except Exception as erro:
@@ -521,102 +531,30 @@ class ModuloBase:
             })
             return "ERRO"
 
-    def eliminar_duplicatas(self):
-        linhas = self.db.execute(f"""
-            SELECT id, arquivo_origem, hash_registro
-            FROM {self.tabela}
-            ORDER BY id
-        """).fetchall()
-
-        vistos = {}
-        removidos = 0
-
-        for registro_id, origem, resumo in linhas:
-            if resumo not in vistos:
-                vistos[resumo] = registro_id
-                continue
-
-            original_id = vistos[resumo]
-
-            self.db.execute("""
-                INSERT INTO duplicatas_registros (
-                    hash_duplicado,
-                    arquivo_duplicado,
-                    registro_original_id,
-                    removido_utc
-                )
-                VALUES (?, ?, ?, ?)
-            """, (
-                resumo,
-                origem,
-                original_id,
-                agora()
-            ))
-
-            self.db.execute(
-                f"DELETE FROM {self.tabela} WHERE id = ?",
-                (registro_id,)
-            )
-            removidos += 1
-
-        self.db.commit()
-        return removidos
-
     def fechar(self):
         self.db.commit()
         self.db.close()
 
-
-# =========================================================
-# MÓDULOS 1, 2, 3, 5 E 6
-# =========================================================
-
-class ModuloGraficos(ModuloBase):
-    def __init__(self):
-        super().__init__("graficos")
-
-
-class ModuloSinais(ModuloBase):
-    def __init__(self):
-        super().__init__("sinais")
-
-
-class ModuloMemoria(ModuloBase):
-    def __init__(self):
-        super().__init__("memoria")
-
-
-class ModuloEstatisticasM5(ModuloBase):
-    def __init__(self):
-        super().__init__("estatisticas_m5")
-
-
-class ModuloResultadosOperacoes(ModuloBase):
-    def __init__(self):
-        super().__init__("resultados_operacoes")
-
-
-# =========================================================
-# MÓDULO 4 — CÓDIGOS E OPERAÇÕES ATIVAS
-# =========================================================
 
 class ModuloOperacoes(ModuloBase):
 
     def __init__(self):
         super().__init__("operacoes")
 
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS controle_codigos_operacoes (
-                sinal_id TEXT PRIMARY KEY,
-                codigo_operacao TEXT NOT NULL UNIQUE,
-                criado_utc TEXT NOT NULL
-            )
-        """)
+    def codigo_existente(self, sinal_id, anterior):
+        # Mantém o código da operação enquanto ela continuar ativa.
+        if sinal_id in anterior:
+            return anterior[sinal_id]
 
-        self.db.commit()
+        return None
 
+    def reconstruir_ativas(self):
+        estado = ler_estado()
 
-    def recuperar_codigos_antigos(self):
+        # Guarda os códigos das operações que ainda estavam ativas
+        # antes de limpar a tabela.
+        anteriores = {}
+
         linhas = self.db.execute("""
             SELECT payload_json
             FROM operacoes
@@ -625,19 +563,11 @@ class ModuloOperacoes(ModuloBase):
         for (texto,) in linhas:
             try:
                 item = json.loads(texto)
-            except (json.JSONDecodeError, TypeError):
+            except Exception:
                 continue
 
-            # Alguns registros antigos são textos ou listas.
-            # Somente objetos podem fornecer dados de operação.
             if not isinstance(item, dict):
                 continue
-
-            codigo = (
-                item.get("codigo_operacao")
-                or item.get("id")
-                or item.get("operacao_id")
-            )
 
             sinal_id = (
                 item.get("sinal_run_id")
@@ -645,54 +575,42 @@ class ModuloOperacoes(ModuloBase):
                 or item.get("signal_id")
             )
 
-            if (
-                sinal_id is not None
-                and isinstance(codigo, str)
-                and codigo.startswith("OP-")
-            ):
-                try:
-                    self.db.execute("""
-                        INSERT OR IGNORE INTO controle_codigos_operacoes
-                        (sinal_id, codigo_operacao, criado_utc)
-                        VALUES (?, ?, ?)
-                    """, (
-                        str(sinal_id),
-                        codigo,
-                        agora()
-                    ))
-                except sqlite3.IntegrityError:
-                    # Não reutiliza código que já pertence
-                    # a outra operação.
-                    continue
+            codigo = item.get("codigo_operacao")
 
-        self.db.commit()
-        
+            if sinal_id is not None and codigo:
+                anteriores[str(sinal_id)] = str(codigo)
 
-    def carregar_confirmadas(self):
-        if not ARQUIVO_ESTADO.is_file():
-            return []
+        # A tabela será reconstruída somente com ATIVAS.
+        self.db.execute("DELETE FROM operacoes")
 
-        estado = json.loads(
-            ARQUIVO_ESTADO.read_text(encoding="utf-8")
-        )
+        lista = estado.get("operacoes", [])
 
-        operacoes = estado.get("operacoes", [])
-
-        if not isinstance(operacoes, list):
-            operacoes = []
+        if not isinstance(lista, list):
+            lista = []
 
         individual = estado.get("operacao")
+
         if isinstance(individual, dict):
-            operacoes.append(individual)
+            lista.append(individual)
 
-        ativas = []
+        numero = int(
+            estado.get("proximo_numero_operacao", 1) or 1
+        )
+
+        ativos = []
         sinais_vistos = set()
+        codigos_usados = set()
 
-        for original in operacoes:
+        for original in lista:
             if not isinstance(original, dict):
                 continue
 
-            if str(original.get("status", "")).upper() != "ATIVA":
+            status = str(
+                original.get("status", "")
+            ).strip().upper()
+
+            # Somente operações efetivamente ativas entram no banco.
+            if status != "ATIVA":
                 continue
 
             sinal_id = (
@@ -702,8 +620,6 @@ class ModuloOperacoes(ModuloBase):
             )
 
             if sinal_id is None:
-                # Sem identificador do sinal não é possível
-                # confirmar a identidade de forma segura.
                 continue
 
             sinal_id = str(sinal_id)
@@ -712,64 +628,73 @@ class ModuloOperacoes(ModuloBase):
                 continue
 
             sinais_vistos.add(sinal_id)
+
             item = dict(original)
 
-            codigo = self.obter_codigo(sinal_id)
+            codigo = (
+                item.get("codigo_operacao")
+                or item.get("operacao_id")
+                or item.get("id")
+                or self.codigo_existente(sinal_id, anteriores)
+            )
+
+            if not isinstance(codigo, str) or not re.fullmatch(
+                r"OP-[0-9]{6,}", codigo
+            ):
+                while f"OP-{numero:06d}" in codigos_usados:
+                    numero += 1
+
+                codigo = f"OP-{numero:06d}"
+                numero += 1
+
+            if codigo in codigos_usados:
+                while f"OP-{numero:06d}" in codigos_usados:
+                    numero += 1
+
+                codigo = f"OP-{numero:06d}"
+                numero += 1
+
+            codigos_usados.add(codigo)
+
             item["codigo_operacao"] = codigo
             item["id"] = codigo
             item["sinal_run_id"] = sinal_id
+            item["status"] = "ATIVA"
 
-            ativas.append(item)
+            ativos.append(item)
 
-        return ativas
-
-    def reconstruir_banco_ativo(self):
-        self.recuperar_codigos_antigos()
-
-        # A tabela principal é sempre reconstruída a partir
-        # das operações com ENTREI confirmado e status ATIVA.
-        self.db.execute("DELETE FROM operacoes")
-
-        ativas = self.carregar_confirmadas()
-
-        for numero, operacao in enumerate(ativas, start=1):
-            sinal_id = str(operacao["sinal_run_id"])
+        for indice, item in enumerate(ativos, start=1):
             self.gravar(
                 "ENTREI_CONFIRMADO",
                 "operacao_ativa",
-                numero,
-                operacao,
-                sinal_id
+                indice,
+                item,
+                item["sinal_run_id"]
             )
 
         self.db.commit()
-        return len(ativas)
+        return len(ativos)
 
-
-# =========================================================
-# ORGANIZADOR CENTRAL
-# =========================================================
 
 class OrganizadorXAUUSD:
 
     def __init__(self):
         self.modulos = {
-            "graficos": ModuloGraficos(),
-            "sinais": ModuloSinais(),
-            "memoria": ModuloMemoria(),
+            "graficos": ModuloBase("graficos"),
+            "sinais": ModuloBase("sinais"),
+            "memoria": ModuloBase("memoria"),
             "operacoes": ModuloOperacoes(),
-            "estatisticas_m5": ModuloEstatisticasM5(),
-            "resultados_operacoes": ModuloResultadosOperacoes(),
+            "estatisticas_m5": ModuloBase("estatisticas_m5"),
+            "resultados_operacoes": ModuloBase("resultados_operacoes"),
         }
 
         self.relatorio = {
-            "versao": 4,
+            "versao": 5,
             "data_utc": agora(),
             "status": "INICIADO",
             "modulos": {},
             "arquivos_sem_classificacao": [],
             "erros": [],
-            "duplicatas_removidas": {},
             "operacoes_ativas": 0,
         }
 
@@ -779,6 +704,11 @@ class OrganizadorXAUUSD:
             for caminho in BANCOS.values()
         }
 
+        compactados = {
+            caminho.resolve()
+            for caminho in COMPACTADOS.values()
+        }
+
         encontrados = []
 
         for arquivo in DATA.rglob("*"):
@@ -786,6 +716,9 @@ class OrganizadorXAUUSD:
                 continue
 
             if arquivo.resolve() in bancos:
+                continue
+
+            if arquivo.resolve() in compactados:
                 continue
 
             if arquivo.name.startswith("."):
@@ -807,7 +740,7 @@ class OrganizadorXAUUSD:
                 if modulo.grupo == outro_nome:
                     continue
 
-                hash_banco = hash_bytes(
+                resumo = hash_bytes(
                     outro.caminho_banco.read_bytes()
                 )
 
@@ -822,7 +755,7 @@ class OrganizadorXAUUSD:
                 """, (
                     outro_nome,
                     outro.caminho_banco.name,
-                    hash_banco,
+                    resumo,
                     agora()
                 ))
 
@@ -830,9 +763,7 @@ class OrganizadorXAUUSD:
 
     def executar(self):
         try:
-            print("=" * 60)
-            print("ORGANIZADOR XAUUSD — SEIS MÓDULOS")
-            print("=" * 60)
+            print("ORGANIZADOR XAUUSD")
 
             for arquivo in self.arquivos_para_processar():
                 grupo = classificar(arquivo)
@@ -845,42 +776,27 @@ class OrganizadorXAUUSD:
                     )
                     continue
 
-                # O estado de ENTREI é usado diretamente pelo
-                # módulo de operações, não importado como histórico.
+                # O estado é lido diretamente pelo módulo de operações.
+                # Não é importado como histórico de operações.
                 if (
                     grupo == "operacoes"
                     and arquivo.name == ARQUIVO_ESTADO.name
                 ):
                     continue
 
-                modulo = self.modulos[grupo]
-                resultado = modulo.processar(arquivo)
+                resultado = self.modulos[grupo].processar(arquivo)
 
                 print(
                     f"[{grupo.upper()}] "
                     f"{arquivo.name}: {resultado}"
                 )
 
-            # Deduplicação exata em cada banco.
-            for nome, modulo in self.modulos.items():
-                if nome == "operacoes":
-                    continue
-
-                removidos = modulo.eliminar_duplicatas()
-                self.relatorio[
-                    "duplicatas_removidas"
-                ][nome] = removidos
-
-            # Operações ativas são reconstruídas exclusivamente
-            # a partir do estado criado pelo comando ENTREI.
-            modulo_operacoes = self.modulos["operacoes"]
-            quantidade_ativas = (
-                modulo_operacoes.reconstruir_banco_ativo()
+            quantidade = (
+                self.modulos["operacoes"].reconstruir_ativas()
             )
 
-            self.relatorio["operacoes_ativas"] = quantidade_ativas
+            self.relatorio["operacoes_ativas"] = quantidade
 
-            # Conferência de integridade e cruzamento dos bancos.
             self.registrar_referencias()
 
             for nome, modulo in self.modulos.items():
@@ -896,15 +812,10 @@ class OrganizadorXAUUSD:
                     "SELECT COUNT(*) FROM arquivos_origem"
                 ).fetchone()[0]
 
-                duplicatas = modulo.db.execute(
-                    "SELECT COUNT(*) FROM duplicatas_registros"
-                ).fetchone()[0]
-
                 self.relatorio["modulos"][nome] = {
-                    "banco": modulo.caminho_banco.name,
+                    "banco": COMPACTADOS[nome].name,
                     "registros": total,
                     "arquivos_origem": origens,
-                    "duplicatas_eliminadas_acumuladas": duplicatas,
                     "integridade": integridade,
                 }
 
@@ -913,21 +824,21 @@ class OrganizadorXAUUSD:
                 if integridade != "ok":
                     self.relatorio["erros"].append({
                         "banco": nome,
-                        "erro": "Falha no PRAGMA integrity_check"
+                        "erro": "Falha no integrity_check"
                     })
 
             sem_grupo = len(
                 self.relatorio["arquivos_sem_classificacao"]
             )
 
-            total_erros = len(self.relatorio["erros"])
+            erros = len(self.relatorio["erros"])
 
             self.relatorio["total_arquivos_sem_grupo"] = sem_grupo
-            self.relatorio["total_erros"] = total_erros
+            self.relatorio["total_erros"] = erros
 
             self.relatorio["status"] = (
                 "SUCESSO"
-                if total_erros == 0 and sem_grupo == 0
+                if erros == 0 and sem_grupo == 0
                 else "CONCLUIDO_COM_PENDENCIAS"
             )
 
@@ -936,8 +847,7 @@ class OrganizadorXAUUSD:
                 encoding="utf-8"
             )
 
-            print("=" * 60)
-            print("OPERAÇÕES ATIVAS:", quantidade_ativas)
+            print("OPERAÇÕES ATIVAS:", quantidade)
 
             for nome, dados in self.relatorio["modulos"].items():
                 print(
@@ -947,9 +857,8 @@ class OrganizadorXAUUSD:
                 )
 
             print("Arquivos sem classificação:", sem_grupo)
-            print("Erros:", total_erros)
+            print("Erros:", erros)
             print("STATUS:", self.relatorio["status"])
-            print("=" * 60)
 
             return self.relatorio
 
@@ -959,7 +868,11 @@ class OrganizadorXAUUSD:
 
 
 if __name__ == "__main__":
+    preparar_bancos()
+
     resultado = OrganizadorXAUUSD().executar()
+
+    compactar_bancos()
 
     if (
         resultado["total_erros"] > 0
