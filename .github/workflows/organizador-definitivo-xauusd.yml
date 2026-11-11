@@ -1,10 +1,12 @@
 
-name: Organizador Definitivo XAUUSD
+name: Organizador XAUUSD
 
 on:
-  repository_dispatch:
+  workflow_run:
+    workflows:
+      - "Condutor de Operacoes XAUUSD"
     types:
-      - organizar-xauusd
+      - completed
 
   workflow_dispatch:
 
@@ -13,19 +15,19 @@ permissions:
   actions: read
 
 concurrency:
-  group: organizador-definitivo-xauusd
+  group: organizador-xauusd
   cancel-in-progress: false
 
 jobs:
-  organizar:
+  migrar:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'repository_dispatch'
+        github.event.workflow_run.conclusion == 'success'
       }}
 
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Baixar repositorio
@@ -39,975 +41,54 @@ jobs:
         with:
           python-version: "3.12"
 
-      # ==========================================
-      # 1. BACKUP ANTES DE QUALQUER ALTERACAO
-      # ==========================================
-
-      - name: Criar backup das bases originais
-        run: |
-          python - <<'PY'
-          import zipfile
-          from pathlib import Path
-
-          arquivos = [
-              "data/acompanhamento_autonomo_estado.json",
-              "data/resultados_operacoes.json",
-              "data/cadastro_mestre_operacoes.json",
-              "data/historico_velas_m5.csv",
-              "data/xauusd_m5.csv",
-              "data/xauusd_m5_fechados.csv",
-              "data/velas_m5_ativas_90d.csv",
-              "data/arquivo_memoria/velas_m5_anteriores.csv.gz"
-          ]
-
-          destino = Path("/tmp/backup-organizador-xauusd.zip")
-
-          with zipfile.ZipFile(
-              destino, "w", zipfile.ZIP_DEFLATED
-          ) as backup:
-              for nome in arquivos:
-                  caminho = Path(nome)
-
-                  if caminho.is_file():
-                      backup.write(caminho, arcname=nome)
-                      print("Backup:", nome)
-
-          if not destino.exists() or destino.stat().st_size == 0:
-              raise SystemExit("Backup nao foi criado.")
-
-          print("BACKUP_OK")
-          PY
-
-      # ==========================================
-      # 2. ORGANIZACAO REAL
-      # ==========================================
-
-      - name: Numerar operacoes e organizar velas
-        env:
-          DIAS_VELAS_ATIVAS: "90"
+      - name: Executar migracao
         run: |
           set -euo pipefail
+          python -m py_compile organizador_migracao_xauusd.py
+          python -u organizador_migracao_xauusd.py
 
-          python -u - <<'PY'
-          import csv
-          import gzip
-          import hashlib
-          import json
-          import os
-          import re
-
-          from pathlib import Path
-          from datetime import datetime, timezone, timedelta
-
-          DATA = Path("data")
-          ARQUIVO = DATA / "arquivo_memoria"
-
-          ESTADO = DATA / "acompanhamento_autonomo_estado.json"
-          HISTORICO = DATA / "resultados_operacoes.json"
-          CADASTRO = DATA / "cadastro_mestre_operacoes.json"
-
-          ATIVAS = DATA / "velas_m5_ativas_90d.csv"
-          ANTIGAS = ARQUIVO / "velas_m5_anteriores.csv.gz"
-          CONFLITOS = ARQUIVO / "conflitos_velas_m5.json"
-
-          AGORA = datetime.now(timezone.utc)
-          DIAS = int(os.getenv("DIAS_VELAS_ATIVAS", "90"))
-
-          DATA.mkdir(exist_ok=True)
-          ARQUIVO.mkdir(parents=True, exist_ok=True)
-
-          def salvar_json(caminho, dados):
-              caminho.parent.mkdir(parents=True, exist_ok=True)
-
-              temporario = caminho.with_suffix(
-                  caminho.suffix + ".tmp"
-              )
-
-              temporario.write_text(
-                  json.dumps(
-                      dados,
-                      ensure_ascii=False,
-                      indent=2
-                  ) + "\n",
-                  encoding="utf-8"
-              )
-
-              temporario.replace(caminho)
-
-          def ler_json(caminho, padrao):
-              if not caminho.exists() or caminho.stat().st_size == 0:
-                  return padrao
-
-              try:
-                  return json.loads(
-                      caminho.read_text(encoding="utf-8-sig")
-                  )
-              except Exception as erro:
-                  raise RuntimeError(
-                      f"JSON invalido: {caminho}: {erro}"
-                  )
-
-          def hash_curto(valor):
-              return hashlib.sha256(
-                  str(valor).encode("utf-8")
-              ).hexdigest()[:24].upper()
-
-          def data_utc(valor):
-              if not valor:
-                  return None
-
-              try:
-                  dt = datetime.fromisoformat(
-                      str(valor).strip().replace("Z", "+00:00")
-                  )
-
-                  if dt.tzinfo is None:
-                      dt = dt.replace(tzinfo=timezone.utc)
-
-                  return dt.astimezone(timezone.utc)
-
-              except (ValueError, TypeError):
-                  return None
-
-          # ======================================
-          # MODULO A - IDENTIDADE DAS OPERACOES
-          # ======================================
-
-          estado = ler_json(
-              ESTADO,
-              {
-                  "ultimo_update_id": 0,
-                  "operacao": None,
-                  "operacoes": []
-              }
-          )
-
-          historico = ler_json(HISTORICO, [])
-
-          cadastro = ler_json(CADASTRO, {})
-
-          if not isinstance(estado, dict):
-              raise RuntimeError("Estado operacional invalido.")
-
-          if not isinstance(historico, list):
-              raise RuntimeError("Historico de operacoes invalido.")
-
-          if not isinstance(cadastro, dict):
-              cadastro = {}
-
-          if not isinstance(estado.get("operacoes"), list):
-              estado["operacoes"] = []
-
-          mapa_antigo = cadastro.get("mapa_identidades", {})
-
-          if not isinstance(mapa_antigo, dict):
-              mapa_antigo = {}
-
-          entradas = []
-
-          for indice, registro in enumerate(historico):
-              if isinstance(registro, dict):
-                  entradas.append({
-                      "origem": "historico",
-                      "indice": indice,
-                      "dados": registro
-                  })
-
-          for indice, registro in enumerate(
-              estado.get("operacoes", [])
-          ):
-              if isinstance(registro, dict):
-                  entradas.append({
-                      "origem": "estado",
-                      "indice": indice,
-                      "dados": registro
-                  })
-
-          legado = estado.get("operacao")
-
-          if isinstance(legado, dict):
-              entradas.append({
-                  "origem": "estado",
-                  "indice": "legado",
-                  "dados": legado
-              })
-
-          STATUS_ATIVO = {
-              "ATIVA",
-              "ABERTA",
-              "EM_ABERTO"
-          }
-
-          def identidade(registro, origem, indice):
-              sinal_run = str(
-                  registro.get("sinal_run_id", "")
-              ).strip()
-
-              ativada = str(
-                  registro.get("ativada_em", "")
-              ).strip()
-
-              horario_sinal = str(
-                  registro.get("horario_sinal_utc", "")
-              ).strip()
-
-              direcao = str(
-                  registro.get("direcao", "")
-              ).strip().upper()
-
-              entrada = str(
-                  registro.get(
-                      "entrada_real",
-                      registro.get(
-                          "entrada_sinal",
-                          registro.get("entrada", "")
-                      )
-                  )
-              ).strip()
-
-              stop = str(
-                  registro.get(
-                      "stop_original",
-                      registro.get("stop", "")
-                  )
-              ).strip()
-
-              alvo = str(
-                  registro.get("alvo", "")
-              ).strip()
-
-              if sinal_run and ativada:
-                  base = (
-                      "RUN|" + sinal_run +
-                      "|ATIVACAO|" + ativada
-                  )
-
-              elif ativada:
-                  base = "|".join([
-                      "ATIVACAO",
-                      ativada,
-                      horario_sinal,
-                      direcao,
-                      entrada,
-                      stop,
-                      alvo
-                  ])
-
-              elif horario_sinal and direcao and entrada:
-                  base = "|".join([
-                      "SINAL",
-                      horario_sinal,
-                      direcao,
-                      entrada,
-                      stop,
-                      alvo
-                  ])
-
-              else:
-                  conteudo = json.dumps(
-                      registro,
-                      ensure_ascii=False,
-                      sort_keys=True,
-                      default=str
-                  )
-
-                  base = (
-                      "SEM_IDENTIDADE_FORTE|" +
-                      origem + "|" +
-                      str(indice) + "|" +
-                      hash_curto(conteudo)
-                  )
-
-              return hash_curto(base)
-
-          grupos = {}
-
-          for item in entradas:
-              registro = dict(item["dados"])
-
-              fingerprint = identidade(
-                  registro,
-                  item["origem"],
-                  item["indice"]
-              )
-
-              item["fingerprint"] = fingerprint
-
-              grupos.setdefault(fingerprint, []).append(item)
-
-          por_codigo = {}
-
-          for fingerprint, itens in list(grupos.items()):
-              codigos = set()
-
-              for item in itens:
-                  codigo = str(
-                      item["dados"].get("id", "")
-                  ).strip().upper()
-
-                  if re.fullmatch(r"OP-\d{6,}", codigo):
-                      codigos.add(codigo)
-
-              if len(codigos) > 1:
-                  print(
-                      "ATENCAO: mais de um codigo encontrado "
-                      "para a mesma identidade:",
-                      sorted(codigos)
-                  )
-
-          def numero_codigo(codigo):
-              encontrado = re.fullmatch(
-                  r"OP-(\d+)",
-                  str(codigo)
-              )
-
-              return (
-                  int(encontrado.group(1))
-                  if encontrado else 0
-              )
-
-          codigos_existentes = []
-
-          for itens in grupos.values():
-              for item in itens:
-                  codigo = str(
-                      item["dados"].get("id", "")
-                  ).strip().upper()
-
-                  if re.fullmatch(r"OP-\d{6,}", codigo):
-                      codigos_existentes.append(
-                          numero_codigo(codigo)
-                      )
-
-          for codigo in mapa_antigo.values():
-              if re.fullmatch(r"OP-\d{6,}", str(codigo)):
-                  codigos_existentes.append(
-                      numero_codigo(codigo)
-                  )
-
-          proximo = max(
-              int(cadastro.get("proximo_numero", 1) or 1),
-              max(codigos_existentes, default=0) + 1
-          )
-
-          mapa_novo = {}
-          operacoes_ativas = []
-          operacoes_fechadas = []
-          resumo_operacoes = []
-
-          def instante_registro(registro):
-              for chave in (
-                  "encerrada_em",
-                  "ultima_atualizacao",
-                  "atualizado_em",
-                  "ultima_vela",
-                  "ativada_em",
-                  "horario_sinal_utc"
-              ):
-                  dt = data_utc(registro.get(chave))
-                  if dt:
-                      return dt.timestamp()
-
-              return 0
-
-          total_consolidadas = 0
-
-          for fingerprint, itens in sorted(grupos.items()):
-
-              codigos = set()
-
-              for item in itens:
-                  codigo = str(
-                      item["dados"].get("id", "")
-                  ).strip().upper()
-
-                  if re.fullmatch(r"OP-\d{6,}", codigo):
-                      codigos.add(codigo)
-
-              codigo_mapeado = mapa_antigo.get(fingerprint)
-
-              if re.fullmatch(
-                  r"OP-\d{6,}",
-                  str(codigo_mapeado or "")
-              ):
-                  codigos.add(str(codigo_mapeado))
-
-              if codigos:
-                  codigo = min(
-                      codigos,
-                      key=numero_codigo
-                  )
-              else:
-                  codigo = f"OP-{proximo:06d}"
-                  proximo += 1
-
-              ordenados = sorted(
-                  itens,
-                  key=lambda x: instante_registro(x["dados"])
-              )
-
-              mesclado = {}
-
-              for item in ordenados:
-                  mesclado.update(item["dados"])
-
-              encerrados = [
-                  item for item in itens
-                  if str(
-                      item["dados"].get("status", "")
-                  ).strip().upper() not in STATUS_ATIVO
-                  and item["origem"] == "historico"
-              ]
-
-              if encerrados:
-                  ultimo_fechado = max(
-                      encerrados,
-                      key=lambda x: instante_registro(x["dados"])
-                  )
-
-                  mesclado.update(
-                      ultimo_fechado["dados"]
-                  )
-
-              mesclado["id"] = codigo
-
-              for chave in (
-                  "codigo_mestre",
-                  "codigo_operacao",
-                  "id_operacao"
-              ):
-                  mesclado.pop(chave, None)
-
-              status = str(
-                  mesclado.get("status", "")
-              ).strip().upper()
-
-              ativo_no_estado = any(
-                  item["origem"] == "estado"
-                  and str(
-                      item["dados"].get("status", "ATIVA")
-                  ).strip().upper() in STATUS_ATIVO
-                  for item in itens
-              )
-
-              tem_fechamento = bool(encerrados)
-
-              ativo = (
-                  ativo_no_estado
-                  and not tem_fechamento
-                  and status in STATUS_ATIVO
-              )
-
-              if ativo:
-                  operacoes_ativas.append(mesclado)
-              else:
-                  operacoes_fechadas.append(mesclado)
-
-              mapa_novo[fingerprint] = codigo
-
-              resumo_operacoes.append({
-                  "id": codigo,
-                  "status": mesclado.get("status", ""),
-                  "origens": sorted(set(
-                      item["origem"] for item in itens
-                  )),
-                  "ocorrencias_consolidadas": len(itens)
-              })
-
-              if len(itens) > 1:
-                  total_consolidadas += len(itens) - 1
-
-          ids_ativos = [
-              op["id"] for op in operacoes_ativas
-          ]
-
-          if len(ids_ativos) != len(set(ids_ativos)):
-              raise RuntimeError(
-                  "Falha: codigo repetido entre operacoes ativas."
-              )
-
-          estado["operacoes"] = operacoes_ativas
-
-          estado["operacao"] = (
-              dict(operacoes_ativas[0])
-              if len(operacoes_ativas) == 1
-              else None
-          )
-
-          historico = operacoes_fechadas
-
-          novo_cadastro = {
-              "versao": 3,
-              "atualizado_utc": AGORA.isoformat(),
-              "proximo_numero": proximo,
-              "mapa_identidades": mapa_novo,
-              "total_operacoes": len(resumo_operacoes),
-              "operacoes": resumo_operacoes
-          }
-
-          salvar_json(ESTADO, estado)
-          salvar_json(HISTORICO, historico)
-          salvar_json(CADASTRO, novo_cadastro)
-
-          print("OPERACOES ORGANIZADAS")
-          print("Operacoes unicas:", len(resumo_operacoes))
-          print("Ativas:", len(operacoes_ativas))
-          print("Encerradas:", len(operacoes_fechadas))
-          print("Duplicatas consolidadas:", total_consolidadas)
-          print("Proximo numero:", proximo)
-
-          # ======================================
-          # MODULO B - IDENTIDADE DAS VELAS M5
-          # ======================================
-
-          fontes = [
-              ("arquivo_memoria/velas_m5_anteriores.csv.gz", 0),
-              ("velas_m5_ativas_90d.csv", 0),
-              ("historico_velas_m5.csv", 1),
-              ("xauusd_m5.csv", 2),
-              ("xauusd_m5_fechados.csv", 3)
-          ]
-
-          velas = {}
-          conflitos = []
-          duplicatas_velas = 0
-          campos = []
-
-          def ler_linhas(nome):
-              caminho = DATA / nome
-
-              if not caminho.is_file():
-                  return []
-
-              if caminho.name.endswith(".gz"):
-                  arquivo = gzip.open(
-                      caminho,
-                      "rt",
-                      encoding="utf-8-sig",
-                      newline=""
-                  )
-              else:
-                  arquivo = caminho.open(
-                      "r",
-                      encoding="utf-8-sig",
-                      newline=""
-                  )
-
-              with arquivo:
-                  leitor = csv.DictReader(arquivo)
-                  return list(leitor)
-
-          def horario_abertura(linha):
-              for chave in (
-                  "timestamp_utc",
-                  "timestamp",
-                  "datetime_utc",
-                  "datetime",
-                  "time"
-              ):
-                  valor = linha.get(chave)
-
-                  if valor:
-                      return data_utc(valor)
-
-              return None
-
-          for nome, prioridade in fontes:
-              linhas = ler_linhas(nome)
-
-              for linha in linhas:
-                  abertura = horario_abertura(linha)
-
-                  if abertura is None:
-                      continue
-
-                  fechamento = abertura + timedelta(minutes=5)
-                  chave = fechamento.isoformat()
-
-                  linha_saida = dict(linha)
-
-                  if "timestamp_utc" not in linha_saida:
-                      linha_saida["timestamp_utc"] = (
-                          abertura.isoformat()
-                      )
-
-                  linha_saida["fechamento_utc"] = (
-                      fechamento.isoformat()
-                  )
-
-                  for campo in linha_saida:
-                      if campo not in campos:
-                          campos.append(campo)
-
-                  if chave in velas:
-                      duplicatas_velas += 1
-                      anterior = velas[chave]
-
-                      # CORRECAO: garante que o registro anterior
-                      # tenha a estrutura esperada.
-                      if not isinstance(anterior, dict):
-                          raise RuntimeError(
-                              f"Registro de vela invalido: {chave}"
-                          )
-
-                      linha_anterior = anterior.get("linha")
-
-                      if not isinstance(linha_anterior, dict):
-                          raise RuntimeError(
-                              f"Vela sem campo linha: {chave}"
-                          )
-
-                      diferencas = [
-                          campo for campo in (
-                              "open", "high", "low", "close"
-                          )
-                          if str(
-                              linha_anterior.get(campo, "")
-                          ) != str(linha_saida.get(campo, ""))
-                      ]
-
-                      if diferencas:
-                          conflitos.append({
-                              "fechamento_utc": chave,
-                              "fonte_anterior": anterior["fonte"],
-                              "fonte_nova": nome,
-                              "campos_divergentes": diferencas,
-                              "valores_anteriores": {
-                                  k: linha_anterior.get(k)
-                                  for k in diferencas
-                              },
-                              "valores_novos": {
-                                  k: linha_saida.get(k)
-                                  for k in diferencas
-                              }
-                          })
-
-                      if prioridade <= anterior["prioridade"]:
-                          continue
-
-                  velas[chave] = {
-                      "prioridade": prioridade,
-                      "fonte": nome,
-                      "abertura": abertura,
-                      "fechamento": fechamento,
-                      "linha": linha_saida
-                  }
-
-          if not velas:
-              raise RuntimeError(
-                  "Nenhuma vela valida encontrada. "
-                  "Nenhuma base de velas sera substituida."
-              )
-
-          if "timestamp_utc" not in campos:
-              campos.insert(0, "timestamp_utc")
-
-          if "fechamento_utc" not in campos:
-              campos.append("fechamento_utc")
-
-          ordenadas = sorted(
-              velas.values(),
-              key=lambda item: item["fechamento"]
-          )
-
-          referencia = ordenadas[-1]["fechamento"]
-          corte = referencia - timedelta(days=DIAS)
-
-          # CORRECAO PRINCIPAL:
-          # guardar o registro completo, nao somente a linha.
-          ativas = []
-          antigas = []
-
-          for item in ordenadas:
-              if item["fechamento"] >= corte:
-                  ativas.append(item)
-              else:
-                  antigas.append(item)
-
-          def escrever_csv(caminho, linhas):
-              temporario = caminho.with_suffix(
-                  caminho.suffix + ".tmp"
-              )
-
-              with temporario.open(
-                  "w",
-                  encoding="utf-8",
-                  newline=""
-              ) as arquivo:
-                  escritor = csv.DictWriter(
-                      arquivo,
-                      fieldnames=campos,
-                      extrasaction="ignore"
-                  )
-
-                  escritor.writeheader()
-                  escritor.writerows(linhas)
-
-              temporario.replace(caminho)
-
-          escrever_csv(
-              ATIVAS,
-              [item["linha"] for item in ativas]
-          )
-
-          temporario = ANTIGAS.with_suffix(".gz.tmp")
-
-          with gzip.open(
-              temporario,
-              "wt",
-              encoding="utf-8",
-              newline=""
-          ) as arquivo:
-              escritor = csv.DictWriter(
-                  arquivo,
-                  fieldnames=campos,
-                  extrasaction="ignore"
-              )
-
-              escritor.writeheader()
-              escritor.writerows(
-                  item["linha"] for item in antigas
-              )
-
-          with gzip.open(
-              temporario,
-              "rt",
-              encoding="utf-8"
-          ) as arquivo:
-              arquivo.read(1)
-
-          temporario.replace(ANTIGAS)
-
-          salvar_json(
-              CONFLITOS,
-              {
-                  "atualizado_utc": AGORA.isoformat(),
-                  "total_conflitos": len(conflitos),
-                  "registros": conflitos
-              }
-          )
-
-          resumo_velas = {
-              "identidade": "fechamento_utc",
-              "intervalo": "M5",
-              "regra": "timestamp_utc + 5 minutos",
-              "total_unicas": len(ordenadas),
-              "ativas": len(ativas),
-              "arquivadas": len(antigas),
-              "duplicatas_consolidadas": duplicatas_velas,
-              "conflitos_ohlc": len(conflitos),
-              "arquivo_ativo": str(ATIVAS),
-              "arquivo_historico": str(ANTIGAS),
-              "arquivo_conflitos": str(CONFLITOS)
-          }
-
-          salvar_json(
-              DATA / "organizado_01_graficos_velas.json",
-              resumo_velas
-          )
-
-          print("VELAS ORGANIZADAS")
-          print(json.dumps(
-              resumo_velas,
-              ensure_ascii=False,
-              indent=2
-          ))
-
-          # ======================================
-          # MODULO C - INVENTARIO E RELATORIO
-          # ======================================
-
-          arquivos = []
-
-          for caminho in sorted(DATA.rglob("*")):
-              if not caminho.is_file():
-                  continue
-
-              if caminho.name.endswith(
-                  (".tmp", ".db-wal", ".db-shm")
-              ):
-                  continue
-
-              arquivos.append({
-                  "arquivo": str(caminho),
-                  "bytes": caminho.stat().st_size
-              })
-
-          salvar_json(
-              DATA / "indice_arquivos_memoria.json",
-              {
-                  "versao": 3,
-                  "atualizado_utc": AGORA.isoformat(),
-                  "total_arquivos": len(arquivos),
-                  "arquivos": arquivos
-              }
-          )
-
-          relatorio = {
-              "versao": 3,
-              "executado_utc": AGORA.isoformat(),
-              "operacoes": {
-                  "total": len(resumo_operacoes),
-                  "ativas": len(operacoes_ativas),
-                  "encerradas": len(operacoes_fechadas),
-                  "duplicatas_consolidadas": total_consolidadas,
-                  "codigo_unico": True
-              },
-              "velas": resumo_velas,
-              "originais_preservados": True,
-              "backup_antes_da_alteracao": True,
-              "arquivos_temporarios_sqlite_excluidos": True
-          }
-
-          salvar_json(
-              DATA / "relatorio_organizador_memoria.json",
-              relatorio
-          )
-
-          salvar_json(
-              DATA / "organizado_04_condutor_operacoes.json",
-              {
-                  "modulo": "condutor_operacoes",
-                  "atualizado_utc": AGORA.isoformat(),
-                  "operacoes": resumo_operacoes
-              }
-          )
-
-          salvar_json(
-              DATA / "organizado_05_organizador_memoria.json",
-              {
-                  "modulo": "cadastro_mestre",
-                  "atualizado_utc": AGORA.isoformat(),
-                  "total_operacoes": len(resumo_operacoes),
-                  "proximo_numero": proximo
-              }
-          )
-
-          print("RELATORIO FINAL")
-          print(json.dumps(
-              relatorio,
-              ensure_ascii=False,
-              indent=2
-          ))
-
-          print("ORGANIZADOR_DEFINITIVO_XAU=OK")
-          PY
-
-      # ==========================================
-      # 3. VALIDAR ANTES DE GRAVAR
-      # ==========================================
-
-      - name: Validar organizacao
+      - name: Validar quatro bancos
         run: |
-          set -euo pipefail
-
           python - <<'PY'
-          import csv
-          import gzip
-          import json
-          import re
-
+          import sqlite3
           from pathlib import Path
 
-          DATA = Path("data")
-
-          obrigatorios = [
-              "acompanhamento_autonomo_estado.json",
-              "resultados_operacoes.json",
-              "cadastro_mestre_operacoes.json",
-              "indice_arquivos_memoria.json",
-              "relatorio_organizador_memoria.json",
-              "velas_m5_ativas_90d.csv",
-              "arquivo_memoria/velas_m5_anteriores.csv.gz",
-              "arquivo_memoria/conflitos_velas_m5.json"
+          nomes = [
+              "graficos.db",
+              "sinais.db",
+              "memoria.db",
+              "operacoes.db"
           ]
 
-          for nome in obrigatorios:
-              caminho = DATA / nome
+          for nome in nomes:
+              caminho = Path("data") / nome
 
-              if not caminho.is_file() or caminho.stat().st_size == 0:
+              if not caminho.is_file():
+                  raise SystemExit(f"Banco ausente: {nome}")
+
+              con = sqlite3.connect(caminho)
+
+              integridade = con.execute(
+                  "PRAGMA integrity_check"
+              ).fetchone()[0]
+
+              total = con.execute(
+                  "SELECT COUNT(*) FROM origens"
+              ).fetchone()[0]
+
+              con.close()
+
+              if integridade != "ok" or total < 1:
                   raise SystemExit(
-                      f"Arquivo ausente ou vazio: {caminho}"
+                      f"Banco invalido: {nome}"
                   )
 
-          estado = json.loads(
-              (DATA / "acompanhamento_autonomo_estado.json")
-              .read_text(encoding="utf-8")
-          )
+              print(f"OK: {nome} - {total} arquivos")
 
-          historico = json.loads(
-              (DATA / "resultados_operacoes.json")
-              .read_text(encoding="utf-8")
-          )
-
-          ids = []
-
-          for operacao in estado.get("operacoes", []):
-              ids.append(operacao.get("id"))
-
-          for operacao in historico:
-              ids.append(operacao.get("id"))
-
-          if any(
-              not re.fullmatch(r"OP-\d{6,}", str(codigo or ""))
-              for codigo in ids
-          ):
-              raise SystemExit(
-                  "Existe operacao sem codigo oficial OP."
-              )
-
-          if len(ids) != len(set(ids)):
-              raise SystemExit(
-                  "Existe codigo de operacao repetido."
-              )
-
-          with (DATA / "velas_m5_ativas_90d.csv").open(
-              "r", encoding="utf-8-sig", newline=""
-          ) as arquivo:
-              leitor = csv.DictReader(arquivo)
-              campos = leitor.fieldnames or []
-              linhas = list(leitor)
-
-          if "fechamento_utc" not in campos:
-              raise SystemExit(
-                  "Velas sem horario de fechamento UTC."
-              )
-
-          fechamentos = [
-              linha["fechamento_utc"]
-              for linha in linhas
-          ]
-
-          if len(fechamentos) != len(set(fechamentos)):
-              raise SystemExit(
-                  "Existem velas duplicadas na base ativa."
-              )
-
-          with gzip.open(
-              DATA / "arquivo_memoria/velas_m5_anteriores.csv.gz",
-              "rt",
-              encoding="utf-8-sig",
-              newline=""
-          ) as arquivo:
-              leitor = csv.DictReader(arquivo)
-              if "fechamento_utc" not in (
-                  leitor.fieldnames or []
-              ):
-                  raise SystemExit(
-                      "Arquivo historico sem fechamento UTC."
-                  )
-
-          print("VALIDACAO_OK")
-          print("Operacoes:", len(ids))
-          print("Velas ativas:", len(linhas))
+          print("QUATRO_BANCOS_VALIDOS")
           PY
 
-      # ==========================================
-      # 4. GRAVAR SOMENTE AS BASES CONTROLADAS
-      # ==========================================
-
-      - name: Salvar bases organizadas
-        if: success()
+      - name: Salvar bancos no repositorio
         run: |
           set -euo pipefail
 
@@ -1016,50 +97,28 @@ jobs:
             "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add \
-            data/acompanhamento_autonomo_estado.json \
-            data/resultados_operacoes.json \
-            data/cadastro_mestre_operacoes.json \
-            data/velas_m5_ativas_90d.csv \
-            data/arquivo_memoria/velas_m5_anteriores.csv.gz \
-            data/arquivo_memoria/conflitos_velas_m5.json \
-            data/organizado_01_graficos_velas.json \
-            data/organizado_04_condutor_operacoes.json \
-            data/organizado_05_organizador_memoria.json \
-            data/indice_arquivos_memoria.json \
-            data/relatorio_organizador_memoria.json
+            data/graficos.db \
+            data/sinais.db \
+            data/memoria.db \
+            data/operacoes.db \
+            relatorio_migracao_xauusd.json
 
-          if ! git diff --cached --quiet; then
-            git commit -m "Organiza e consolida memoria XAUUSD"
-            git push origin HEAD:main
+          if git diff --cached --quiet; then
+            echo "Bancos ja atualizados."
           else
-            echo "Nenhuma alteracao necessaria."
+            git commit -m \
+              "Migrar XAUUSD para quatro bancos SQLite"
+            git push origin HEAD:main
           fi
 
-      # ==========================================
-      # 5. BACKUP E RESULTADOS
-      # ==========================================
-
-      - name: Publicar backup original
-        if: always()
+      - name: Guardar copia de validacao
         uses: actions/upload-artifact@v4
         with:
-          name: backup-organizador-xauusd
-          path: /tmp/backup-organizador-xauusd.zip
-          if-no-files-found: warn
-          retention-days: 90
-
-      - name: Publicar organizacao final
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: organizador-definitivo-xauusd
+          name: migracao-xauusd-validada
           path: |
-            data/cadastro_mestre_operacoes.json
-            data/relatorio_organizador_memoria.json
-            data/indice_arquivos_memoria.json
-            data/organizado_*.json
-            data/velas_m5_ativas_90d.csv
-            data/arquivo_memoria/velas_m5_anteriores.csv.gz
-            data/arquivo_memoria/conflitos_velas_m5.json
-          if-no-files-found: warn
-          retention-days: 90
+            data/graficos.db
+            data/sinais.db
+            data/memoria.db
+            data/operacoes.db
+            relatorio_migracao_xauusd.json
+          retention-days: 30
