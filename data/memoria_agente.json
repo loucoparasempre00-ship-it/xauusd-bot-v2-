@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T02:31:09.506485+00:00",
-  "total_registros": 251,
+  "atualizado_utc": "2026-11-11T02:36:48.003706+00:00",
+  "total_registros": 252,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4159,6 +4159,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T02:31:09.506485+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:30:00+00:00",
+      "id_sinal": 42947060008,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de transição lateral após um impulso recente. Embora a tendência de curto prazo (M5/M15) seja de alta, o preço está comprimido entre suportes imediatos em 4043 e resistências próximas em 4044-4048. O histograma do MACD apresenta divergência negativa (cruzamento de sinal), sugerindo exaustão do movimento comprador. A ausência de volume validado e a proximidade com a resistência de 4048 tornam o risco-retorno desfavorável para uma entrada imediata.",
+      "atr14": 4.30609,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T02:36:48.003706+00:00"
     }
   ]
 }
