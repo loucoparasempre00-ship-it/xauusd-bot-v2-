@@ -1,3 +1,4 @@
+
 name: Organizador XAUUSD
 
 on:
@@ -50,12 +51,13 @@ jobs:
           set -euo pipefail
           python -u organizador_migracao_xauusd.py
 
-      - name: Validar seis bancos
+      - name: Validar seis bancos e códigos
         run: |
           set -euo pipefail
 
           python - <<'PY'
           import json
+          import re
           import sqlite3
           from pathlib import Path
 
@@ -69,7 +71,6 @@ jobs:
           }
 
           for nome, tabela in grupos.items():
-
               caminho = Path("data") / nome
 
               if not caminho.is_file():
@@ -82,23 +83,29 @@ jobs:
               ).fetchone()[0]
 
               tabelas = {
-                  linha[0] for linha in con.execute(
+                  linha[0]
+                  for linha in con.execute(
                       "SELECT name FROM sqlite_master WHERE type='table'"
                   )
               }
 
-              obrigatorias = (
+              obrigatorias = {
                   tabela,
                   "arquivos_origem",
                   "controle_importacao",
                   "referencias_modulos",
-              )
+                  "duplicatas_registros",
+              }
 
-              for obrigatoria in obrigatorias:
-                  if obrigatoria not in tabelas:
-                      raise SystemExit(
-                          f"Tabela {obrigatoria} ausente em {nome}"
-                      )
+              if nome == "operacoes.db":
+                  obrigatorias.add("controle_codigos_operacoes")
+
+              faltando = obrigatorias - tabelas
+
+              if faltando:
+                  raise SystemExit(
+                      f"{nome}: tabelas ausentes: {sorted(faltando)}"
+                  )
 
               total = con.execute(
                   f"SELECT COUNT(*) FROM {tabela}"
@@ -108,19 +115,55 @@ jobs:
                   "SELECT COUNT(*) FROM arquivos_origem"
               ).fetchone()[0]
 
-              con.close()
-
-              if integridade != "ok":
-                  raise SystemExit(f"Falha de integridade: {nome}")
-
-              if origens < 1:
+              if nome != "operacoes.db" and origens < 1:
                   raise SystemExit(
                       f"Nenhum arquivo de origem em {nome}"
                   )
 
-              print(
-                  f"OK: {nome} | registros={total} | origens={origens}"
-              )
+              if integridade != "ok":
+                  raise SystemExit(
+                      f"Falha de integridade: {nome}"
+                  )
+
+              if nome == "operacoes.db":
+                  linhas = con.execute(
+                      "SELECT payload_json FROM operacoes"
+                  ).fetchall()
+
+                  codigos = set()
+
+                  for (texto,) in linhas:
+                      item = json.loads(texto)
+                      codigo = item.get("codigo_operacao")
+
+                      if not codigo or not re.fullmatch(
+                          r"OP-[0-9]{6,}", str(codigo)
+                      ):
+                          raise SystemExit(
+                              f"Código inválido em {nome}: {codigo}"
+                          )
+
+                      if codigo in codigos:
+                          raise SystemExit(
+                              f"Código duplicado: {codigo}"
+                          )
+
+                      codigos.add(codigo)
+
+                      if item.get("status") != "ATIVA":
+                          raise SystemExit(
+                              f"Operação não ativa em {nome}: {codigo}"
+                          )
+
+                  print(
+                      f"OK: {nome} | operações ativas={total}"
+                  )
+              else:
+                  print(
+                      f"OK: {nome} | registros={total} | origens={origens}"
+                  )
+
+              con.close()
 
           relatorio = Path(
               "data/relatorio_organizador_xauusd.json"
@@ -147,11 +190,11 @@ jobs:
               )
 
           print("SEIS_BANCOS_VALIDOS")
-          print("CLASSIFICACAO_COMPLETA")
+          print("CODIGOS_OPERACOES_VALIDOS")
           print("RELATORIO_VALIDADO")
           PY
 
-      - name: Salvar seis bancos no repositorio
+      - name: Salvar bancos no repositorio
         run: |
           set -euo pipefail
 
@@ -170,7 +213,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao nos bancos."
           else
-            git commit -m "Organizar XAUUSD em seis bancos por modulo"
+            git commit -m "Organizador XAUUSD: codificar e conferir operacoes"
             git push origin HEAD:main
           fi
 
