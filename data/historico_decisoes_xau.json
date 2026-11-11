@@ -3938,5 +3938,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-11T03:51:09.381001+00:00"
+  },
+  {
+    "candle_utc": "2026-11-11T03:50:00+00:00",
+    "id_sinal": 42955879478,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 37.5,
+    "pontuacao_compra": 37.5,
+    "pontuacao_venda": 12.5,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.65965,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-11T03:50:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 65,
+      "justificativa": "O mercado encontra-se em uma zona de transição delicada. Embora a estrutura de curto prazo (M5/M15) seja altista e o preço esteja acima das EMAs, o ativo está testando uma resistência imediata (4048.58 - 4053.67) e o histograma do MACD mostra perda de momentum. A proximidade com o limite inferior da região atual (4048.5) e a falta de um rompimento claro da resistência sugerem cautela. Não há força compradora suficiente para justificar uma entrada agora, sendo prudente aguardar um teste de suporte mais sólido ou o rompimento confirmado da resistência de 4053.67.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-11T03:50:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 3,
+      "pontuacao_venda": 1,
+      "diferenca": 2,
+      "motivos": [],
+      "preco": 4048.551,
+      "atr_14": 2.889,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "ALTA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-11T03:56:13.935987+00:00"
   }
 ]
