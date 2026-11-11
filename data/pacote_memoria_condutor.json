@@ -1,6 +1,6 @@
 {
   "ativo": "XAUUSD",
-  "gerado_utc": "2026-11-11T14:51:55.365175+00:00",
+  "gerado_utc": "2026-11-11T14:51:26.620903+00:00",
   "candle_utc": "2026-11-11T14:45:00+00:00",
   "grafico": {
     "versao": "2.0",
@@ -2458,10 +2458,10 @@
     "ativo": "XAUUSD",
     "timeframe": "M5",
     "candle_utc": "2026-11-11T14:45:00+00:00",
-    "decisao_final": "VENDA",
-    "pontuacao_final": 71.25,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 50.0,
     "pontuacao_compra": 0.0,
-    "pontuacao_venda": 71.25,
+    "pontuacao_venda": 50.0,
     "setup_matematico": {
       "ativo": "XAUUSD",
       "timeframe": "M5",
@@ -2476,8 +2476,8 @@
         "Contexto H1 de baixa",
         "Impulso vendedor"
       ],
-      "preco": 4012.851,
-      "atr_14": 4.84,
+      "preco": 4014.135,
+      "atr_14": 4.747,
       "tendencia_m5": "BAIXA",
       "tendencia_m15": "BAIXA",
       "tendencia_h1": "BAIXA"
@@ -2485,9 +2485,9 @@
     "avaliacao_gemini": {
       "ativo": "XAUUSD",
       "candle_utc": "2026-11-11T14:45:00+00:00",
-      "decisao": "VENDA",
-      "confianca": 85,
-      "justificativa": "O mercado apresenta um forte alinhamento de baixa em todos os tempos gráficos (M5, M15, H1). O RSI de 22.2 indica uma condição de sobrevenda, porém, em tendências de forte impulso vendedor, o preço tende a buscar suportes mais profundos antes de qualquer correção. A estrutura de topos e fundos descendentes é clara, e o preço atual está testando uma região de suporte imediato (4012.03), onde a probabilidade histórica de transição para níveis inferiores é relevante. A ausência de sinais de reversão e o alinhamento das EMAs confirmam a continuidade da pressão vendedora.",
+      "decisao": "SEM_SINAL",
+      "confianca": 45,
+      "justificativa": "Embora a tendência macro e micro seja de baixa, o RSI de 22.97 indica uma condição de sobrevenda extrema no M5. O preço está testando uma região de suporte imediato (4002-4013) e o histórico de transições mostra uma probabilidade de reversão ou correção de curto prazo superior à continuidade imediata do impulso vendedor. Entrar em venda agora apresenta risco elevado de exaustão do movimento.",
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "status": "disponivel"
     },
@@ -2497,46 +2497,29 @@
       "gemini": 25.0
     },
     "limiar": 40.0,
-    "atr14": 5.32779,
+    "atr14": 5.23518,
     "multiplicador_atr_stop": 1.5,
     "rr": 1.5,
-    "entrada": 4012.851,
-    "stop_loss": 4020.843,
-    "take_profit": 4000.863,
-    "distancia_stop": 7.992,
-    "distancia_alvo": 11.988,
-    "envio_telegram": true,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "distancia_stop": 7.853,
+    "distancia_alvo": 11.779,
+    "envio_telegram": false,
     "execucao_ordens": false,
-    "id_sinal": 43042403673
+    "id_sinal": 43042353788
   },
-  "operacoes_abertas": [
-    {
-      "id_sinal": "18dbbdc98626faa7fefd",
-      "tipo_avaliacao": "REAL",
-      "origem": "SINAL_REAL",
-      "horario_sinal_utc": "2026-11-11T14:45:00+00:00",
-      "ativo": "XAUUSD",
-      "timeframe": "M5",
-      "direcao": "VENDA",
-      "entrada": "4012.85100",
-      "stop": "4020.84300",
-      "alvo": "4000.86300",
-      "status": "EM_ABERTO",
-      "resultado_r": "",
-      "horario_resultado_utc": "",
-      "motivo": "O mercado apresenta um forte alinhamento de baixa em todos os tempos gráficos (M5, M15, H1). O RSI de 22.2 indica uma condição de sobrevenda, porém, em tendências de forte impulso vendedor, o preço tende a buscar suportes mais profundos antes de qualquer correção. A estrutura de topos e fundos descendentes é clara, e o preço atual está testando uma região de suporte imediato (4012.03), onde a probabilidade histórica de transição para níveis inferiores é relevante. A ausência de sinais de reversão e o alinhamento das EMAs confirmam a continuidade da pressão vendedora."
-    }
-  ],
+  "operacoes_abertas": [],
   "ranking": {
     "ativo": "XAUUSD",
-    "atualizado_utc": "2026-11-11T14:51:55.362978+00:00",
+    "atualizado_utc": "2026-11-11T14:51:26.619189+00:00",
     "criterio": "Somente sinais reais avaliados por candles M5 fechados.",
     "geral": {
-      "total": 144,
+      "total": 143,
       "alvos": 51,
       "stops": 82,
       "ambiguos": 5,
-      "em_aberto": 1,
+      "em_aberto": 0,
       "taxa_acerto_percentual": 38.35,
       "resultado_r_acumulado": -5.5
     },
@@ -2551,11 +2534,11 @@
         "resultado_r_acumulado": -4.0
       },
       "VENDA": {
-        "total": 95,
+        "total": 94,
         "alvos": 35,
         "stops": 54,
         "ambiguos": 5,
-        "em_aberto": 1,
+        "em_aberto": 0,
         "taxa_acerto_percentual": 39.33,
         "resultado_r_acumulado": -1.5
       }
@@ -2691,16 +2674,6 @@
       "alvo": "4008.16500",
       "status": "ALVO",
       "resultado_r": "1.50"
-    },
-    {
-      "id_sinal": "18dbbdc98626faa7fefd",
-      "candle_utc": "2026-11-11T14:45:00+00:00",
-      "direcao": "VENDA",
-      "entrada": "4012.85100",
-      "stop": "4020.84300",
-      "alvo": "4000.86300",
-      "status": "EM_ABERTO",
-      "resultado_r": ""
     },
     {
       "id_sinal": "1ad476a4135c77e35ae7",
