@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T04:06:22.261988+00:00",
-  "total_registros": 270,
+  "atualizado_utc": "2026-11-11T04:11:02.965237+00:00",
+  "total_registros": 271,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4615,6 +4615,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T04:06:22.261988+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T04:05:00+00:00",
+      "id_sinal": 42957479961,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora as EMAs (6 e 20) indiquem um alinhamento de alta no M5, o preço está comprimido entre suportes imediatos (4043-4047) e uma resistência relevante logo acima (4048-4053). A estrutura de topos e fundos recentes mostra uma falha em renovar máximas com força, e o histograma do MACD negativo sugere perda de momentum comprador. Com a tendência estrutural de H1 ainda baixista, a prudência recomenda aguardar um rompimento claro da resistência de 4048 ou um reteste mais sólido nos suportes inferiores antes de qualquer posicionamento.",
+      "atr14": 2.57095,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T04:11:02.965237+00:00"
     }
   ]
 }
