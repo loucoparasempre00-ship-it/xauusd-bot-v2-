@@ -1,4 +1,3 @@
-
 name: Organizador XAUUSD
 
 on:
@@ -51,7 +50,7 @@ jobs:
           set -euo pipefail
           python -u organizador_migracao_xauusd.py
 
-      - name: Validar quatro bancos
+      - name: Validar seis bancos
         run: |
           set -euo pipefail
 
@@ -65,9 +64,12 @@ jobs:
               "sinais.db": "sinais",
               "memoria.db": "memoria",
               "operacoes.db": "operacoes",
+              "estatisticas_m5.db": "estatisticas_m5",
+              "resultados_operacoes.db": "resultados_operacoes",
           }
 
           for nome, tabela in grupos.items():
+
               caminho = Path("data") / nome
 
               if not caminho.is_file():
@@ -80,22 +82,23 @@ jobs:
               ).fetchone()[0]
 
               tabelas = {
-                  linha[0]
-                  for linha in con.execute(
-                      "SELECT name FROM sqlite_master "
-                      "WHERE type='table'"
+                  linha[0] for linha in con.execute(
+                      "SELECT name FROM sqlite_master WHERE type='table'"
                   )
               }
 
-              if tabela not in tabelas:
-                  raise SystemExit(
-                      f"Tabela principal ausente em {nome}: {tabela}"
-                  )
+              obrigatorias = (
+                  tabela,
+                  "arquivos_origem",
+                  "controle_importacao",
+                  "referencias_modulos",
+              )
 
-              if "arquivos_origem" not in tabelas:
-                  raise SystemExit(
-                      f"Tabela arquivos_origem ausente em {nome}"
-                  )
+              for obrigatoria in obrigatorias:
+                  if obrigatoria not in tabelas:
+                      raise SystemExit(
+                          f"Tabela {obrigatoria} ausente em {nome}"
+                      )
 
               total = con.execute(
                   f"SELECT COUNT(*) FROM {tabela}"
@@ -108,9 +111,7 @@ jobs:
               con.close()
 
               if integridade != "ok":
-                  raise SystemExit(
-                      f"Falha de integridade: {nome}"
-                  )
+                  raise SystemExit(f"Falha de integridade: {nome}")
 
               if origens < 1:
                   raise SystemExit(
@@ -118,9 +119,7 @@ jobs:
                   )
 
               print(
-                  f"OK: {nome} | "
-                  f"registros={total} | "
-                  f"origens={origens}"
+                  f"OK: {nome} | registros={total} | origens={origens}"
               )
 
           relatorio = Path(
@@ -140,35 +139,38 @@ jobs:
               )
 
           if dados.get("total_erros", 0) != 0:
+              raise SystemExit("Relatorio apresenta erros")
+
+          if dados.get("total_arquivos_sem_grupo", 0) != 0:
               raise SystemExit(
-                  "Relatorio apresenta erros"
+                  "Existem arquivos sem classificacao"
               )
 
-          print("QUATRO_BANCOS_VALIDOS")
+          print("SEIS_BANCOS_VALIDOS")
+          print("CLASSIFICACAO_COMPLETA")
           print("RELATORIO_VALIDADO")
           PY
 
-      - name: Salvar bancos no repositorio
+      - name: Salvar seis bancos no repositorio
         run: |
           set -euo pipefail
 
           git config user.name "github-actions[bot]"
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add \
             data/graficos.db \
             data/sinais.db \
             data/memoria.db \
             data/operacoes.db \
+            data/estatisticas_m5.db \
+            data/resultados_operacoes.db \
             data/relatorio_organizador_xauusd.json
 
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao nos bancos."
           else
-            git commit -m \
-              "Organizar XAUUSD em quatro bancos por modulo"
-
+            git commit -m "Organizar XAUUSD em seis bancos por modulo"
             git push origin HEAD:main
           fi
 
@@ -181,5 +183,7 @@ jobs:
             data/sinais.db
             data/memoria.db
             data/operacoes.db
+            data/estatisticas_m5.db
+            data/resultados_operacoes.db
             data/relatorio_organizador_xauusd.json
           retention-days: 30
