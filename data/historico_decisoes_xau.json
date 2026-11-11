@@ -4389,5 +4389,48 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-11T14:41:08.295867+00:00"
+  },
+  {
+    "candle_utc": "2026-11-11T14:45:00+00:00",
+    "id_sinal": 43042353788,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 50.0,
+    "pontuacao_compra": 0.0,
+    "pontuacao_venda": 50.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 5.23518,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-11T14:45:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 45,
+      "justificativa": "Embora a tendência macro e micro seja de baixa, o RSI de 22.97 indica uma condição de sobrevenda extrema no M5. O preço está testando uma região de suporte imediato (4002-4013) e o histórico de transições mostra uma probabilidade de reversão ou correção de curto prazo superior à continuidade imediata do impulso vendedor. Entrar em venda agora apresenta risco elevado de exaustão do movimento.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-11T14:45:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 0,
+      "pontuacao_venda": 4,
+      "diferenca": -4,
+      "motivos": [
+        "EMA9 abaixo da EMA21 no M5",
+        "Contexto M15 de baixa",
+        "Contexto H1 de baixa",
+        "Impulso vendedor"
+      ],
+      "preco": 4014.135,
+      "atr_14": 4.747,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-11T14:51:26.350161+00:00"
   }
 ]
