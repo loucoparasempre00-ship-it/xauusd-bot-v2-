@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T03:06:15.505606+00:00",
-  "total_registros": 258,
+  "atualizado_utc": "2026-11-11T03:11:07.635076+00:00",
+  "total_registros": 259,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4327,6 +4327,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T03:06:15.505606+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T03:05:00+00:00",
+      "id_sinal": 42950958061,
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_final": "COMPRA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4047.669,
+      "stop": 4043.112,
+      "stop_loss": 4043.112,
+      "gain": 4054.505,
+      "take_profit": 4054.505,
+      "confianca": 65,
+      "pontuacao_final": 78.75,
+      "pontuacao_compra": 78.75,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um impulso comprador claro no M5 com alinhamento das EMAs (6/20) e RSI em zona de força. Embora a estrutura macro (H1) seja de baixa, o preço está testando uma zona de resistência imediata (4047-4053). A probabilidade de transição para a região superior (2699) é menor que a de recuo para a região 2697, mas o momentum atual favorece a continuidade do teste de topo recente. A entrada é validada pela estrutura de fundos ascendentes no curto prazo, mantendo o stop técnico abaixo da zona de suporte consolidada em 4043.",
+      "atr14": 3.038,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:11:07.635076+00:00"
     }
   ]
 }
