@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T15:12:29.571795+00:00",
-  "total_registros": 282,
+  "atualizado_utc": "2026-11-11T15:22:43.434120+00:00",
+  "total_registros": 283,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4903,6 +4903,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T15:12:29.571795+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T15:15:00+00:00",
+      "id_sinal": 43047360402,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4014.277,
+      "stop": 4021.873,
+      "stop_loss": 4021.873,
+      "gain": 4002.883,
+      "take_profit": 4002.883,
+      "confianca": 85,
+      "pontuacao_final": 83.75,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 83.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de baixa em todos os timeframes (M5, M15, H1). O preço está testando uma região de suporte imediato (4014.0 - 4015.5), mas a estrutura de topos e fundos descendentes, somada ao RSI em 31.3 e ao alinhamento das EMAs, sugere que o impulso vendedor ainda é dominante. A transição histórica na região atual favorece a continuidade do movimento para baixo (45.71% de probabilidade para a região inferior). O setup matemático está bem fundamentado pela tendência macro e micro.",
+      "atr14": 5.0639,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T15:22:43.434120+00:00"
     }
   ]
 }
