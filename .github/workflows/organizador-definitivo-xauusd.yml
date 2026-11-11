@@ -1,3 +1,4 @@
+
 name: Organizador XAUUSD
 
 on:
@@ -26,7 +27,7 @@ jobs:
       }}
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Baixar repositorio
@@ -40,17 +41,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verificar codigo
+      - name: Conferir os arquivos
         run: |
           set -euo pipefail
+          python -m py_compile coletor_xauusd.py
           python -m py_compile organizador_migracao_xauusd.py
+
+      - name: Executar Coletor
+        run: |
+          set -euo pipefail
+          python -u coletor_xauusd.py
 
       - name: Executar Organizador
         run: |
           set -euo pipefail
           python -u organizador_migracao_xauusd.py
 
-      - name: Validar bancos compactados
+      - name: Validar seis bancos
         run: |
           set -euo pipefail
 
@@ -76,8 +83,7 @@ jobs:
               if not caminho.is_file():
                   raise SystemExit(f"Banco ausente: {nome}")
 
-              with gzip.open(caminho, "rb") as origem:
-                  conteudo = origem.read()
+              conteudo = gzip.decompress(caminho.read_bytes())
 
               with tempfile.NamedTemporaryFile(suffix=".db") as temp:
                   temp.write(conteudo)
@@ -110,7 +116,8 @@ jobs:
 
                           if item.get("status") != "ATIVA":
                               raise SystemExit(
-                                  "Operação encerrada encontrada em operacoes.db"
+                                  "Operação encerrada encontrada "
+                                  "no banco de operações ativas"
                               )
 
                           codigo = item.get("codigo_operacao")
@@ -128,7 +135,8 @@ jobs:
                           codigos.add(codigo)
 
                   print(
-                      f"OK: {nome} | registros={total} | integridade={integridade}"
+                      f"OK: {nome} | registros={total} "
+                      f"| integridade={integridade}"
                   )
 
                   con.close()
@@ -154,14 +162,11 @@ jobs:
                   "Quantidade de operações ativas não informada"
               )
 
-          print("SEIS BANCOS COMPACTADOS E VALIDADOS")
-          print(
-              "OPERAÇÕES ATIVAS:",
-              dados["operacoes_ativas"]
-          )
+          print("SEIS BANCOS VALIDADOS")
+          print("OPERAÇÕES ATIVAS:", dados["operacoes_ativas"])
           PY
 
-      - name: Salvar bancos compactados
+      - name: Salvar bancos
         run: |
           set -euo pipefail
 
@@ -186,11 +191,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nenhuma alteração nos bancos."
           else
-            git commit -m "Organizador XAUUSD: bancos compactados"
+            git commit -m "Organizador XAUUSD: coleta e bancos"
             git push origin HEAD:main
           fi
 
-      - name: Guardar cópia de validação
+      - name: Guardar validacao
         uses: actions/upload-artifact@v4
         with:
           name: organizador-xauusd-validado
