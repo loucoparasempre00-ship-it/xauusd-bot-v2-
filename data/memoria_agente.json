@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T02:21:16.868403+00:00",
-  "total_registros": 249,
+  "atualizado_utc": "2026-11-11T02:26:08.432827+00:00",
+  "total_registros": 250,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4111,6 +4111,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T02:21:16.868403+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:20:00+00:00",
+      "id_sinal": 42945923744,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência de curto prazo (M5/M15) seja de alta, o preço está operando abaixo da EMA6 (4041.98) e testando uma região de suporte imediato (4039.5 - 4041.0). O histograma do MACD está negativo, indicando perda de momentum comprador, e a estrutura de topos e fundos recentes mostra uma lateralização após o pico de 4054.67. Sem um rompimento claro da resistência em 4043 ou um suporte consolidado abaixo de 4035, não há vantagem estatística para entrada.",
+      "atr14": 4.86361,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T02:26:08.432827+00:00"
     }
   ]
 }
