@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T03:36:05.772257+00:00",
-  "total_registros": 264,
+  "atualizado_utc": "2026-11-11T03:41:07.373883+00:00",
+  "total_registros": 265,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4471,6 +4471,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T03:36:05.772257+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T03:35:00+00:00",
+      "id_sinal": 42954299209,
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_final": "COMPRA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4047.645,
+      "stop": 4043.317,
+      "stop_loss": 4043.317,
+      "gain": 4054.136,
+      "take_profit": 4054.136,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 66.25,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma estrutura de topos e fundos ascendentes no M5, com as EMAs alinhadas para compra. Embora o H1 indique tendência de baixa, o fluxo de curto prazo no M5 e M15 é comprador. O preço está testando uma zona de resistência imediata (4047.69 - 4053.67), o que exige cautela, mas o momentum atual favorece a continuidade do movimento de alta até o próximo alvo estrutural.",
+      "atr14": 2.8851,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:41:07.373883+00:00"
     }
   ]
 }
