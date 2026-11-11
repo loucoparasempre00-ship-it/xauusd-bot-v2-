@@ -3976,5 +3976,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-11T03:56:13.935987+00:00"
+  },
+  {
+    "candle_utc": "2026-11-11T03:55:00+00:00",
+    "id_sinal": 42956373156,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 37.5,
+    "pontuacao_compra": 37.5,
+    "pontuacao_venda": 12.5,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.56687,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-11T03:55:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 45,
+      "justificativa": "O mercado encontra-se em uma zona de transição lateral no M5, com o preço oscilando entre suportes e resistências imediatas (4045-4047). Embora a tendência de curto prazo (M5/M15) seja de alta, o histograma do MACD está negativo e o preço está abaixo da EMA6, indicando perda de momentum. A ausência de um rompimento claro das estruturas de topo recentes e a divergência com a tendência de H1 sugerem cautela e falta de oportunidade direcional clara no momento.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-11T03:55:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 3,
+      "pontuacao_venda": 1,
+      "diferenca": 2,
+      "motivos": [],
+      "preco": 4046.232,
+      "atr_14": 2.91,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "ALTA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-11T04:01:03.169587+00:00"
   }
 ]
