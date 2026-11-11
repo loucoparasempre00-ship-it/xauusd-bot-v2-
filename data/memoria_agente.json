@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T17:27:49.745767+00:00",
-  "total_registros": 298,
+  "atualizado_utc": "2026-11-11T17:31:12.426926+00:00",
+  "total_registros": 299,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5287,6 +5287,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T17:27:49.745767+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T17:25:00+00:00",
+      "id_sinal": 43068831753,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 4003.734,
+      "stop": 4007.959,
+      "stop_loss": 4007.959,
+      "gain": 3997.397,
+      "take_profit": 3997.397,
+      "confianca": 85,
+      "pontuacao_final": 83.75,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 83.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de tendência de baixa em todos os timeframes analisados (M5, M15, H1). A estrutura de preços mostra topos descendentes e o preço atual está testando uma zona de suporte imediata (4002.81) após um rompimento de topo anterior. A leitura matemática confirma a pressão vendedora com as EMAs alinhadas para baixo e o MACD indicando momentum negativo. A transição histórica na região atual favorece o movimento de queda (38.46% de probabilidade de transição para a região inferior). O cenário é de continuidade da tendência principal com espaço para buscar o próximo nível de suporte em 3999.83.",
+      "atr14": 2.81639,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T17:31:12.426926+00:00"
     }
   ]
 }
