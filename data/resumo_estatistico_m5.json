@@ -1,10 +1,10 @@
 {
-  "atualizado_em": "2026-11-11T14:20:04.130497+00:00",
+  "atualizado_em": "2026-11-11T14:30:04.524654+00:00",
   "versao": 1,
-  "total_velas": 5119,
+  "total_velas": 5002,
   "total_regioes": 182,
-  "total_visitas": 5119,
-  "total_transicoes": 2678,
+  "total_visitas": 5002,
+  "total_transicoes": 2679,
   "minimo_amostras": 20,
   "metodo_confianca": "Wilson 95%",
   "melhores_regioes_rejeicao": [
@@ -41,6 +41,22 @@
       "rompimentos_baixa": 3
     },
     {
+      "regiao": 2662,
+      "visitas": 214,
+      "toques": 146,
+      "rejeicoes": 138,
+      "rompimentos": 3,
+      "prob_rejeicao": 0.4808,
+      "prob_rompimento": 0.0105,
+      "limite_inferior_rejeicao": 0.4237,
+      "amostras": 287,
+      "amostra_suficiente": "SIM",
+      "rejeicoes_superiores": 41,
+      "rejeicoes_inferiores": 97,
+      "rompimentos_alta": 1,
+      "rompimentos_baixa": 2
+    },
+    {
       "regiao": 2583,
       "visitas": 605,
       "toques": 522,
@@ -55,22 +71,6 @@
       "rejeicoes_inferiores": 327,
       "rompimentos_alta": 0,
       "rompimentos_baixa": 1
-    },
-    {
-      "regiao": 2662,
-      "visitas": 333,
-      "toques": 260,
-      "rejeicoes": 241,
-      "rompimentos": 3,
-      "prob_rejeicao": 0.4782,
-      "prob_rompimento": 0.006,
-      "limite_inferior_rejeicao": 0.4349,
-      "amostras": 504,
-      "amostra_suficiente": "SIM",
-      "rejeicoes_superiores": 75,
-      "rejeicoes_inferiores": 166,
-      "rompimentos_alta": 1,
-      "rompimentos_baixa": 2
     },
     {
       "regiao": 2712,
@@ -105,22 +105,6 @@
       "rompimentos_baixa": 2
     },
     {
-      "regiao": 2686,
-      "visitas": 44,
-      "toques": 9,
-      "rejeicoes": 5,
-      "rompimentos": 6,
-      "prob_rejeicao": 0.25,
-      "prob_rompimento": 0.3,
-      "limite_inferior_rejeicao": 0.1119,
-      "amostras": 20,
-      "amostra_suficiente": "SIM",
-      "rejeicoes_superiores": 3,
-      "rejeicoes_inferiores": 2,
-      "rompimentos_alta": 3,
-      "rompimentos_baixa": 3
-    },
-    {
       "regiao": 2697,
       "visitas": 67,
       "toques": 10,
@@ -151,6 +135,22 @@
       "rejeicoes_inferiores": 2,
       "rompimentos_alta": 3,
       "rompimentos_baixa": 0
+    },
+    {
+      "regiao": 2686,
+      "visitas": 44,
+      "toques": 10,
+      "rejeicoes": 4,
+      "rompimentos": 6,
+      "prob_rejeicao": 0.2,
+      "prob_rompimento": 0.3,
+      "limite_inferior_rejeicao": 0.0807,
+      "amostras": 20,
+      "amostra_suficiente": "SIM",
+      "rejeicoes_superiores": 3,
+      "rejeicoes_inferiores": 1,
+      "rompimentos_alta": 3,
+      "rompimentos_baixa": 3
     }
   ],
   "transicoes_mais_frequentes": [
