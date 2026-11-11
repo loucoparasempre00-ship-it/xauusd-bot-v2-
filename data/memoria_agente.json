@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T02:26:08.432827+00:00",
-  "total_registros": 250,
+  "atualizado_utc": "2026-11-11T02:31:09.506485+00:00",
+  "total_registros": 251,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4135,6 +4135,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T02:26:08.432827+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:25:00+00:00",
+      "id_sinal": 42946480136,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 50.0,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o setup aponte compra com base em médias móveis de curto prazo, o preço atual de 4042.17 está colidindo com uma zona de resistência imediata (4042.34 - 4043.07). Além disso, a estrutura macro (H1) é de baixa e o mercado apresenta uma transição lateral/incerta. O histograma do MACD está negativo, sugerindo perda de força no impulso comprador. Prefiro aguardar um rompimento claro da resistência de 4043 ou um recuo para suporte mais sólido antes de considerar uma entrada.",
+      "atr14": 4.77516,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T02:31:09.506485+00:00"
     }
   ]
 }
