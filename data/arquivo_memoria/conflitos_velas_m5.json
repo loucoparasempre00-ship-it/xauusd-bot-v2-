@@ -1,22 +1,33 @@
 {
-  "atualizado_utc": "2026-11-11T16:27:07.903911+00:00",
-  "total_conflitos": 1,
+  "atualizado_utc": "2026-11-11T16:55:39.834300+00:00",
+  "total_conflitos": 2,
   "registros": [
     {
-      "fechamento_utc": "2026-11-11T16:15:00+00:00",
-      "fonte_anterior": "velas_m5_ativas_90d.csv",
-      "fonte_nova": "historico_velas_m5.csv",
+      "fechamento_utc": "2026-11-11T16:35:00+00:00",
+      "fonte_anterior": "historico_velas_m5.csv",
+      "fonte_nova": "xauusd_m5.csv",
       "campos_divergentes": [
-        "low",
         "close"
       ],
       "valores_anteriores": {
-        "low": "4004.667",
-        "close": "4004.9813"
+        "close": "4001.68068"
       },
       "valores_novos": {
-        "low": "4004.004",
-        "close": "4004.20028"
+        "close": "4002.02249"
+      }
+    },
+    {
+      "fechamento_utc": "2026-11-11T16:35:00+00:00",
+      "fonte_anterior": "xauusd_m5.csv",
+      "fonte_nova": "xauusd_m5_fechados.csv",
+      "campos_divergentes": [
+        "close"
+      ],
+      "valores_anteriores": {
+        "close": "4002.02249"
+      },
+      "valores_novos": {
+        "close": "4001.68068"
       }
     }
   ]
