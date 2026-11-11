@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-10T23:06:55.750474+00:00",
-  "total_registros": 248,
+  "atualizado_utc": "2026-11-11T02:21:16.868403+00:00",
+  "total_registros": 249,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4087,6 +4087,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-10T23:06:55.750474+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T02:15:00+00:00",
+      "id_sinal": 42945349714,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora a tendência de curto prazo (M5/M15) seja de alta, o preço está operando exatamente na EMA20 e em uma região de transição lateral, sem força direcional clara. A proximidade com a resistência imediata em 4041.98 e a falta de volume validado (VWAP indisponível) sugerem cautela. O preço está consolidado entre suportes e resistências imediatas, tornando qualquer entrada prematura antes de um rompimento claro ou teste de liquidez.",
+      "atr14": 5.02459,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T02:21:16.868403+00:00"
     }
   ]
 }
