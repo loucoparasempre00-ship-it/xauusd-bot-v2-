@@ -1,327 +1,195 @@
 {
-  "versao": 2,
-  "atualizado_utc": "2026-11-10T21:07:55.778712+00:00",
-  "modulos": [
-    {
-      "numero": 1,
-      "nome": "graficos_velas",
-      "total_registros": 0
-    },
-    {
-      "numero": 2,
-      "nome": "gerador_sinais",
-      "total_registros": 187
-    },
-    {
-      "numero": 3,
-      "nome": "memoria_persistente",
-      "total_registros": 776
-    },
-    {
-      "numero": 4,
-      "nome": "condutor_operacoes",
-      "total_registros": 78
-    },
-    {
-      "numero": 5,
-      "nome": "organizador_memoria",
-      "total_registros": 129
-    },
-    {
-      "numero": 6,
-      "nome": "estatisticas_consolidacao",
-      "total_registros": 19825
-    }
-  ],
-  "total_arquivos": 48,
+  "versao": 3,
+  "atualizado_utc": "2026-11-11T02:34:04.342156+00:00",
+  "total_arquivos": 47,
   "arquivos": [
     {
-      "codigo_arquivo": "ARQ-XAU-8011729F6C93E875355B",
       "arquivo": "data/acompanhamento_autonomo_estado.json",
-      "bytes": 74,
-      "sha256": "583dbc6be14f425ce1c0efbb306ff4df67df39368457a501f857fd91e82fa220"
+      "bytes": 75
     },
     {
-      "codigo_arquivo": "ARQ-XAU-0E5E15C29D664BE7E07C",
       "arquivo": "data/analise_tecnica_contexto.json",
-      "bytes": 574,
-      "sha256": "4b36e31bd4fff35870bbf41ace2bb8266d02211d02e9020777c59b643016c82a"
+      "bytes": 699
     },
     {
-      "codigo_arquivo": "ARQ-XAU-CA27C29F362BADE81ED6",
+      "arquivo": "data/arquivo_memoria/conflitos_velas_m5.json",
+      "bytes": 454
+    },
+    {
       "arquivo": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
-      "bytes": 99,
-      "sha256": "33ce2c2234c30d4297178bb5862c6765e9955a81946d6f94fbebc524d72d2596"
+      "bytes": 112
     },
     {
-      "codigo_arquivo": "ARQ-XAU-479FE6DC3AAF0E726CE9",
       "arquivo": "data/cadastro_mestre_operacoes.json",
-      "bytes": 2653828,
-      "sha256": "e3476a6d417fffc010748edddd4741b1c2d7f2795fcdfad73439621ed226d4a2"
+      "bytes": 24874
     },
     {
-      "codigo_arquivo": "ARQ-XAU-938B3939CA3C0A611628",
       "arquivo": "data/condutor_ultima_memoria_run.json",
-      "bytes": 138,
-      "sha256": "fa426369fa4d013ab1bc1a44d641501a32bcd969cdb7004c15fbba44c5827970"
+      "bytes": 138
     },
     {
-      "codigo_arquivo": "ARQ-XAU-FFF5DDF767D638A1462B",
       "arquivo": "data/contexto_inteligente_acompanhador.json",
-      "bytes": 63638,
-      "sha256": "32da575f603cfd004b66b72aa2f65ee430cc3aeaf56e40c1cb18648c80abfb97"
+      "bytes": 64297
     },
     {
-      "codigo_arquivo": "ARQ-XAU-31C322A6DEE6CC91DCF6",
       "arquivo": "data/contexto_tabuleiro_m5.json",
-      "bytes": 3646,
-      "sha256": "03a16fbf6d1cf8158e637e382da42025e56534b677c0e861a4356f4bb5e3f670"
+      "bytes": 4946
     },
     {
-      "codigo_arquivo": "ARQ-XAU-E5A796F1BA457498294C",
       "arquivo": "data/decisao_agente_operacional.json",
-      "bytes": 1564,
-      "sha256": "952fe52b3c8c4b053d6a19bdd600fedc728589b7b1638190751aca72058d9c18"
+      "bytes": 1564
     },
     {
-      "codigo_arquivo": "ARQ-XAU-668669BB8E9D96A8ECC4",
       "arquivo": "data/estatisticas_regioes_m5.csv",
-      "bytes": 8579,
-      "sha256": "1ec4795d6eaf26fefba07a696017a0ab3746195710ef3a9625196cd692e91882"
+      "bytes": 8578
     },
     {
-      "codigo_arquivo": "ARQ-XAU-0F0ED70E37B95C1373F9",
       "arquivo": "data/eventos_bordas_m5.csv",
-      "bytes": 301116,
-      "sha256": "76418f3745593a5b0005f459a71e370550317df83b950e2e831baa3fa8b65549"
+      "bytes": 292971
     },
     {
-      "codigo_arquivo": "ARQ-XAU-4371720DACFC218F11E1",
       "arquivo": "data/historico_conexoes_gemini.json",
-      "bytes": 35497,
-      "sha256": "9bfba276aeae8e6811955fe03b19da65f161d8518bf47d3cc75534accabd13a5"
+      "bytes": 35497
     },
     {
-      "codigo_arquivo": "ARQ-XAU-79F7B14FE5D2728009DE",
       "arquivo": "data/historico_decisoes_xau.json",
-      "bytes": 92999,
-      "sha256": "a02faf7e6921f4a3c38709523d3e94014357e4bed0dff329f46d37c4302395e3"
+      "bytes": 134177
     },
     {
-      "codigo_arquivo": "ARQ-XAU-8FEC0F426E395D02922A",
       "arquivo": "data/historico_velas_m5.csv",
-      "bytes": 327762,
-      "sha256": "86d8de5d9cd69733daa3428b7cc41442fe787875e41daca8bc94bd7051109551"
+      "bytes": 327748
     },
     {
-      "codigo_arquivo": "ARQ-XAU-AA015CC6F0D3D03DA71D",
       "arquivo": "data/indice_arquivos_memoria.json",
-      "bytes": 4539,
-      "sha256": "24a34ffb68d62c9dd0c0905ce601b6da859fc357045a3f43496a0bb833c17636"
+      "bytes": 11616
     },
     {
-      "codigo_arquivo": "ARQ-XAU-FF04471A3EF51EE645F0",
       "arquivo": "data/marcadores_sinais_xau.json",
-      "bytes": 32144,
-      "sha256": "fa5b1101ac6d2b1fbdbeb46d09c9a05ff81caa9b2ea9f31ebca4bd49dd0605c7"
+      "bytes": 33395
     },
     {
-      "codigo_arquivo": "ARQ-XAU-E627C8DB4D5B69205DB5",
       "arquivo": "data/memoria_agente.csv",
-      "bytes": 147355,
-      "sha256": "2892a4668276a80652ad3f920e39e9032238df47235b8967300d6ec4da4e4976"
+      "bytes": 162026
     },
     {
-      "codigo_arquivo": "ARQ-XAU-808A5960D800E85B722D",
       "arquivo": "data/memoria_agente.json",
-      "bytes": 209152,
-      "sha256": "18d13a1eb90a99eac8bbbb8999d8041822c3d17e1a43bc008ec3427aa6ca486d"
+      "bytes": 239454
     },
     {
-      "codigo_arquivo": "ARQ-XAU-A07CCADA9395A5DEEA6A",
       "arquivo": "data/memoria_gemini_diaria.json",
-      "bytes": 203,
-      "sha256": "c2f421fc67ad957a103efe0b804bd5734c8259be594b8b90dac05f4dfab4635b"
+      "bytes": 203
     },
     {
-      "codigo_arquivo": "ARQ-XAU-E4F8493D73183C0E673D",
       "arquivo": "data/organizado_01_graficos_velas.json",
-      "bytes": 488,
-      "sha256": "268150b5a7899a97238a91e303c8482eed9401e564472392c8d0900f1f7a84e3"
+      "bytes": 414
     },
     {
-      "codigo_arquivo": "ARQ-XAU-AE1ACF518865BA0E128F",
       "arquivo": "data/organizado_02_gerador_sinais.json",
-      "bytes": 300092,
-      "sha256": "5b00b33006bf179d9fac420cd985da5e6b53b1424ebe83cde68ca236f8584fd4"
+      "bytes": 300092
     },
     {
-      "codigo_arquivo": "ARQ-XAU-193B7026BA6EC524BCDB",
       "arquivo": "data/organizado_03_memoria_persistente.json",
-      "bytes": 862493,
-      "sha256": "39175e2ce8de7834bf0b8be2aa6f4001e0fdf1f6c519529d1e169c5c8ce51a53"
+      "bytes": 862493
     },
     {
-      "codigo_arquivo": "ARQ-XAU-70BC0EB407021B2F1EAE",
       "arquivo": "data/organizado_04_condutor_operacoes.json",
-      "bytes": 816845,
-      "sha256": "0ed240f503148d75f0c7756e68d42dbbe3d5893df1c54926dab683220ed24b45"
+      "bytes": 816845
     },
     {
-      "codigo_arquivo": "ARQ-XAU-58E72ED2517123488B5B",
       "arquivo": "data/organizado_05_organizador_memoria.json",
-      "bytes": 243,
-      "sha256": "bfa8a45eaa57218fcfa960751a8c49c3257073428cdd8402931b1b999a1e9801"
+      "bytes": 243
     },
     {
-      "codigo_arquivo": "ARQ-XAU-BD86410D838DB80EF9F9",
       "arquivo": "data/organizado_06_estatisticas_consolidacao.json",
-      "bytes": 11038639,
-      "sha256": "34a229192e1432d984609ec358416dcc9b7377b12ecd3920bf58fb8259a39011"
+      "bytes": 11038639
     },
     {
-      "codigo_arquivo": "ARQ-XAU-B66EA2887E1B72ED4BCB",
       "arquivo": "data/pacote_agente_operacional.json",
-      "bytes": 104471,
-      "sha256": "bc223cb8a12377188749daccb5ab2f0e51d0876bb48659b4efb0012482be7864"
+      "bytes": 104471
     },
     {
-      "codigo_arquivo": "ARQ-XAU-3D0B308594325781D4DC",
       "arquivo": "data/pacote_memoria_condutor.json",
-      "bytes": 106551,
-      "sha256": "caf6c5544d8abc64bde9d6bf8863a527698871b6186a1cf1987ca35a170ae8f4"
+      "bytes": 108633
     },
     {
-      "codigo_arquivo": "ARQ-XAU-89716AE7BB994F59B5F9",
       "arquivo": "data/proximas_regioes_m5.json",
-      "bytes": 323,
-      "sha256": "1335bc8f51609f2baf5703dcbcfe09ee51176ec702ad0fbc55c3d97d69a5ea46"
+      "bytes": 323
     },
     {
-      "codigo_arquivo": "ARQ-XAU-284BD055C560C2BA94A7",
       "arquivo": "data/ranking_sinais_xau.json",
-      "bytes": 750,
-      "sha256": "32f9798407968f7d5c028512d611ce6e070991cb41678562c524ef8df3c8ba72"
+      "bytes": 747
     },
     {
-      "codigo_arquivo": "ARQ-XAU-5FA856B14F6AB289F56C",
       "arquivo": "data/regioes_estaveis_m5.csv",
-      "bytes": 11494,
-      "sha256": "36608b2144a7b01774f00bcb3dcfb5a6af32ee2638bf7e16394182ac9532afa2"
+      "bytes": 11494
     },
     {
-      "codigo_arquivo": "ARQ-XAU-6E2CD2B360CB5FCFDB4B",
       "arquivo": "data/relatorio_geral_tabuleiro_m5.csv",
-      "bytes": 853,
-      "sha256": "325ae49ca47b0732b52fa87a8cb3a3cf61c4f2b478aeb10db6163774b1c2b6f8"
+      "bytes": 853
     },
     {
-      "codigo_arquivo": "ARQ-XAU-EE5E08EED722471A0190",
       "arquivo": "data/relatorio_organizador_memoria.json",
-      "bytes": 543,
-      "sha256": "5c824cd7d7e2e3da5db3f5763b860b700be177cab2baaec0b9cb44085220ac45"
+      "bytes": 1097
     },
     {
-      "codigo_arquivo": "ARQ-XAU-60B4D85C65B5299174FE",
       "arquivo": "data/relatorio_tabuleiro_m5.json",
-      "bytes": 10813,
-      "sha256": "f52d2427500f371111a56287aa2436578b63686ff891c714440388b6630f434f"
+      "bytes": 10813
     },
     {
-      "codigo_arquivo": "ARQ-XAU-35EEB4003062E245A533",
       "arquivo": "data/resultados_eventos_m5.csv",
-      "bytes": 482175,
-      "sha256": "795527ba755d85c9e078fa3bdfb2b5c864446d5578367b04b2a2a499c4593bf9"
+      "bytes": 469083
     },
     {
-      "codigo_arquivo": "ARQ-XAU-FA0E36C7DEF51D8B82E0",
       "arquivo": "data/resultados_operacoes.csv",
-      "bytes": 198338,
-      "sha256": "984b50d51901a9d34fc3529514752a968cc3289062a5011bfe9fb711c8511e2e"
+      "bytes": 226435
     },
     {
-      "codigo_arquivo": "ARQ-XAU-3DA45237CFAFEC3BB1F4",
       "arquivo": "data/resultados_operacoes.json",
-      "bytes": 722207,
-      "sha256": "fc5fbb43c682e1c3fdb35fbc7e6cba0f1e3a91a86b9b721bcbd71074533030ee"
+      "bytes": 993372
     },
     {
-      "codigo_arquivo": "ARQ-XAU-9E7463BA8A56238C05AC",
       "arquivo": "data/resumo_estatistico_m5.json",
-      "bytes": 5626,
-      "sha256": "392b901d8e96ffba758c0c276bc079e16684156f79aac8da3c2139a74001be50"
+      "bytes": 5627
     },
     {
-      "codigo_arquivo": "ARQ-XAU-E88EEE5F0BBA65FCF1C0",
       "arquivo": "data/resumo_resultados_m5.csv",
-      "bytes": 533,
-      "sha256": "fb5a4cddeb9b77d02e34946fb2551800747e815b23d5eaf4361377bf1f3f8c85"
+      "bytes": 532
     },
     {
-      "codigo_arquivo": "ARQ-XAU-DE0EA0DC0F0FF3F95839",
       "arquivo": "data/sequencias_provaveis_m5.csv",
-      "bytes": 105,
-      "sha256": "28912f7a8095700811bcd7882a5404f608bb4e1a2be423304b7992104477038f"
+      "bytes": 105
     },
     {
-      "codigo_arquivo": "ARQ-XAU-F483E0CD8AC043D289D6",
       "arquivo": "data/tabuleiro_estavel_m5.csv",
-      "bytes": 607708,
-      "sha256": "de359d935e2e8ae6fb8ed6944c01e058e01fb52fa29f10862f508a6e57cddc2c"
+      "bytes": 607698
     },
     {
-      "codigo_arquivo": "ARQ-XAU-BA60A6F638999C2A0D22",
       "arquivo": "data/tabuleiro_m5.csv",
-      "bytes": 572676,
-      "sha256": "ec4b4cc2d44815c6f16eae4e56ca4c405a9a7172b68cee37540181761622487a"
+      "bytes": 572666
     },
     {
-      "codigo_arquivo": "ARQ-XAU-B31D08EDE6E75F93E337",
       "arquivo": "data/tabuleiro_m5.db",
-      "bytes": 3403776,
-      "sha256": "6bb2c8c85bfcecad18a7ddcc290cfc65095120727a6675b13faea8f7ae292171"
+      "bytes": 3432448
     },
     {
-      "codigo_arquivo": "ARQ-XAU-6DB71EF4256E4D95FAE6",
-      "arquivo": "data/tabuleiro_m5.db-shm",
-      "bytes": 32768,
-      "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
-    },
-    {
-      "codigo_arquivo": "ARQ-XAU-BF3EA08A8D12EBD17FE2",
-      "arquivo": "data/tabuleiro_m5.db-wal",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "codigo_arquivo": "ARQ-XAU-119F45E8F0424C531B7C",
       "arquivo": "data/transicoes_estaveis_m5.csv",
-      "bytes": 27644,
-      "sha256": "7d323915d8a9cd8d2a02d3f5a1a56de6ad7c65ffeb80d8f31990f261695568fa"
+      "bytes": 27672
     },
     {
-      "codigo_arquivo": "ARQ-XAU-7C8D573F970AD9D05D0C",
       "arquivo": "data/transicoes_probabilidade_m5.csv",
-      "bytes": 26076,
-      "sha256": "1756bd46042cacbc6ffce29eafcd3f58854fd953f30882b815f81f5a6bef9580"
+      "bytes": 26096
     },
     {
-      "codigo_arquivo": "ARQ-XAU-3F62407F9893AB64C117",
       "arquivo": "data/velas_m5_ativas_90d.csv",
-      "bytes": 327762,
-      "sha256": "86d8de5d9cd69733daa3428b7cc41442fe787875e41daca8bc94bd7051109551"
+      "bytes": 463728
     },
     {
-      "codigo_arquivo": "ARQ-XAU-72CDEE6497E0F86A7954",
       "arquivo": "data/xauusd_m5.csv",
-      "bytes": 327762,
-      "sha256": "86d8de5d9cd69733daa3428b7cc41442fe787875e41daca8bc94bd7051109551"
+      "bytes": 327748
     },
     {
-      "codigo_arquivo": "ARQ-XAU-C8F231305826AACEBB3B",
       "arquivo": "data/xauusd_m5_fechados.csv",
-      "bytes": 327762,
-      "sha256": "86d8de5d9cd69733daa3428b7cc41442fe787875e41daca8bc94bd7051109551"
+      "bytes": 327748
     }
   ]
 }

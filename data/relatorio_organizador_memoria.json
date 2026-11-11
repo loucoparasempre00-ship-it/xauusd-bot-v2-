@@ -1,47 +1,27 @@
 {
-  "versao": 2,
-  "executado_utc": "2026-11-10T21:07:55.778712+00:00",
-  "modulos_executados": 6,
+  "versao": 3,
+  "executado_utc": "2026-11-11T02:34:04.342156+00:00",
+  "operacoes": {
+    "total": 128,
+    "ativas": 0,
+    "encerradas": 128,
+    "duplicatas_consolidadas": 0,
+    "codigo_unico": true
+  },
   "velas": {
-    "modulo": 1,
-    "nome": "graficos_velas",
-    "codigo_regra": "VELA-UTC-PRIORIDADE-FECHADA",
-    "total_velas_unicas": 5000,
-    "velas_ativas": 5000,
-    "velas_arquivadas": 0,
-    "duplicatas": 10000,
-    "conflitos_ohlc": 0,
-    "prioridade_fontes": [
-      "historico_velas_m5.csv",
-      "xauusd_m5.csv",
-      "xauusd_m5_fechados.csv"
-    ],
+    "identidade": "fechamento_utc",
+    "intervalo": "M5",
+    "regra": "timestamp_utc + 5 minutos",
+    "total_unicas": 5065,
+    "ativas": 5065,
+    "arquivadas": 0,
+    "duplicatas_consolidadas": 14935,
+    "conflitos_ohlc": 1,
     "arquivo_ativo": "data/velas_m5_ativas_90d.csv",
     "arquivo_historico": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
-    "originais_preservados": true
+    "arquivo_conflitos": "data/arquivo_memoria/conflitos_velas_m5.json"
   },
-  "gerador_sinais": {
-    "arquivos": 4,
-    "registros": 187
-  },
-  "memoria_persistente": {
-    "arquivos": 3,
-    "registros": 776
-  },
-  "condutor": {
-    "arquivos": 4,
-    "registros": 78
-  },
-  "operacoes": {
-    "conduzidas": 76,
-    "reais": 129,
-    "hipoteticas": 171,
-    "nao_classificadas": 0
-  },
-  "estatisticas": {
-    "arquivos": 14,
-    "registros": 19825
-  },
-  "indice_geral": "data/indice_arquivos_memoria.json",
-  "originais_removidos": 0
+  "originais_preservados": true,
+  "backup_antes_da_alteracao": true,
+  "arquivos_temporarios_sqlite_excluidos": true
 }
