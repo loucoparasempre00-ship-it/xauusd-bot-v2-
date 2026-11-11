@@ -2,11 +2,9 @@
 name: Organizador Definitivo XAUUSD
 
 on:
-  workflow_run:
-    workflows:
-      - "Condutor de Operacoes XAUUSD"
+  repository_dispatch:
     types:
-      - completed
+      - organizar-xauusd
 
   workflow_dispatch:
 
