@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T03:11:07.635076+00:00",
-  "total_registros": 259,
+  "atualizado_utc": "2026-11-11T03:15:56.036810+00:00",
+  "total_registros": 260,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -4351,6 +4351,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T03:11:07.635076+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T03:10:00+00:00",
+      "id_sinal": 42951516984,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 50.0,
+      "pontuacao_venda": 12.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o setup matemático indique compra, o preço atual de 4048.705 está posicionado exatamente em uma zona de resistência imediata (4048.91 - 4053.67). A estrutura de mercado no M5 mostra uma transição lateral após o topo recente em 4054.67, e a divergência entre a tendência de alta no M5/M15 e a tendência de baixa no H1 sugere um ambiente de exaustão de curto prazo. O risco de uma correção técnica antes de qualquer tentativa de rompimento é elevado, tornando a entrada atual prematura.",
+      "atr14": 2.96946,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T03:15:56.036810+00:00"
     }
   ]
 }
