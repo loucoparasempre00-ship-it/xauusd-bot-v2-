@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T23:01:52.197829+00:00",
-  "total_registros": 323,
+  "atualizado_utc": "2026-11-11T23:06:09.734495+00:00",
+  "total_registros": 324,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -5887,6 +5887,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T23:01:52.197829+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T23:00:00+00:00",
+      "id_sinal": 43117086061,
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_final": "COMPRA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3992.167,
+      "stop": 3990.771,
+      "stop_loss": 3990.771,
+      "gain": 3994.261,
+      "take_profit": 3994.261,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 66.25,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um impulso comprador claro no M5 com alinhamento de médias (EMA6/EMA20) e rompimento de topos recentes. Embora as tendências de M15 e H1 sejam de baixa, o preço atual está operando acima de zonas de suporte consolidadas (centro 3988.01). A região atual (2661) mostra uma probabilidade de transição ascendente de 41.18% para a região 2662. O RSI em 69.77 indica força, porém exige cautela por estar próximo à zona de sobrecompra. A resistência imediata em 3994.72 é o principal obstáculo para a continuidade do movimento.",
+      "atr14": 0.93074,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-11T23:06:09.734495+00:00"
     }
   ]
 }
