@@ -5,10 +5,13 @@
 """
 INTERACAO TELEGRAM XAUUSD
 
-Envia as decisoes produzidas pelo Decisor.
+Responsabilidades:
+- Enviar decisoes importantes do Decisor.
+- Confirmar recebimento de comandos da Recepcao.
+- Evitar mensagens repetidas a cada vela M5.
 
-A Recepcao e responsavel por ler os comandos.
-Este modulo nao consulta novamente o Telegram.
+A Recepcao e a unica responsavel por consultar getUpdates.
+Este modulo somente envia mensagens.
 
 Nao executa ordens.
 Nao altera bancos oficiais.
@@ -30,6 +33,23 @@ ARQUIVO_DECISOES = DATA / "decisoes_operacoes_xau.json"
 ARQUIVO_RECEPCAO = DATA / "entrada_recepcao_operacoes.json"
 ARQUIVO_ESTADO = DATA / "interacao_telegram_estado.json"
 ARQUIVO_SAIDA = DATA / "resultado_interacao_telegram.json"
+
+LIMITE_HISTORICO_ENVIO = 3000
+
+# Somente estas decisoes geram alerta operacional.
+ACOES_IMPORTANTES = {
+    "MUDA_STOP",
+    "REDUZ_RISCO",
+    "FECHA"
+}
+
+
+# ============================================================
+# UTILIDADES
+# ============================================================
+
+def agora():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def carregar_json(caminho, padrao=None):
@@ -62,7 +82,22 @@ def salvar_json(caminho, dados):
     temporario.replace(caminho)
 
 
+def formatar_valor(valor):
+    if valor is None:
+        return "N/D"
+
+    if isinstance(valor, float):
+        return f"{valor:.3f}"
+
+    return str(valor)
+
+
+# ============================================================
+# ENVIO TELEGRAM
+# ============================================================
+
 def enviar_mensagem(token, chat_id, texto):
+
     url = (
         f"https://api.telegram.org/bot{token}/sendMessage"
     )
@@ -75,6 +110,9 @@ def enviar_mensagem(token, chat_id, texto):
     requisicao = urllib.request.Request(
         url,
         data=dados,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
         method="POST"
     )
 
@@ -95,7 +133,12 @@ def enviar_mensagem(token, chat_id, texto):
     return resultado
 
 
+# ============================================================
+# FORMATAR DECISAO OPERACIONAL
+# ============================================================
+
 def formatar_decisao(decisao, probabilidades):
+
     codigo = decisao.get(
         "codigo_operacao",
         "SEM_CODIGO"
@@ -107,11 +150,14 @@ def formatar_decisao(decisao, probabilidades):
     )
 
     linhas = [
-        "XAUUSD | DECISAO DO ACOMPANHAMENTO",
+        "XAUUSD | ALERTA OPERACIONAL",
         "",
-        f"Codigo da operacao: {codigo}",
+        f"Operacao: {codigo}",
         f"Decisao: {acao}",
-        f"Direcao da operacao: {decisao.get('direcao_operacao', 'N/D')}",
+        (
+            "Direcao: "
+            f"{decisao.get('direcao_operacao', 'N/D')}"
+        ),
         "",
         (
             "Probabilidade geral de subir: "
@@ -122,18 +168,41 @@ def formatar_decisao(decisao, probabilidades):
             f"{probabilidades.get('cair', 'N/D')}%"
         ),
         "",
-        f"Preco de referencia: {decisao.get('preco_referencia', 'N/D')}",
-        f"Stop recomendado: {decisao.get('stop_recomendado', 'N/D')}",
-        f"Resultado: {decisao.get('resultado_r', 'N/D')}R",
+        (
+            "Preco de referencia: "
+            f"{formatar_valor(decisao.get('preco_referencia'))}"
+        ),
+        (
+            "Stop recomendado: "
+            f"{formatar_valor(decisao.get('stop_recomendado'))}"
+        ),
+        (
+            "Resultado: "
+            f"{formatar_valor(decisao.get('resultado_r'))}R"
+        ),
         "",
         f"Motivo: {decisao.get('motivo', '')}"
     ]
 
+    leitura = decisao.get("leitura_central", {})
+
+    if isinstance(leitura, dict):
+        if leitura.get("disponivel"):
+            linhas.extend([
+                "",
+                "Central M5: leitura disponivel."
+            ])
+
+    linhas.extend([
+        "",
+        "O sistema nao executa ordens."
+    ])
+
     if decisao.get("confirmacao_manual"):
+
         linhas.extend([
             "",
-            "A decisao exige confirmacao manual.",
-            "O sistema nao executa ordens."
+            "CONFIRMACAO MANUAL NECESSARIA."
         ])
 
         if acao in ("MUDA_STOP", "REDUZ_RISCO"):
@@ -143,56 +212,167 @@ def formatar_decisao(decisao, probabilidades):
 
         elif acao == "FECHA":
             linhas.append(
-                f"Depois de fechar manualmente, envie CANCELA {codigo}"
+                "Depois de fechar manualmente, envie:"
+            )
+            linhas.append(
+                f"CANCELA {codigo}"
             )
 
     return "\n".join(linhas)
 
 
+# ============================================================
+# CHAVE DE DUPLICIDADE DAS DECISOES
+# ============================================================
+
+def chave_decisao(decisao):
+
+    codigo = decisao.get(
+        "codigo_operacao",
+        ""
+    )
+
+    acao = str(
+        decisao.get("decisao", "")
+    ).upper()
+
+    stop = decisao.get("stop_recomendado")
+
+    # A mesma recomendacao de stop nao sera repetida
+    # em todas as velas seguintes.
+    if acao in ("MUDA_STOP", "REDUZ_RISCO"):
+        return (
+            f"DECISAO|{codigo}|{acao}|{stop}"
+        )
+
+    # Fechamento e comunicado somente uma vez.
+    if acao == "FECHA":
+        return (
+            f"DECISAO|{codigo}|FECHA"
+        )
+
+    return None
+
+
+# ============================================================
+# FILTRO DE DECISOES IMPORTANTES
+# ============================================================
+
+def decisao_importante(decisao):
+
+    acao = str(
+        decisao.get("decisao", "")
+    ).upper()
+
+    if acao not in ACOES_IMPORTANTES:
+        return False
+
+    if decisao.get("confirmacao_manual") is not True:
+        return False
+
+    if not decisao.get("codigo_operacao"):
+        return False
+
+    return True
+
+
+# ============================================================
+# FORMATAR EVENTOS DA RECEPCAO
+# ============================================================
+
 def formatar_evento(evento):
+
     comando = evento.get("comando")
-    codigo = evento.get(
-        "parametros", {}
-    ).get("codigo_operacao")
+
+    parametros = evento.get(
+        "parametros",
+        {}
+    )
+
+    codigo = parametros.get(
+        "codigo_operacao"
+    )
+
+    validacao = evento.get(
+        "validacao"
+    )
+
+    if validacao in (
+        "SEM_CODIGO_OPERACAO",
+        "OPERACAO_NAO_ENCONTRADA_NO_BANCO",
+        "PRECO_ENTRADA_INVALIDO",
+        "FORMATO_INVALIDO"
+    ):
+
+        return (
+            "XAUUSD | COMANDO NAO ACEITO\n\n"
+            f"Comando: {comando}\n"
+            f"Operacao: {codigo or 'Nao informada'}\n"
+            f"Motivo: {validacao}\n\n"
+            "Confira o codigo e os parametros."
+        )
 
     mensagens = {
+
         "ENTREI": (
-            f"Recebido: entrada informada para {codigo}. "
-            "A Recepcao registrou o comando."
+            "XAUUSD | ENTRADA RECEBIDA\n\n"
+            f"Operacao: {codigo}\n"
+            "Preco informado registrado pela Recepcao.\n"
+            "O acompanhamento podera considerar "
+            "a entrada manual."
         ),
+
         "CANCELA": (
-            f"Recebido: pedido de encerramento para {codigo}. "
-            "A confirmacao sera processada pelo Coordenador."
+            "XAUUSD | ENCERRAMENTO SOLICITADO\n\n"
+            f"Operacao: {codigo}\n"
+            "Pedido encaminhado para processamento "
+            "pelo Coordenador."
         ),
+
         "STOP_OK": (
-            f"Recebido: confirmacao manual do stop para {codigo}. "
-            "A confirmacao sera processada pelo Coordenador."
+            "XAUUSD | STOP CONFIRMADO\n\n"
+            f"Operacao: {codigo}\n"
+            "Confirmacao manual recebida e encaminhada "
+            "para o Coordenador."
         ),
+
         "STOP_NAO": (
-            f"Recebido: stop recusado para {codigo}. "
+            "XAUUSD | STOP RECUSADO\n\n"
+            f"Operacao: {codigo}\n"
             "O stop anterior deve ser preservado."
         ),
+
         "STATUS": (
-            "Comando STATUS recebido. Consulte as operacoes "
-            "ativas no resultado da Recepcao."
+            "XAUUSD | STATUS\n\n"
+            "Comando recebido. Consulte a saida da "
+            "Recepcao para verificar as operacoes ativas."
         ),
+
         "DESLIGA": (
-            "Comando DESLIGA recebido. O estado do acompanhamento "
-            "deve ser tratado pelo Coordenador."
+            "XAUUSD | DESLIGA RECEBIDO\n\n"
+            "Comando encaminhado para tratamento "
+            "pelo Coordenador."
         )
     }
 
     return mensagens.get(comando)
 
 
+# ============================================================
+# EXECUCAO
+# ============================================================
+
 def executar():
+
     print("=== INTERACAO TELEGRAM XAUUSD ===")
 
     token = os.getenv(
         "TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN"
     )
 
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    chat_id = os.getenv(
+        "TELEGRAM_CHAT_ID"
+    )
 
     if not token or not chat_id:
         raise RuntimeError(
@@ -211,11 +391,16 @@ def executar():
 
     estado = carregar_json(
         ARQUIVO_ESTADO,
-        {"decisoes_enviadas": []}
+        {
+            "mensagens_enviadas": []
+        }
     )
 
     ja_enviadas = set(
-        estado.get("decisoes_enviadas", [])
+        estado.get(
+            "mensagens_enviadas",
+            []
+        )
     )
 
     probabilidades = decisoes.get(
@@ -224,21 +409,27 @@ def executar():
     )
 
     enviadas = []
+    ignoradas = 0
     erros = []
 
-    # Envia somente decisoes ainda nao comunicadas.
+    # ========================================================
+    # 1. DECISOES DO DECISOR
+    # ========================================================
+
     for decisao in decisoes.get("decisoes", []):
 
-        codigo = decisao.get("codigo_operacao")
-
-        if not codigo:
+        if not decisao_importante(decisao):
+            ignoradas += 1
             continue
 
-        candle = decisao.get("candle_utc", "")
+        chave = chave_decisao(decisao)
 
-        chave = f"{codigo}|{candle}|{decisao.get('decisao')}"
+        if not chave:
+            ignoradas += 1
+            continue
 
         if chave in ja_enviadas:
+            ignoradas += 1
             continue
 
         mensagem = formatar_decisao(
@@ -247,6 +438,7 @@ def executar():
         )
 
         try:
+
             enviar_mensagem(
                 token,
                 chat_id,
@@ -256,23 +448,39 @@ def executar():
             ja_enviadas.add(chave)
             enviadas.append(chave)
 
+            print(
+                "Alerta enviado:",
+                decisao.get("codigo_operacao"),
+                decisao.get("decisao")
+            )
+
         except Exception as erro:
+
             erros.append({
-                "codigo_operacao": codigo,
+                "tipo": "DECISAO",
+                "codigo_operacao": (
+                    decisao.get("codigo_operacao")
+                ),
                 "erro": str(erro)
             })
 
-    # Confirma recebimento dos comandos que vieram da Recepcao.
-    for evento in recepcao.get("eventos_telegram", []):
+    # ========================================================
+    # 2. CONFIRMACOES DOS COMANDOS DA RECEPCAO
+    # ========================================================
+
+    for evento in recepcao.get(
+        "eventos_telegram",
+        []
+    ):
 
         update_id = evento.get("update_id")
 
         if update_id is None:
             continue
 
-        chave_evento = f"EVENTO|{update_id}"
+        chave = f"EVENTO|{update_id}"
 
-        if chave_evento in ja_enviadas:
+        if chave in ja_enviadas:
             continue
 
         mensagem = formatar_evento(evento)
@@ -281,43 +489,68 @@ def executar():
             continue
 
         try:
+
             enviar_mensagem(
                 token,
                 chat_id,
                 mensagem
             )
 
-            ja_enviadas.add(chave_evento)
-            enviadas.append(chave_evento)
+            ja_enviadas.add(chave)
+            enviadas.append(chave)
+
+            print(
+                "Confirmacao enviada:",
+                evento.get("comando")
+            )
 
         except Exception as erro:
+
             erros.append({
+                "tipo": "EVENTO",
                 "update_id": update_id,
                 "erro": str(erro)
             })
 
-    estado["decisoes_enviadas"] = sorted(
-        ja_enviadas
+    # ========================================================
+    # 3. PERSISTIR CONTROLE DE DUPLICIDADE
+    # ========================================================
+
+    historico = sorted(ja_enviadas)
+
+    estado["mensagens_enviadas"] = (
+        historico[-LIMITE_HISTORICO_ENVIO:]
     )
 
-    # Limita o tamanho do controle de duplicidade.
-    estado["decisoes_enviadas"] = (
-        estado["decisoes_enviadas"][-3000:]
-    )
+    estado["atualizado_utc"] = agora()
 
     salvar_json(
         ARQUIVO_ESTADO,
         estado
     )
 
+    # ========================================================
+    # 4. RELATORIO DA EXECUCAO
+    # ========================================================
+
     resultado = {
         "modulo": "interacao_telegram_xau",
-        "executado_utc": datetime.now(
-            timezone.utc
-        ).isoformat(),
+
+        "executado_utc": agora(),
+
         "mensagens_enviadas": len(enviadas),
+
+        "decisoes_ignoradas": ignoradas,
+
         "erros": erros,
-        "execucao_ordens": False
+
+        "regras": {
+            "envia_continua": False,
+            "envia_decisoes_sem_acao": False,
+            "envia_apenas_acoes_importantes": True,
+            "consulta_telegram": False,
+            "execucao_ordens": False
+        }
     }
 
     salvar_json(
@@ -325,7 +558,9 @@ def executar():
         resultado
     )
 
+    print("--------------------------------------")
     print("Mensagens enviadas:", len(enviadas))
+    print("Decisoes ignoradas:", ignoradas)
     print("Erros:", len(erros))
     print("INTERACAO CONCLUIDA")
 
