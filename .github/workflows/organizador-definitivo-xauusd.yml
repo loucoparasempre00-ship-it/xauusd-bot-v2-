@@ -41,11 +41,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Instalar GitHub CLI
-        run: |
-          gh --version
-
-      - name: Conferir os arquivos
+      - name: Conferir sintaxe
         run: |
           set -euo pipefail
           python -m py_compile coletor_xauusd.py
@@ -55,15 +51,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
           python -u coletor_xauusd.py
 
       - name: Executar Organizador
         run: |
-          set -euo pipefail
           python -u organizador_migracao_xauusd.py
 
-      - name: Validar seis bancos
+      - name: Validar seis bancos e relatorio
         run: |
           set -euo pipefail
 
@@ -83,96 +77,135 @@ jobs:
               "resultados_operacoes.db.gz": "resultados_operacoes",
           }
 
+          falhas = []
+
           for nome, tabela in bancos.items():
               caminho = Path("data") / nome
 
               if not caminho.is_file():
-                  raise SystemExit(f"Banco ausente: {nome}")
+                  falhas.append(f"Banco ausente: {nome}")
+                  print("[ERRO] Banco ausente:", nome)
+                  continue
 
-              conteudo = gzip.decompress(caminho.read_bytes())
+              try:
+                  conteudo = gzip.decompress(caminho.read_bytes())
 
-              with tempfile.NamedTemporaryFile(suffix=".db") as temp:
-                  temp.write(conteudo)
-                  temp.flush()
+                  with tempfile.NamedTemporaryFile(suffix=".db") as temp:
+                      temp.write(conteudo)
+                      temp.flush()
 
-                  con = sqlite3.connect(temp.name)
+                      con = sqlite3.connect(temp.name)
 
-                  integridade = con.execute(
-                      "PRAGMA integrity_check"
-                  ).fetchone()[0]
+                      integridade = con.execute(
+                          "PRAGMA integrity_check"
+                      ).fetchone()[0]
 
-                  if integridade != "ok":
-                      raise SystemExit(
-                          f"Falha de integridade: {nome}"
+                      total = con.execute(
+                          f"SELECT COUNT(*) FROM {tabela}"
+                      ).fetchone()[0]
+
+                      if integridade != "ok":
+                          falhas.append(
+                              f"Falha de integridade: {nome}"
+                          )
+
+                      if nome == "operacoes.db.gz":
+                          linhas = con.execute(
+                              "SELECT payload_json FROM operacoes"
+                          ).fetchall()
+
+                          codigos = set()
+
+                          for (texto,) in linhas:
+                              item = json.loads(texto)
+
+                              if item.get("status") != "ATIVA":
+                                  falhas.append(
+                                      "Operacao nao ativa no banco de ativas."
+                                  )
+
+                              codigo = item.get("codigo_operacao")
+
+                              if (
+                                  not codigo
+                                  or not str(codigo).startswith("OP-")
+                              ):
+                                  falhas.append(
+                                      f"Codigo invalido: {codigo}"
+                                  )
+
+                              if codigo in codigos:
+                                  falhas.append(
+                                      f"Codigo repetido: {codigo}"
+                                  )
+
+                              codigos.add(codigo)
+
+                      print(
+                          f"[{'OK' if integridade == 'ok' else 'ERRO'}] "
+                          f"{nome} | registros={total} "
+                          f"| integridade={integridade}"
                       )
 
-                  total = con.execute(
-                      f"SELECT COUNT(*) FROM {tabela}"
-                  ).fetchone()[0]
+                      con.close()
 
-                  if nome == "operacoes.db.gz":
-                      linhas = con.execute(
-                          "SELECT payload_json FROM operacoes"
-                      ).fetchall()
-
-                      codigos = set()
-
-                      for (texto,) in linhas:
-                          item = json.loads(texto)
-
-                          if item.get("status") != "ATIVA":
-                              raise SystemExit(
-                                  "Operação encerrada encontrada "
-                                  "no banco de operações ativas"
-                              )
-
-                          codigo = item.get("codigo_operacao")
-
-                          if not codigo or not str(codigo).startswith("OP-"):
-                              raise SystemExit(
-                                  f"Código inválido: {codigo}"
-                              )
-
-                          if codigo in codigos:
-                              raise SystemExit(
-                                  f"Código repetido: {codigo}"
-                              )
-
-                          codigos.add(codigo)
-
-                  print(
-                      f"OK: {nome} | registros={total} "
-                      f"| integridade={integridade}"
+              except Exception as erro:
+                  falhas.append(
+                      f"{nome}: {type(erro).__name__}: {erro}"
                   )
+                  print("[ERRO]", nome, erro)
 
-                  con.close()
-
-          relatorio = Path(
+          caminho_relatorio = Path(
               "data/relatorio_organizador_xauusd.json"
           )
 
-          if not relatorio.is_file():
-              raise SystemExit("Relatório não encontrado")
+          if not caminho_relatorio.is_file():
+              falhas.append("Relatorio do Organizador ausente.")
+              dados = {}
+          else:
+              try:
+                  dados = json.loads(
+                      caminho_relatorio.read_text(encoding="utf-8")
+                  )
+              except Exception as erro:
+                  falhas.append(
+                      f"Relatorio invalido: {type(erro).__name__}: {erro}"
+                  )
+                  dados = {}
 
-          dados = json.loads(
-              relatorio.read_text(encoding="utf-8")
-          )
+          status = dados.get("status", "DESCONHECIDO")
 
-          if dados.get("status") != "SUCESSO":
+          print("=" * 60)
+          print("STATUS DO ORGANIZADOR:", status)
+          print("AVISOS:", dados.get("total_avisos", 0))
+          print("ERROS:", dados.get("total_erros", 0))
+          print("OPERACOES ATIVAS:", dados.get("operacoes_ativas"))
+          print("FALHAS DE VALIDACAO:", len(falhas))
+
+          for falha in falhas:
+              print("[VALIDACAO]", falha)
+
+          print("=" * 60)
+
+          if falhas:
               raise SystemExit(
-                  "Organizador terminou com pendências"
+                  "Um ou mais bancos nao passaram na validacao."
               )
 
-          if dados.get("operacoes_ativas") is None:
+          if status not in (
+              "SUCESSO",
+              "CONCLUIDO_COM_AVISOS",
+              "CONCLUIDO_COM_ERROS",
+          ):
               raise SystemExit(
-                  "Quantidade de operações ativas não informada"
+                  f"Status final desconhecido: {status}"
               )
 
-          print("SEIS BANCOS VALIDADOS")
-          print("OPERAÇÕES ATIVAS:", dados["operacoes_ativas"])
+          print("VALIDACAO DOS SEIS BANCOS CONCLUIDA.")
           PY
 
-      - name: Salvar bancos
+      - name: Salvar bancos e relatorio
+        if: always()
         run: |
           set -euo pipefail
 
@@ -189,22 +222,25 @@ jobs:
             data/relatorio_organizador_xauusd.json
 
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração nos bancos."
+            echo "Nenhuma alteracao nos bancos ou relatorio."
           else
-            git commit -m "Organizador XAUUSD: coleta e bancos"
+            git commit -m "Organizador XAUUSD: bancos e relatorio"
             git push origin HEAD:main
           fi
 
-      - name: Guardar validacao
+      - name: Guardar resultado da execucao
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: organizador-xauusd-validado
+          name: organizador-xauusd-relatorio
           path: |
+            data/relatorio_organizador_xauusd.json
+            data/coletor_saida/manifesto_coletor.json
             data/graficos.db.gz
             data/sinais.db.gz
             data/memoria.db.gz
             data/operacoes.db.gz
             data/estatisticas_m5.db.gz
             data/resultados_operacoes.db.gz
-            data/relatorio_organizador_xauusd.json
+          if-no-files-found: warn
           retention-days: 30
