@@ -301,7 +301,7 @@ jobs:
           test -s data/tabuleiro_m5.csv
 
       # ==================================================
-      # 7. PROCESSAR OS SETE MODULOS DO TABULEIRO
+      # 7. PROCESSAR OS MODULOS DO TABULEIRO
       # ==================================================
 
       - name: 1 - Preparar entrega do Tabuleiro
@@ -333,10 +333,6 @@ jobs:
         run: |
           set -euo pipefail
           python -u relatorio_tabuleiro_m5.py
-
-      # O relatório já utilizou o nome original.
-      # O nome de entrega abaixo permite ao Coletor
-      # classificar este arquivo em estatisticas_m5.
 
       - name: Classificar resumo do Tabuleiro para entrega
         run: |
@@ -837,6 +833,81 @@ jobs:
           print("Sinais reais:", len(reais))
           print("Operacoes abertas:", len(abertas))
           print("Ranking:", ranking["geral"])
+          PY
+
+      # ==================================================
+      # 11.1. INTEGRAR OS QUATRO MODULOS DE OPERACOES
+      # ==================================================
+
+      - name: 11.1 - Receber operacoes do Coordenador
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          python -u recepcao_operacoes_xau.py
+          test -s data/entrada_recepcao_operacoes.json
+
+      - name: 11.2 - Analisar probabilidade direcional
+        run: |
+          set -euo pipefail
+          python -u analisador_setup_xau.py
+          test -s data/probabilidade_direcional_xau.json
+
+      - name: 11.3 - Decidir operacoes ativas
+        run: |
+          set -euo pipefail
+          python -u decisor_operacoes_xau.py
+          test -s data/decisoes_operacoes_xau.json
+
+      - name: 11.4 - Processar interacao Telegram
+        env:
+          TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN: ${{ secrets.TELEGRAM_ACOMPANHAMENTO_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          python -u interacao_telegram_xau.py
+          test -s data/resultado_interacao_telegram.json
+
+      - name: 11.5 - Validar entregas dos quatro modulos
+        run: |
+          set -euo pipefail
+
+          arquivos=(
+            data/entrada_recepcao_operacoes.json
+            data/recepcao_operacoes_estado.json
+            data/probabilidade_direcional_xau.json
+            data/decisoes_operacoes_xau.json
+            data/interacao_telegram_estado.json
+            data/resultado_interacao_telegram.json
+          )
+
+          for arquivo in "${arquivos[@]}"; do
+            test -s "$arquivo" || {
+              echo "::error::Arquivo ausente: $arquivo"
+              exit 1
+            }
+          done
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          arquivos = [
+              "entrada_recepcao_operacoes.json",
+              "recepcao_operacoes_estado.json",
+              "probabilidade_direcional_xau.json",
+              "decisoes_operacoes_xau.json",
+              "interacao_telegram_estado.json",
+              "resultado_interacao_telegram.json",
+          ]
+
+          for nome in arquivos:
+              caminho = Path("data") / nome
+              json.loads(caminho.read_text(encoding="utf-8"))
+              print("OK:", caminho)
+
+          print("INTEGRACAO DOS MODULOS VALIDADA")
           PY
 
       # ==================================================
