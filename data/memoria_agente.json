@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:56:08.027119+00:00",
-  "total_registros": 355,
+  "atualizado_utc": "2026-11-12T02:01:24.414450+00:00",
+  "total_registros": 356,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6655,6 +6655,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:56:08.027119+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:55:00+00:00",
+      "id_sinal": 43138371720,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3982.539,
+      "stop": 3989.403,
+      "stop_loss": 3989.403,
+      "gain": 3972.244,
+      "take_profit": 3972.244,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento baixista consistente nos tempos gráficos maiores (M15 e H1) e a estrutura de médias móveis no M5 confirma a pressão vendedora. Embora o preço esteja testando uma região de suporte imediato (3980-3982), a falta de força compradora e o histograma negativo do MACD sugerem que o movimento de baixa tem maior probabilidade de continuidade após uma breve consolidação.",
+      "atr14": 4.57575,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T02:01:24.414450+00:00"
     }
   ]
 }
