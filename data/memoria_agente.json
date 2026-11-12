@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-11T23:56:10.406460+00:00",
-  "total_registros": 332,
+  "atualizado_utc": "2026-11-12T00:01:18.078525+00:00",
+  "total_registros": 333,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6103,6 +6103,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-11T23:56:10.406460+00:00"
+    },
+    {
+      "candle_utc": "2026-11-11T23:55:00+00:00",
+      "id_sinal": 43124078189,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora a tendência macro e as EMAs no M5 indiquem baixa, o preço atual de 3982.57 está testando uma região de suporte imediato (3981.40 - 3982.16) e apresentou uma vela de alta no fechamento do M5. O mercado encontra-se em uma zona de transição lateral com baixa liquidez, tornando o risco de uma reversão de curto prazo ou consolidação superior ao potencial de queda imediato. Prefiro aguardar o rompimento claro do suporte de 3980.00 para confirmar a continuidade da tendência de baixa.",
+      "atr14": 3.37309,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T00:01:18.078525+00:00"
     }
   ]
 }
