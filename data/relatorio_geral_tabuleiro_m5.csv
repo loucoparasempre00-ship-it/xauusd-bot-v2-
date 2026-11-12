@@ -1,13 +1,13 @@
 categoria,indicador,valor
 DIAGNOSTICO,estado,DADOS_DISPONIVEIS
 DIAGNOSTICO,velas,5000
-DIAGNOSTICO,eventos,5524
+DIAGNOSTICO,eventos,5523
 DIAGNOSTICO,eventos_avaliados,5508
 DIAGNOSTICO,regioes_analisadas,182
 DIAGNOSTICO,transicoes_analisadas,1093
 DIAGNOSTICO,sequencias_calculadas,0
 DIAGNOSTICO,resumos_de_resultados,6
-EVENTO,REJEICAO_SUPERIOR,899
+EVENTO,REJEICAO_SUPERIOR,898
 EVENTO,ROMPIMENTO_BAIXA,1152
 EVENTO,REJEICAO_INFERIOR,943
 EVENTO,ROMPIMENTO_ALTA,1057
@@ -32,15 +32,15 @@ TRANSICAO,2646 -> 2645,"{""origem"": ""2646"", ""destino"": ""2645"", ""transico
 TRANSICAO,2609 -> 2610,"{""origem"": ""2609"", ""destino"": ""2610"", ""transicoes"": ""3"", ""saidas_origem"": ""5"", ""probabilidade"": ""0.6"", ""visitas_origem"": ""6"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2718 -> 2717,"{""origem"": ""2718"", ""destino"": ""2717"", ""transicoes"": ""4"", ""saidas_origem"": ""7"", ""probabilidade"": ""0.5714"", ""visitas_origem"": ""10"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2635 -> 2636,"{""origem"": ""2635"", ""destino"": ""2636"", ""transicoes"": ""5"", ""saidas_origem"": ""9"", ""probabilidade"": ""0.5556"", ""visitas_origem"": ""10"", ""amostra_suficiente"": ""NAO""}"
+TRANSICAO,2638 -> 2637,"{""origem"": ""2638"", ""destino"": ""2637"", ""transicoes"": ""5"", ""saidas_origem"": ""9"", ""probabilidade"": ""0.5556"", ""visitas_origem"": ""11"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2586 -> 2584,"{""origem"": ""2586"", ""destino"": ""2584"", ""transicoes"": ""2"", ""saidas_origem"": ""4"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""5"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2586 -> 2587,"{""origem"": ""2586"", ""destino"": ""2587"", ""transicoes"": ""2"", ""saidas_origem"": ""4"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""5"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2593 -> 2590,"{""origem"": ""2593"", ""destino"": ""2590"", ""transicoes"": ""1"", ""saidas_origem"": ""2"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""3"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2593 -> 2595,"{""origem"": ""2593"", ""destino"": ""2595"", ""transicoes"": ""1"", ""saidas_origem"": ""2"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""3"", ""amostra_suficiente"": ""NAO""}"
 TRANSICAO,2594 -> 2593,"{""origem"": ""2594"", ""destino"": ""2593"", ""transicoes"": ""1"", ""saidas_origem"": ""2"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""2"", ""amostra_suficiente"": ""NAO""}"
-TRANSICAO,2594 -> 2596,"{""origem"": ""2594"", ""destino"": ""2596"", ""transicoes"": ""1"", ""saidas_origem"": ""2"", ""probabilidade"": ""0.5"", ""visitas_origem"": ""2"", ""amostra_suficiente"": ""NAO""}"
-DESEMPENHO,REJEICAO_INFERIOR,"{""evento"": ""REJEICAO_INFERIOR"", ""amostras"": 941, ""taxa_favoravel_05"": 42.07, ""taxa_favoravel_10"": 41.27, ""favoraveis_05"": 345, ""desfavoraveis_05"": 467, ""ambiguos_05"": 121}"
-DESEMPENHO,REJEICAO_SUPERIOR,"{""evento"": ""REJEICAO_SUPERIOR"", ""amostras"": 897, ""taxa_favoravel_05"": 49.69, ""taxa_favoravel_10"": 48.11, ""favoraveis_05"": 399, ""desfavoraveis_05"": 402, ""ambiguos_05"": 94}"
-DESEMPENHO,ROMPIMENTO_ALTA,"{""evento"": ""ROMPIMENTO_ALTA"", ""amostras"": 1052, ""taxa_favoravel_05"": 45.75, ""taxa_favoravel_10"": 43.57, ""favoraveis_05"": 425, ""desfavoraveis_05"": 498, ""ambiguos_05"": 123}"
-DESEMPENHO,ROMPIMENTO_BAIXA,"{""evento"": ""ROMPIMENTO_BAIXA"", ""amostras"": 1147, ""taxa_favoravel_05"": 49.7, ""taxa_favoravel_10"": 49.82, ""favoraveis_05"": 503, ""desfavoraveis_05"": 505, ""ambiguos_05"": 135}"
+DESEMPENHO,REJEICAO_INFERIOR,"{""evento"": ""REJEICAO_INFERIOR"", ""amostras"": 942, ""taxa_favoravel_05"": 42.02, ""taxa_favoravel_10"": 41.23, ""favoraveis_05"": 345, ""desfavoraveis_05"": 468, ""ambiguos_05"": 121}"
+DESEMPENHO,REJEICAO_SUPERIOR,"{""evento"": ""REJEICAO_SUPERIOR"", ""amostras"": 896, ""taxa_favoravel_05"": 49.75, ""taxa_favoravel_10"": 48.05, ""favoraveis_05"": 399, ""desfavoraveis_05"": 401, ""ambiguos_05"": 94}"
+DESEMPENHO,ROMPIMENTO_ALTA,"{""evento"": ""ROMPIMENTO_ALTA"", ""amostras"": 1053, ""taxa_favoravel_05"": 45.7, ""taxa_favoravel_10"": 43.53, ""favoraveis_05"": 425, ""desfavoraveis_05"": 499, ""ambiguos_05"": 123}"
+DESEMPENHO,ROMPIMENTO_BAIXA,"{""evento"": ""ROMPIMENTO_BAIXA"", ""amostras"": 1146, ""taxa_favoravel_05"": 49.65, ""taxa_favoravel_10"": 49.78, ""favoraveis_05"": 502, ""desfavoraveis_05"": 505, ""ambiguos_05"": 135}"
 DESEMPENHO,TOQUE_INFERIOR,"{""evento"": ""TOQUE_INFERIOR"", ""amostras"": 761, ""taxa_favoravel_05"": 45.8, ""taxa_favoravel_10"": 45.17, ""favoraveis_05"": 316, ""desfavoraveis_05"": 367, ""ambiguos_05"": 71}"
 DESEMPENHO,TOQUE_SUPERIOR,"{""evento"": ""TOQUE_SUPERIOR"", ""amostras"": 710, ""taxa_favoravel_05"": 55.57, ""taxa_favoravel_10"": 53.36, ""favoraveis_05"": 349, ""desfavoraveis_05"": 272, ""ambiguos_05"": 82}"
