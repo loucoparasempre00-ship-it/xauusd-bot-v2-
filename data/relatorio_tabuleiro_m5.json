@@ -1,22 +1,22 @@
 {
-    "atualizado_em": "2026-11-12T06:01:26.634835+00:00",
+    "atualizado_em": "2026-11-12T06:06:28.852803+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
-        "eventos": 5517,
-        "eventos_avaliados": 5498,
+        "eventos": 5519,
+        "eventos_avaliados": 5499,
         "regioes_analisadas": 182,
         "transicoes_analisadas": 1085,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "TOQUE_INFERIOR": 761,
         "ROMPIMENTO_BAIXA": 1147,
         "ROMPIMENTO_ALTA": 1060,
         "TOQUE_SUPERIOR": 711,
         "REJEICAO_INFERIOR": 941,
-        "REJEICAO_SUPERIOR": 897
+        "REJEICAO_SUPERIOR": 898,
+        "TOQUE_INFERIOR": 762
     },
     "melhores_regioes": [
         {
@@ -361,12 +361,12 @@
     "desempenho_eventos": [
         {
             "evento": "REJEICAO_INFERIOR",
-            "amostras": 937,
+            "amostras": 938,
             "taxa_favoravel_05": 42.35,
-            "taxa_favoravel_10": 41.67,
+            "taxa_favoravel_10": 41.62,
             "favoraveis_05": 346,
             "desfavoraveis_05": 463,
-            "ambiguos_05": 120
+            "ambiguos_05": 121
         },
         {
             "evento": "REJEICAO_SUPERIOR",
@@ -379,12 +379,12 @@
         },
         {
             "evento": "ROMPIMENTO_ALTA",
-            "amostras": 1056,
+            "amostras": 1057,
             "taxa_favoravel_05": 45.87,
-            "taxa_favoravel_10": 43.64,
+            "taxa_favoravel_10": 43.6,
             "favoraveis_05": 428,
             "desfavoraveis_05": 499,
-            "ambiguos_05": 123
+            "ambiguos_05": 124
         },
         {
             "evento": "ROMPIMENTO_BAIXA",
@@ -397,11 +397,11 @@
         },
         {
             "evento": "TOQUE_INFERIOR",
-            "amostras": 758,
-            "taxa_favoravel_05": 46.01,
+            "amostras": 757,
+            "taxa_favoravel_05": 46.08,
             "taxa_favoravel_10": 45.22,
             "favoraveis_05": 317,
-            "desfavoraveis_05": 365,
+            "desfavoraveis_05": 364,
             "ambiguos_05": 69
         },
         {
