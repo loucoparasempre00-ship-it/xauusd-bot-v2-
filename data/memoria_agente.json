@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T04:36:22.718966+00:00",
-  "total_registros": 386,
+  "atualizado_utc": "2026-11-12T04:41:15.808370+00:00",
+  "total_registros": 387,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7399,6 +7399,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T04:36:22.718966+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T04:35:00+00:00",
+      "id_sinal": 43156341402,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3974.897,
+      "stop": 3980.479,
+      "stop_loss": 3980.479,
+      "gain": 3966.523,
+      "take_profit": 3966.523,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um rompimento recente de fundo no M5 e mantém alinhamento de baixa em todos os timeframes (M5, M15, H1). O preço atual de 3974.897 está testando uma zona de suporte imediato (3974.72 - 3974.87), o que pode gerar uma breve retração ou consolidação antes de continuar o movimento vendedor. A estrutura de topos descendentes reforça a pressão vendedora, mas a proximidade com o suporte exige cautela para evitar uma entrada em exaustão de curto prazo.",
+      "atr14": 3.72169,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T04:41:15.808370+00:00"
     }
   ]
 }
