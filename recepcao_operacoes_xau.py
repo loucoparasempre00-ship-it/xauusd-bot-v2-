@@ -1,29 +1,45 @@
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+RECEPCAO DE OPERACOES XAUUSD
+
+Entradas exclusivas:
+1. Telegram: comandos manuais.
+2. data/operacoes.db ou data/operacoes.db.gz:
+   tabela operacoes, campo payload_json.
+
+Nao consulta o Gerador de Sinais.
+Nao consulta resultados_operacoes.json.
+Nao consulta resultados_operacoes.db.
+Nao grava diretamente nos bancos oficiais.
+Nao executa ordens.
+"""
+
+import gzip
 import json
 import os
-import re
+import sqlite3
+import tempfile
 import urllib.parse
 import urllib.request
+
 from pathlib import Path
 from datetime import datetime, timezone
 
 
-# ============================================================
-# RECEPÇÃO DE OPERAÇÕES XAUUSD
-# Fontes:
-# 1. Telegram
-# 2. Histórico de operações do Coordenador
-#
-# Não consulta o Gerador.
-# Não executa ordens.
-# Não altera os bancos oficiais do Coordenador.
-# ============================================================
+BASE_DIR = Path(__file__).resolve().parent / "data"
 
-BASE_DIR = Path("data")
+BANCO_NORMAL = BASE_DIR / "operacoes.db"
+BANCO_COMPACTADO = BASE_DIR / "operacoes.db.gz"
 
-ARQUIVO_HISTORICO = BASE_DIR / "resultados_operacoes.json"
 ARQUIVO_ESTADO = BASE_DIR / "recepcao_operacoes_estado.json"
 ARQUIVO_SAIDA = BASE_DIR / "entrada_recepcao_operacoes.json"
+
+
+def agora():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def carregar_json(caminho, padrao=None):
@@ -36,7 +52,7 @@ def carregar_json(caminho, padrao=None):
     try:
         with caminho.open("r", encoding="utf-8") as arquivo:
             return json.load(arquivo)
-    except (json.JSONDecodeError, OSError):
+    except (OSError, json.JSONDecodeError):
         return padrao
 
 
@@ -56,102 +72,124 @@ def salvar_json(caminho, dados):
     temporario.replace(caminho)
 
 
-def obter_lista_operacoes(dados):
-    """
-    Aceita formatos comuns de histórico.
-    Não cria operações nem inventa identificadores.
-    """
+def conectar_banco_operacoes():
+    temporario = None
 
-    if isinstance(dados, list):
-        return dados
+    if BANCO_NORMAL.is_file():
+        caminho = BANCO_NORMAL
 
-    if not isinstance(dados, dict):
-        return []
+    elif BANCO_COMPACTADO.is_file():
+        temporario = tempfile.TemporaryDirectory(
+            prefix="recepcao_operacoes_"
+        )
 
-    for chave in (
-        "operacoes",
-        "historico",
-        "resultados",
-        "operacoes_registradas"
-    ):
-        valor = dados.get(chave)
+        caminho = Path(temporario.name) / "operacoes.db"
 
-        if isinstance(valor, list):
-            return valor
+        with gzip.open(BANCO_COMPACTADO, "rb") as origem:
+            caminho.write_bytes(origem.read())
 
-    return []
+    else:
+        raise FileNotFoundError(
+            "Banco oficial de operações não encontrado: "
+            "data/operacoes.db ou data/operacoes.db.gz"
+        )
+
+    conexao = sqlite3.connect(
+        caminho.resolve().as_uri() + "?mode=ro",
+        uri=True
+    )
+
+    conexao.row_factory = sqlite3.Row
+
+    return conexao, temporario
 
 
 def identificar_codigo(operacao):
-    if not isinstance(operacao, dict):
-        return None
-
-    # Código oficial único do Coordenador.
-    codigo = operacao.get("codigo")
-
-    if not codigo:
-        codigo = operacao.get("codigo_operacao")
-
-    if not codigo:
-        codigo = operacao.get("op_id")
-
-    if not codigo:
-        codigo = operacao.get("id")
+    codigo = (
+        operacao.get("codigo_operacao")
+        or operacao.get("codigo")
+        or operacao.get("id")
+    )
 
     return str(codigo).strip() if codigo else None
 
 
 def operacao_ativa(operacao):
-    if not isinstance(operacao, dict):
-        return False
-
-    estado = str(
+    status = str(
         operacao.get("status")
         or operacao.get("estado")
         or operacao.get("situacao")
         or ""
     ).strip().upper()
 
-    encerrados = {
-        "FECHADA",
-        "FECHADO",
-        "ENCERRADA",
-        "ENCERRADO",
-        "CANCELADA",
-        "CANCELADO",
-        "FINALIZADA",
-        "FINALIZADO",
-        "STOP",
-        "TP"
-    }
-
-    if estado in encerrados:
-        return False
-
-    return True
+    return status in ("ATIVA", "ABERTA", "EM_ANDAMENTO")
 
 
-def carregar_historico_coordenador():
-    dados = carregar_json(ARQUIVO_HISTORICO, [])
+def carregar_operacoes_banco():
+    conexao, temporario = conectar_banco_operacoes()
 
-    operacoes = obter_lista_operacoes(dados)
+    try:
+        tabelas = {
+            linha["name"]
+            for linha in conexao.execute("""
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+            """)
+        }
 
-    resultado = {}
+        if "operacoes" not in tabelas:
+            raise RuntimeError(
+                "O banco oficial não possui a tabela operacoes."
+            )
 
-    for operacao in operacoes:
-        if not isinstance(operacao, dict):
-            continue
+        colunas = {
+            linha["name"]
+            for linha in conexao.execute(
+                "PRAGMA table_info(operacoes)"
+            )
+        }
 
-        codigo = identificar_codigo(operacao)
+        if "payload_json" not in colunas:
+            raise RuntimeError(
+                "A tabela operacoes não possui payload_json."
+            )
 
-        if not codigo:
-            continue
+        linhas = conexao.execute("""
+            SELECT payload_json
+            FROM operacoes
+            ORDER BY id
+        """).fetchall()
 
-        # O código oficial é a chave de identificação.
-        # Duplicatas com o mesmo código não geram novas operações.
-        resultado[codigo] = operacao
+        resultado = {}
 
-    return resultado
+        for linha in linhas:
+            try:
+                operacao = json.loads(linha["payload_json"])
+            except (TypeError, json.JSONDecodeError):
+                continue
+
+            if not isinstance(operacao, dict):
+                continue
+
+            codigo = identificar_codigo(operacao)
+
+            if not codigo:
+                continue
+
+            if not operacao_ativa(operacao):
+                continue
+
+            # Uma operação oficial por código.
+            resultado[codigo] = operacao
+
+        return resultado
+
+    finally:
+        conexao.close()
+
+        if temporario is not None:
+            temporario.cleanup()
 
 
 def solicitar_telegram(url, parametros):
@@ -168,6 +206,96 @@ def solicitar_telegram(url, parametros):
 
     with urllib.request.urlopen(requisicao, timeout=25) as resposta:
         return json.loads(resposta.read().decode("utf-8"))
+
+
+def interpretar_comando(texto, update_id=None):
+    original = texto.strip()
+    partes = original.split()
+
+    if not partes:
+        return None
+
+    comando = partes[0].upper()
+
+    if comando == "ENTREI":
+        if len(partes) < 3:
+            return {
+                "update_id": update_id,
+                "comando": "ENTREI",
+                "parametros": {
+                    "codigo_operacao": (
+                        partes[1] if len(partes) > 1 else None
+                    ),
+                    "preco_entrada": None
+                },
+                "validacao": "FORMATO_INVALIDO",
+                "recebido_em": agora()
+            }
+
+        try:
+            preco = float(partes[2].replace(",", "."))
+        except ValueError:
+            preco = None
+
+        return {
+            "update_id": update_id,
+            "comando": "ENTREI",
+            "parametros": {
+                "codigo_operacao": partes[1],
+                "preco_entrada": preco
+            },
+            "recebido_em": agora()
+        }
+
+    if comando in ("CANCELA", "CANCELAR"):
+        return {
+            "update_id": update_id,
+            "comando": "CANCELA",
+            "parametros": {
+                "codigo_operacao": (
+                    partes[1] if len(partes) > 1 else None
+                )
+            },
+            "recebido_em": agora()
+        }
+
+    if comando == "STOP" and len(partes) > 1:
+        resposta = partes[1].upper()
+
+        if resposta == "OK":
+            nome = "STOP_OK"
+        elif resposta in ("NAO", "NÃO"):
+            nome = "STOP_NAO"
+        else:
+            nome = "DESCONHECIDO"
+
+        return {
+            "update_id": update_id,
+            "comando": nome,
+            "parametros": {
+                "codigo_operacao": (
+                    partes[2] if len(partes) > 2 else None
+                )
+            },
+            "recebido_em": agora()
+        }
+
+    if comando in ("STATUS", "DESLIGA"):
+        return {
+            "update_id": update_id,
+            "comando": comando,
+            "parametros": {},
+            "recebido_em": agora()
+        }
+
+    return {
+        "update_id": update_id,
+        "comando": "DESCONHECIDO",
+        "parametros": {
+            "texto_original": original
+        },
+        "recebido_em": agora()
+    }
 
 
 def consultar_telegram():
@@ -198,7 +326,9 @@ def consultar_telegram():
         )
 
         if not resposta.get("ok"):
-            raise RuntimeError("Telegram retornou resposta inválida.")
+            raise RuntimeError(
+                "Telegram retornou resposta inválida."
+            )
 
         eventos = []
         maior_update = ultimo_update
@@ -209,21 +339,19 @@ def consultar_telegram():
 
             mensagem = item.get("message", {})
             remetente = mensagem.get("chat", {})
-            texto = mensagem.get("text", "")
 
-            # Só aceita mensagens do chat autorizado.
             if str(remetente.get("id")) != str(chat_id):
                 continue
+
+            texto = mensagem.get("text", "")
 
             if not texto:
                 continue
 
-            eventos.append(
-                interpretar_comando(
-                    texto,
-                    update_id
-                )
-            )
+            evento = interpretar_comando(texto, update_id)
+
+            if evento:
+                eventos.append(evento)
 
         return {
             "disponivel": True,
@@ -241,81 +369,12 @@ def consultar_telegram():
         }
 
 
-def interpretar_comando(texto, update_id=None):
-    texto_original = texto.strip()
-    texto = texto_original.upper()
-
-    partes = texto.split()
-
-    if not partes:
-        comando = "DESCONHECIDO"
-        parametros = {}
-
-    elif partes[0] == "ENTREI":
-        codigo = partes[1] if len(partes) > 1 else None
-        preco = None
-
-        if len(partes) > 2:
-            try:
-                preco = float(partes[2].replace(",", "."))
-            except ValueError:
-                preco = None
-
-        comando = "ENTREI"
-        parametros = {
-            "codigo_operacao": codigo,
-            "preco_entrada": preco
-        }
-
-    elif partes[0] in ("CANCELA", "CANCELAR"):
-        comando = "CANCELA"
-        parametros = {
-            "codigo_operacao": partes[1] if len(partes) > 1 else None
-        }
-
-    elif partes[0] == "STOP" and len(partes) > 1:
-        if partes[1] == "OK":
-            comando = "STOP_OK"
-        elif partes[1] in ("NAO", "NÃO"):
-            comando = "STOP_NAO"
-        else:
-            comando = "DESCONHECIDO"
-
-        parametros = {
-            "codigo_operacao": partes[2] if len(partes) > 2 else None
-        }
-
-    elif partes[0] == "STATUS":
-        comando = "STATUS"
-        parametros = {}
-
-    elif partes[0] == "DESLIGA":
-        comando = "DESLIGA"
-        parametros = {}
-
-    else:
-        comando = "DESCONHECIDO"
-        parametros = {
-            "texto_original": texto_original
-        }
-
-    return {
-        "update_id": update_id,
-        "comando": comando,
-        "parametros": parametros,
-        "recebido_em": datetime.now(
-            timezone.utc
-        ).isoformat()
-    }
-
-
-def validar_eventos(eventos, historico):
+def validar_eventos(eventos, operacoes):
     validos = []
 
     for evento in eventos:
-        comando = evento.get("comando")
         parametros = evento.get("parametros", {})
-
+        comando = evento.get("comando")
         codigo = parametros.get("codigo_operacao")
 
         if comando in (
@@ -326,15 +385,18 @@ def validar_eventos(eventos, historico):
         ):
             if not codigo:
                 evento["validacao"] = "SEM_CODIGO_OPERACAO"
-                validos.append(evento)
-                continue
 
-            if codigo not in historico:
-                evento["validacao"] = "OPERACAO_NAO_ENCONTRADA_NO_COORDENADOR"
-                validos.append(evento)
-                continue
+            elif codigo not in operacoes:
+                evento["validacao"] = "OPERACAO_NAO_ENCONTRADA_NO_BANCO"
 
-            evento["validacao"] = "OPERACAO_IDENTIFICADA"
+            elif comando == "ENTREI" and (
+                parametros.get("preco_entrada") is None
+                or parametros.get("preco_entrada") <= 0
+            ):
+                evento["validacao"] = "PRECO_ENTRADA_INVALIDO"
+
+            else:
+                evento["validacao"] = "OPERACAO_IDENTIFICADA"
 
         else:
             evento["validacao"] = "COMANDO_RECEBIDO"
@@ -344,58 +406,120 @@ def validar_eventos(eventos, historico):
     return validos
 
 
+def aplicar_entrada_manual(operacoes, eventos, estado):
+    """
+    Aplica o preço informado pelo usuário somente na saída JSON.
+    Não altera diretamente o banco oficial.
+    """
+
+    entradas = estado.get("entradas_manuais", {})
+
+    if not isinstance(entradas, dict):
+        entradas = {}
+
+    for evento in eventos:
+        if (
+            evento.get("comando") != "ENTREI"
+            or evento.get("validacao") != "OPERACAO_IDENTIFICADA"
+        ):
+            continue
+
+        parametros = evento.get("parametros", {})
+        codigo = parametros.get("codigo_operacao")
+        preco = parametros.get("preco_entrada")
+
+        if codigo and preco is not None:
+            entradas[codigo] = {
+                "preco_entrada": preco,
+                "update_id": evento.get("update_id"),
+                "recebido_em": evento.get("recebido_em")
+            }
+
+    estado["entradas_manuais"] = entradas
+
+    for codigo, operacao in operacoes.items():
+        entrada = entradas.get(codigo)
+
+        if not entrada:
+            continue
+
+        preco = entrada.get("preco_entrada")
+
+        if preco is None:
+            continue
+
+        operacao["entrada_real"] = preco
+        operacao["preco_entrada"] = preco
+        operacao["entrada_confirmada_telegram"] = True
+        operacao["entrada_confirmada_em"] = entrada.get(
+            "recebido_em"
+        )
+
+    return operacoes
+
+
 def executar_recepcao():
     BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Fonte 1: histórico oficial do Coordenador.
-    historico = carregar_historico_coordenador()
+    estado = carregar_json(ARQUIVO_ESTADO, {})
 
-    # Fonte 2: mensagens do Telegram.
+    # ENTRADA 1: banco oficial de operações.
+    operacoes = carregar_operacoes_banco()
+
+    # ENTRADA 2: Telegram.
     telegram = consultar_telegram()
 
     eventos = validar_eventos(
         telegram.get("eventos", []),
-        historico
+        operacoes
     )
 
-    operacoes_ativas = {
-        codigo: operacao
-        for codigo, operacao in historico.items()
-        if operacao_ativa(operacao)
-    }
+    operacoes = aplicar_entrada_manual(
+        operacoes,
+        eventos,
+        estado
+    )
 
     resultado = {
         "modulo": "recepcao_operacoes_xau",
-        "versao": 1,
-        "executado_em": datetime.now(
-            timezone.utc
-        ).isoformat(),
+        "versao": 2,
+        "executado_em": agora(),
+
         "fontes": {
             "telegram": telegram.get("disponivel", False),
-            "historico_coordenador": True
+            "banco_operacoes": (
+                "operacoes.db ou operacoes.db.gz"
+            ),
+            "tabela": "operacoes",
+            "campo": "payload_json"
         },
-        "quantidade_operacoes_historico": len(historico),
-        "quantidade_operacoes_ativas": len(operacoes_ativas),
-        "operacoes_ativas": operacoes_ativas,
+
+        "quantidade_operacoes_ativas": len(operacoes),
+        "operacoes_ativas": operacoes,
+
         "eventos_telegram": eventos,
-        "telegram_erro": telegram.get("motivo")
+        "telegram_erro": telegram.get("motivo"),
+
+        "execucao_ordens": False,
+        "gravacao_banco_oficial": False
     }
 
     salvar_json(ARQUIVO_SAIDA, resultado)
 
-    # Atualiza o cursor somente depois de salvar a saída.
     if telegram.get("proximo_update_id") is not None:
-        estado = carregar_json(ARQUIVO_ESTADO, {})
+        estado["ultimo_update_id"] = telegram[
+            "proximo_update_id"
+        ]
 
-        estado["ultimo_update_id"] = telegram["proximo_update_id"]
+    estado["atualizado_em"] = agora()
 
-        salvar_json(ARQUIVO_ESTADO, estado)
+    salvar_json(ARQUIVO_ESTADO, estado)
 
     print("RECEPCAO DE OPERACOES CONCLUIDA")
-    print(f"Operações no histórico: {len(historico)}")
-    print(f"Operações ativas: {len(operacoes_ativas)}")
-    print(f"Comandos recebidos: {len(eventos)}")
-    print(f"Arquivo de saída: {ARQUIVO_SAIDA}")
+    print("Operações ativas:", len(operacoes))
+    print("Comandos recebidos:", len(eventos))
+    print("Banco consultado: operacoes.db")
+    print("Saída:", ARQUIVO_SAIDA)
 
 
 if __name__ == "__main__":
