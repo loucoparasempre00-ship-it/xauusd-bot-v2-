@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T06:11:35.228418+00:00",
-  "total_registros": 403,
+  "atualizado_utc": "2026-11-12T06:16:39.777405+00:00",
+  "total_registros": 404,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7807,6 +7807,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T06:11:35.228418+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T06:10:00+00:00",
+      "id_sinal": 43166859706,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um estado de indecisão técnica. Embora o M5 apresente uma tendência de alta de curto prazo com o preço acima das EMAs, o contexto macro (M15 e H1) permanece baixista, criando um conflito de forças. A estrutura de preços mostra uma zona de resistência imediata em 3980-3981, enquanto o tabuleiro estável indica uma alta probabilidade de transição lateral ou teste de suporte. Sem um rompimento claro da resistência ou uma confirmação de exaustão da tendência de baixa maior, não há vantagem estatística para uma entrada direcional.",
+      "atr14": 4.78723,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T06:16:39.777405+00:00"
     }
   ]
 }
