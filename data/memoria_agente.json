@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T04:56:24.691388+00:00",
-  "total_registros": 389,
+  "atualizado_utc": "2026-11-12T05:01:22.050180+00:00",
+  "total_registros": 390,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7471,6 +7471,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T04:56:24.691388+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T04:55:00+00:00",
+      "id_sinal": 43158479488,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3975.031,
+      "stop": 3979.575,
+      "stop_loss": 3979.575,
+      "gain": 3968.216,
+      "take_profit": 3968.216,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de topos e fundos descendentes no M5, confirmada pelo alinhamento das EMAs e pela tendência macro (H1/M15) de baixa. O preço atual está testando uma região de suporte imediato (3974.80), mas a pressão vendedora persiste com o MACD abaixo da linha de sinal. A cautela é necessária pois o preço está próximo de um suporte relevante, mas a tendência vigente favorece a continuação do movimento de baixa.",
+      "atr14": 3.02902,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T05:01:22.050180+00:00"
     }
   ]
 }
