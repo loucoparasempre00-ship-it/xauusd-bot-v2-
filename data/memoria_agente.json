@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T05:56:23.645050+00:00",
-  "total_registros": 400,
+  "atualizado_utc": "2026-11-12T06:01:26.823641+00:00",
+  "total_registros": 401,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7735,6 +7735,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T05:56:23.645050+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T05:55:00+00:00",
+      "id_sinal": 43165120200,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 25.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um conflito claro entre a tendência de curto prazo (M5 alta) e a estrutura macro (M15/H1 baixas). Embora o preço tenha rompido um topo recente, ele está operando dentro de uma zona de resistência densa (3981-3990) com 20 toques históricos, o que limita o potencial de alta imediato. O setup matemático está neutro e a transição histórica na região atual é incerta. Sem um rompimento claro da resistência de 3986 ou uma falha de topo confirmada, a melhor postura é a observação.",
+      "atr14": 4.34258,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T06:01:26.823641+00:00"
     }
   ]
 }

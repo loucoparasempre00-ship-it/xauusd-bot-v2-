@@ -9514,5 +9514,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T05:56:23.645050+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T05:55:00+00:00",
+    "id_sinal": 43165120200,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 25.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 25.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 4.34258,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T05:55:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado apresenta um conflito claro entre a tendência de curto prazo (M5 alta) e a estrutura macro (M15/H1 baixas). Embora o preço tenha rompido um topo recente, ele está operando dentro de uma zona de resistência densa (3981-3990) com 20 toques históricos, o que limita o potencial de alta imediato. O setup matemático está neutro e a transição histórica na região atual é incerta. Sem um rompimento claro da resistência de 3986 ou uma falha de topo confirmada, a melhor postura é a observação.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T05:55:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 2,
+      "diferenca": 0,
+      "motivos": [],
+      "preco": 3981.439,
+      "atr_14": 4.17,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T06:01:26.823641+00:00"
   }
 ]

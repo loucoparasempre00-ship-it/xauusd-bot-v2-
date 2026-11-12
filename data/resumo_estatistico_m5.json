@@ -1,7 +1,7 @@
 {
   "versao": 2,
   "modulo": "processador_estatistico_m5",
-  "atualizado_em": "2026-11-12T06:00:19.627849+00:00",
+  "atualizado_em": "2026-11-12T06:01:25.726926+00:00",
   "metodo": {
     "eixo_x": "Tempo cronológico M5",
     "eixo_y": "Regiões fixas de preço",
@@ -11,10 +11,10 @@
     "minimo_amostras": 20
   },
   "resumo": {
-    "total_velas": 5001,
+    "total_velas": 5000,
     "total_regioes": 182,
-    "total_visitas": 5001,
-    "total_eventos_borda": 5518,
+    "total_visitas": 5000,
+    "total_eventos_borda": 5517,
     "total_transicoes": 2817,
     "regioes_com_amostra_suficiente": 111,
     "transicoes_com_amostra_suficiente": 457,
@@ -22,10 +22,10 @@
     "eventos_descartados": 0
   },
   "eventos": {
-    "TOQUE_SUPERIOR": 712,
     "TOQUE_INFERIOR": 761,
     "ROMPIMENTO_BAIXA": 1147,
     "ROMPIMENTO_ALTA": 1060,
+    "TOQUE_SUPERIOR": 711,
     "REJEICAO_INFERIOR": 941,
     "REJEICAO_SUPERIOR": 897
   },
@@ -355,7 +355,7 @@
       "transicoes": 8,
       "saidas_origem": 22,
       "probabilidade": 0.3636,
-      "visitas_origem": 33,
+      "visitas_origem": 32,
       "amostra_suficiente": "SIM"
     },
     {
