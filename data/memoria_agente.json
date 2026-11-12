@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:16:14.352161+00:00",
-  "total_registros": 348,
+  "atualizado_utc": "2026-11-12T01:21:16.434105+00:00",
+  "total_registros": 349,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6487,6 +6487,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:16:14.352161+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:15:00+00:00",
+      "id_sinal": 43133836219,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma divergência clara entre a tendência de curto prazo (M5 alta) e as tendências de médio/longo prazo (M15/H1 baixa). Embora o preço tenha rompido topos recentes, o RSI em 69.63 indica uma zona de sobrecompra iminente, sugerindo exaustão do movimento de alta. A proximidade com a resistência em 4000.16-4002.60 e a falta de volume validado (VWAP indisponível) tornam qualquer entrada arriscada. O setup matemático não oferece sinal claro, recomendando cautela até que o preço teste a sustentabilidade acima dos 4000 ou apresente um padrão de reversão claro.",
+      "atr14": 5.28118,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:21:16.434105+00:00"
     }
   ]
 }
