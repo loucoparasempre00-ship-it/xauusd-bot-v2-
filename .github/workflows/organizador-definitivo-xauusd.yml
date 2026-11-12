@@ -41,6 +41,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Instalar GitHub CLI
+        run: |
+          gh --version
+
       - name: Conferir os arquivos
         run: |
           set -euo pipefail
@@ -48,6 +52,8 @@ jobs:
           python -m py_compile organizador_migracao_xauusd.py
 
       - name: Executar Coletor
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python -u coletor_xauusd.py
@@ -166,7 +172,6 @@ jobs:
           print("OPERAÇÕES ATIVAS:", dados["operacoes_ativas"])
           PY
 
-      
       - name: Salvar bancos
         run: |
           set -euo pipefail
@@ -189,7 +194,6 @@ jobs:
             git commit -m "Organizador XAUUSD: coleta e bancos"
             git push origin HEAD:main
           fi
-
 
       - name: Guardar validacao
         uses: actions/upload-artifact@v4
