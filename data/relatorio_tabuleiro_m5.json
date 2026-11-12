@@ -1,22 +1,22 @@
 {
-    "atualizado_em": "2026-11-12T08:26:21.411034+00:00",
+    "atualizado_em": "2026-11-12T08:31:29.058884+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
         "eventos": 5522,
-        "eventos_avaliados": 5507,
+        "eventos_avaliados": 5508,
         "regioes_analisadas": 182,
-        "transicoes_analisadas": 1094,
+        "transicoes_analisadas": 1095,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "TOQUE_INFERIOR": 764,
         "ROMPIMENTO_ALTA": 1057,
         "REJEICAO_INFERIOR": 942,
         "REJEICAO_SUPERIOR": 897,
-        "ROMPIMENTO_BAIXA": 1152,
-        "TOQUE_SUPERIOR": 710
+        "ROMPIMENTO_BAIXA": 1153,
+        "TOQUE_SUPERIOR": 710,
+        "TOQUE_INFERIOR": 763
     },
     "melhores_regioes": [
         {
@@ -294,15 +294,6 @@
             "amostra_suficiente": "NAO"
         },
         {
-            "origem": "2635",
-            "destino": "2636",
-            "transicoes": "5",
-            "saidas_origem": "9",
-            "probabilidade": "0.5556",
-            "visitas_origem": "11",
-            "amostra_suficiente": "NAO"
-        },
-        {
             "origem": "2638",
             "destino": "2637",
             "transicoes": "5",
@@ -355,6 +346,15 @@
             "probabilidade": "0.5",
             "visitas_origem": "2",
             "amostra_suficiente": "NAO"
+        },
+        {
+            "origem": "2594",
+            "destino": "2596",
+            "transicoes": "1",
+            "saidas_origem": "2",
+            "probabilidade": "0.5",
+            "visitas_origem": "2",
+            "amostra_suficiente": "NAO"
         }
     ],
     "melhores_sequencias": [],
@@ -370,10 +370,10 @@
         },
         {
             "evento": "REJEICAO_SUPERIOR",
-            "amostras": 895,
-            "taxa_favoravel_05": 49.75,
-            "taxa_favoravel_10": 48.0,
-            "favoraveis_05": 399,
+            "amostras": 896,
+            "taxa_favoravel_05": 49.81,
+            "taxa_favoravel_10": 47.94,
+            "favoraveis_05": 400,
             "desfavoraveis_05": 401,
             "ambiguos_05": 93
         },
@@ -399,7 +399,7 @@
             "evento": "TOQUE_INFERIOR",
             "amostras": 762,
             "taxa_favoravel_05": 45.73,
-            "taxa_favoravel_10": 45.11,
+            "taxa_favoravel_10": 45.25,
             "favoraveis_05": 316,
             "desfavoraveis_05": 368,
             "ambiguos_05": 71
