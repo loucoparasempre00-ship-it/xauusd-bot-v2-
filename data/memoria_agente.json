@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T00:56:10.887721+00:00",
-  "total_registros": 344,
+  "atualizado_utc": "2026-11-12T01:01:12.471447+00:00",
+  "total_registros": 345,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6391,6 +6391,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T00:56:10.887721+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T00:55:00+00:00",
+      "id_sinal": 43131424244,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 50.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o M5 apresente um impulso comprador e alinhamento de EMAs, o preço está colidindo com uma zona de resistência imediata (3994.53 - 3996.00) e o contexto macro (M15 e H1) permanece em tendência de baixa. A proximidade do preço atual com o limite superior da região de estabilidade atual (3994.5) sugere um risco elevado de exaustão do movimento de alta antes de um rompimento sustentável. Prefiro aguardar um teste de suporte mais claro ou a superação consolidada da resistência de 3996.00.",
+      "atr14": 5.55861,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:01:12.471447+00:00"
     }
   ]
 }
