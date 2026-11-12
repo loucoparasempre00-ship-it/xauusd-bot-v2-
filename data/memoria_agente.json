@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:01:12.471447+00:00",
-  "total_registros": 345,
+  "atualizado_utc": "2026-11-12T01:06:16.355900+00:00",
+  "total_registros": 346,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6415,6 +6415,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:01:12.471447+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:00:00+00:00",
+      "id_sinal": 43132034849,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de indecisão técnica. Embora o M5 apresente uma tendência de alta de curto prazo com alinhamento de EMAs, o contexto macro (M15 e H1) é baixista. O preço está testando uma resistência imediata (3993.45 - 3996.00) e a região atual de transição (2661) mostra uma probabilidade de saída para cima de 38.89%, mas com alta volatilidade e falta de volume validado (VWAP indisponível). A ausência de um setup matemático claro e a divergência entre os tempos gráficos sugerem cautela, sendo prudente aguardar um rompimento confirmado ou um teste de suporte mais estável.",
+      "atr14": 5.3857,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:06:16.355900+00:00"
     }
   ]
 }
