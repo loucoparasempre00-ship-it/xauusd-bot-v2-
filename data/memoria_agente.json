@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T07:31:18.363362+00:00",
-  "total_registros": 419,
+  "atualizado_utc": "2026-11-12T07:36:17.478585+00:00",
+  "total_registros": 420,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8191,6 +8191,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T07:31:18.363362+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T07:30:00+00:00",
+      "id_sinal": 43176391753,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3956.936,
+      "stop": 3964.484,
+      "stop_loss": 3964.484,
+      "gain": 3945.614,
+      "take_profit": 3945.614,
+      "confianca": 85,
+      "pontuacao_final": 96.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 96.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de tendência de baixa em todos os tempos gráficos (M5, M15, H1). O preço rompeu recentemente o suporte imediato e está testando a região de 3956.32. A estrutura de topos e fundos descendentes confirma a pressão vendedora. Com o RSI em 34.02, ainda há espaço para continuidade do movimento antes de atingir condições de sobrevenda extrema. A ausência de VWAP e a amostra de transições reduzida não invalidam a força do impulso vendedor atual.",
+      "atr14": 5.03209,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T07:36:17.478585+00:00"
     }
   ]
 }
