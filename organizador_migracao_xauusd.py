@@ -2,6 +2,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+ORGANIZADOR XAUUSD - SEIS MODULOS
+
+Importa os arquivos que chegaram.
+Ausencias geram avisos e nao interrompem os outros modulos.
+Modulos sem fonte nova preservam seus dados anteriores.
+"""
+
 import csv
 import gzip
 import hashlib
@@ -52,9 +60,9 @@ def sha256(conteudo):
 
 
 def preparar_bancos():
-    DATA.mkdir(exist_ok=True)
+    DATA.mkdir(parents=True, exist_ok=True)
 
-    for nome, banco in BANCOS.items():
+    for banco in BANCOS.values():
         compactado = Path(str(banco) + ".gz")
 
         if not banco.exists() and compactado.exists():
@@ -65,7 +73,6 @@ def compactar_bancos():
     for banco in BANCOS.values():
         if banco.exists():
             destino = Path(str(banco) + ".gz")
-
             destino.write_bytes(
                 gzip.compress(
                     banco.read_bytes(),
@@ -73,27 +80,50 @@ def compactar_bancos():
                     mtime=0,
                 )
             )
-
             banco.unlink()
 
 
 def validar_coletor():
-    if not MANIFESTO.is_file():
-        raise RuntimeError("Manifesto do Coletor não encontrado.")
+    avisos = []
 
-    manifesto = json.loads(MANIFESTO.read_text(encoding="utf-8"))
+    if not MANIFESTO.is_file():
+        avisos.append("Manifesto do Coletor ausente.")
+        manifesto = {}
+    else:
+        try:
+            manifesto = json.loads(
+                MANIFESTO.read_text(encoding="utf-8")
+            )
+        except Exception as erro:
+            manifesto = {}
+            avisos.append(
+                f"Manifesto do Coletor invalido: {type(erro).__name__}: {erro}"
+            )
 
     if manifesto.get("status") != "SUCESSO":
-        raise RuntimeError(
-            "Coletor não terminou com sucesso. "
-            "Organizador bloqueado para proteger os bancos."
+        avisos.append(
+            "Coletor nao terminou sem avisos. "
+            f"Status recebido: {manifesto.get('status', 'DESCONHECIDO')}."
         )
 
     for grupo in GRUPOS:
         pasta = SAIDA / grupo
+        pasta.mkdir(parents=True, exist_ok=True)
 
-        if not pasta.is_dir():
-            raise RuntimeError(f"Saída ausente: {grupo}")
+    avisos.extend(
+        manifesto.get("avisos", [])
+        if isinstance(manifesto.get("avisos"), list)
+        else []
+    )
+
+    ausentes = manifesto.get("arquivos_obrigatorios_ausentes", [])
+    if ausentes:
+        avisos.append({
+            "etapa": "coletor",
+            "arquivos_obrigatorios_ausentes": ausentes,
+        })
+
+    return manifesto, avisos
 
 
 class Modulo:
@@ -106,7 +136,7 @@ class Modulo:
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA foreign_keys=ON")
         self.erros = []
-
+        self.avisos = []
         self.criar_tabelas()
 
     def criar_tabelas(self):
@@ -307,7 +337,6 @@ class Modulo:
         return numero
 
     def importar(self, arquivo, pasta_grupo):
-        # Usa o caminho original lógico, sem o prefixo coletor_saida/grupo.
         relativo = arquivo.relative_to(pasta_grupo)
         caminho = "data/" + relativo.as_posix()
 
@@ -417,17 +446,72 @@ class Modulo:
 
         except Exception as erro:
             self.db.rollback()
+
+            detalhe = (
+                f"{type(erro).__name__}: {erro}"
+            )
+
             self.erros.append({
                 "arquivo": caminho,
-                "erro": str(erro),
+                "erro": detalhe,
             })
+
+            print(f"[ERRO DE IMPORTACAO] {caminho}: {detalhe}")
             return "ERRO"
 
 
 class ModuloOperacoes(Modulo):
 
     def reconstruir_ativas(self):
-        # Preserva os códigos já atribuídos às operações ativas.
+        """
+        Usa a recepcao nova como fonte.
+        Se o arquivo nao existir, preserva o banco atual.
+        Se existir e estiver valido, reconstrói a lista ativa,
+        inclusive quando a lista estiver legitimamente vazia.
+        """
+
+        candidatos = list(
+            (SAIDA / "operacoes").rglob(
+                "entrada_recepcao_operacoes.json"
+            )
+        )
+
+        if not candidatos:
+            self.avisos.append(
+                "entrada_recepcao_operacoes.json ausente; "
+                "banco de operacoes preservado."
+            )
+            print(
+                "[OPERACOES] Recepcao ausente. "
+                "Banco anterior preservado."
+            )
+            return None
+
+        arquivo = candidatos[0]
+
+        try:
+            estado = json.loads(
+                arquivo.read_text(encoding="utf-8-sig")
+            )
+        except Exception as erro:
+            raise RuntimeError(
+                "Arquivo de recepcao invalido: "
+                f"{type(erro).__name__}: {erro}"
+            )
+
+        if not isinstance(estado, dict):
+            raise RuntimeError(
+                "Formato da recepcao invalido: esperado objeto JSON."
+            )
+
+        lista_dict = estado.get("operacoes_ativas")
+
+        if not isinstance(lista_dict, dict):
+            raise RuntimeError(
+                "Campo operacoes_ativas ausente ou invalido. "
+                "Banco anterior preservado."
+            )
+
         anteriores = {}
 
         linhas = self.db.execute("""
@@ -448,42 +532,17 @@ class ModuloOperacoes(Modulo):
                 or item.get("id_sinal")
                 or item.get("signal_id")
             )
-
             codigo = item.get("codigo_operacao")
 
             if sinal_id is not None and codigo:
                 anteriores[str(sinal_id)] = str(codigo)
 
-        pasta = SAIDA / "operacoes"
-        estados = list(pasta.rglob("acompanhamento_autonomo_estado.json"))
-
-        if not estados:
-            raise RuntimeError(
-                "Estado do acompanhamento não foi coletado. "
-                "Banco de operações não será alterado."
-            )
-
-        estado = json.loads(estados[0].read_text(encoding="utf-8"))
-
-        lista = estado.get("operacoes", [])
-
-        if not isinstance(lista, list):
-            lista = []
-
-        individual = estado.get("operacao")
-
-        if isinstance(individual, dict):
-            lista.append(individual)
-
-        numero = int(
-            estado.get("proximo_numero_operacao", 1) or 1
-        )
-
+        numero = 1
         ativos = []
         sinais_vistos = set()
         codigos_usados = set()
 
-        for original in lista:
+        for chave, original in lista_dict.items():
             if not isinstance(original, dict):
                 continue
 
@@ -497,6 +556,9 @@ class ModuloOperacoes(Modulo):
             )
 
             if sinal_id is None:
+                self.avisos.append(
+                    f"Operacao {chave} ignorada: sem identificador de sinal."
+                )
                 continue
 
             sinal_id = str(sinal_id)
@@ -505,7 +567,6 @@ class ModuloOperacoes(Modulo):
                 continue
 
             sinais_vistos.add(sinal_id)
-
             item = dict(original)
 
             codigo = (
@@ -534,11 +595,13 @@ class ModuloOperacoes(Modulo):
 
             ativos.append(item)
 
+        # A fonte foi encontrada e validada.
+        # Portanto, uma lista vazia aqui e um resultado valido.
         self.db.execute("DELETE FROM operacoes")
 
         for indice, item in enumerate(ativos, start=1):
             self.gravar(
-                "ENTREI_CONFIRMADO",
+                "ENTRADA_RECEPCAO_OPERACOES",
                 "operacao_ativa",
                 indice,
                 item,
@@ -550,10 +613,21 @@ class ModuloOperacoes(Modulo):
 
 
 def executar():
-    validar_coletor()
+    manifesto, avisos_coletor = validar_coletor()
     preparar_bancos()
 
     modulos = {}
+    relatorio = {
+        "versao": 7,
+        "data_utc": agora(),
+        "status": "INICIADO",
+        "origem_coletor": manifesto,
+        "modulos": {},
+        "avisos": list(avisos_coletor),
+        "erros": [],
+        "operacoes_ativas": None,
+        "operacoes_reconstruidas": False,
+    }
 
     try:
         for grupo in GRUPOS:
@@ -562,16 +636,7 @@ def executar():
             else:
                 modulos[grupo] = Modulo(grupo)
 
-        relatorio = {
-            "versao": 6,
-            "data_utc": agora(),
-            "status": "INICIADO",
-            "modulos": {},
-            "erros": [],
-            "operacoes_ativas": 0,
-        }
-
-        print("ORGANIZADOR XAUUSD - SEIS MÓDULOS")
+        print("ORGANIZADOR XAUUSD - SEIS MODULOS")
 
         for grupo in GRUPOS:
             pasta = SAIDA / grupo
@@ -582,104 +647,157 @@ def executar():
                 if arquivo.is_file()
             )
 
+            if not arquivos:
+                aviso = (
+                    f"Nenhum arquivo recebido para o modulo {grupo}; "
+                    "dados anteriores preservados."
+                )
+                modulo.avisos.append(aviso)
+                print(f"[AVISO {grupo.upper()}] {aviso}")
+
             for arquivo in arquivos:
                 resultado = modulo.importar(arquivo, pasta)
-                print(f"[{grupo.upper()}] {arquivo.name}: {resultado}")
-
-                if resultado == "ERRO":
-                    continue
-
-            if grupo == "operacoes":
-                relatorio["operacoes_ativas"] = (
-                    modulo.reconstruir_ativas()
+                print(
+                    f"[{grupo.upper()}] {arquivo.name}: {resultado}"
                 )
 
-        # Referências cruzadas entre os seis bancos.
+            if grupo == "operacoes":
+                try:
+                    quantidade = modulo.reconstruir_ativas()
+
+                    if quantidade is None:
+                        relatorio["avisos"].append(
+                            "Operacoes nao foram reconstruidas: "
+                            "fonte de recepcao ausente."
+                        )
+                    else:
+                        relatorio["operacoes_ativas"] = quantidade
+                        relatorio["operacoes_reconstruidas"] = True
+
+                except Exception as erro:
+                    detalhe = f"{type(erro).__name__}: {erro}"
+                    modulo.erros.append({
+                        "etapa": "reconstruir_operacoes",
+                        "erro": detalhe,
+                    })
+                    print("[ERRO OPERACOES]", detalhe)
+
+        # Referencias entre os bancos.
         for nome, modulo in modulos.items():
             for outro_nome, outro in modulos.items():
                 if nome == outro_nome:
                     continue
 
-                resumo = sha256(outro.banco.read_bytes())
+                try:
+                    resumo = sha256(outro.banco.read_bytes())
 
-                modulo.db.execute("""
-                    INSERT OR IGNORE INTO referencias_modulos (
-                        banco_origem,
-                        arquivo_origem,
-                        hash_origem,
-                        data_referencia
-                    )
-                    VALUES (?, ?, ?, ?)
-                """, (
-                    outro_nome,
-                    outro.banco.name,
-                    resumo,
-                    agora(),
-                ))
+                    modulo.db.execute("""
+                        INSERT OR IGNORE INTO referencias_modulos (
+                            banco_origem,
+                            arquivo_origem,
+                            hash_origem,
+                            data_referencia
+                        )
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        outro_nome,
+                        outro.banco.name,
+                        resumo,
+                        agora(),
+                    ))
+
+                except Exception as erro:
+                    modulo.erros.append({
+                        "etapa": "referencia_cruzada",
+                        "banco": outro_nome,
+                        "erro": f"{type(erro).__name__}: {erro}",
+                    })
 
             modulo.db.commit()
 
         for nome, modulo in modulos.items():
-            integridade = modulo.db.execute(
-                "PRAGMA integrity_check"
-            ).fetchone()[0]
+            try:
+                integridade = modulo.db.execute(
+                    "PRAGMA integrity_check"
+                ).fetchone()[0]
 
-            total = modulo.db.execute(
-                f"SELECT COUNT(*) FROM {nome}"
-            ).fetchone()[0]
+                total = modulo.db.execute(
+                    f"SELECT COUNT(*) FROM {nome}"
+                ).fetchone()[0]
 
-            origens = modulo.db.execute(
-                "SELECT COUNT(*) FROM arquivos_origem"
-            ).fetchone()[0]
+                origens = modulo.db.execute(
+                    "SELECT COUNT(*) FROM arquivos_origem"
+                ).fetchone()[0]
 
-            relatorio["modulos"][nome] = {
-                "banco": nome + ".db.gz",
-                "registros": total,
-                "arquivos_origem": origens,
-                "integridade": integridade,
-            }
+                relatorio["modulos"][nome] = {
+                    "banco": nome + ".db.gz",
+                    "registros": total,
+                    "arquivos_origem": origens,
+                    "integridade": integridade,
+                    "avisos": modulo.avisos,
+                    "erros": modulo.erros,
+                }
 
-            relatorio["erros"].extend(modulo.erros)
+                relatorio["avisos"].extend(
+                    {
+                        "modulo": nome,
+                        "mensagem": aviso,
+                    }
+                    for aviso in modulo.avisos
+                )
 
-            if integridade != "ok":
+                relatorio["erros"].extend(
+                    {
+                        "modulo": nome,
+                        **erro,
+                    }
+                    for erro in modulo.erros
+                )
+
+                if integridade != "ok":
+                    relatorio["erros"].append({
+                        "banco": nome,
+                        "erro": "Falha no integrity_check",
+                    })
+
+            except Exception as erro:
                 relatorio["erros"].append({
                     "banco": nome,
-                    "erro": "Falha no integrity_check",
+                    "erro": f"{type(erro).__name__}: {erro}",
                 })
 
+        relatorio["total_avisos"] = len(relatorio["avisos"])
         relatorio["total_erros"] = len(relatorio["erros"])
 
-        relatorio["status"] = (
-            "SUCESSO"
-            if relatorio["total_erros"] == 0
-            else "CONCLUIDO_COM_ERROS"
-        )
+        if relatorio["total_erros"] > 0:
+            relatorio["status"] = "CONCLUIDO_COM_ERROS"
+        elif relatorio["total_avisos"] > 0:
+            relatorio["status"] = "CONCLUIDO_COM_AVISOS"
+        else:
+            relatorio["status"] = "SUCESSO"
 
         RELATORIO.write_text(
             json_texto(relatorio),
             encoding="utf-8",
         )
 
+        print("=" * 60)
         print("OPERAÇÕES ATIVAS:", relatorio["operacoes_ativas"])
-
-        for nome, dados in relatorio["modulos"].items():
-            print(
-                nome.upper(),
-                "| registros:", dados["registros"],
-                "| integridade:", dados["integridade"],
-            )
-
+        print("AVISOS:", relatorio["total_avisos"])
         print("ERROS:", relatorio["total_erros"])
         print("STATUS:", relatorio["status"])
-
-        if relatorio["status"] != "SUCESSO":
-            raise RuntimeError("Organizador terminou com erros.")
+        print("RELATORIO:", RELATORIO)
+        print("=" * 60)
 
     finally:
         for modulo in modulos.values():
-            modulo.db.commit()
-            modulo.db.close()
+            try:
+                modulo.db.commit()
+                modulo.db.close()
+            except Exception:
+                pass
 
+    # Compacta os seis bancos mesmo quando houve avisos ou erros.
     compactar_bancos()
     print("SEIS BANCOS COMPACTADOS.")
 
