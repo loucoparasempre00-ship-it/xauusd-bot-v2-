@@ -8282,5 +8282,49 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T03:16:10.888436+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T03:15:00+00:00",
+    "id_sinal": 43147539835,
+    "decisao_final": "VENDA",
+    "pontuacao_final": 81.25,
+    "pontuacao_compra": 0.0,
+    "pontuacao_venda": 81.25,
+    "entrada": 3979.674,
+    "stop_loss": 3986.122,
+    "take_profit": 3970.0,
+    "atr14": 4.29922,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T03:15:00+00:00",
+      "decisao": "VENDA",
+      "confianca": 75,
+      "justificativa": "O mercado mantém uma estrutura de topos descendentes no M5 e alinhamento baixista em todos os timeframes (M5, M15, H1). O preço atual está abaixo das EMAs 6 e 20, confirmando a pressão vendedora. Embora o preço esteja próximo a uma zona de suporte imediato (3977.77), a ausência de sinais de reversão e a persistência do impulso vendedor sugerem continuidade do movimento em direção aos suportes mais profundos.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T03:15:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 0,
+      "pontuacao_venda": 5,
+      "diferenca": -5,
+      "motivos": [
+        "EMA9 abaixo da EMA21 no M5",
+        "Contexto M15 de baixa",
+        "Contexto H1 de baixa",
+        "Impulso vendedor",
+        "RSI favorável à venda"
+      ],
+      "preco": 3979.674,
+      "atr_14": 4.374,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T03:21:14.804810+00:00"
   }
 ]
