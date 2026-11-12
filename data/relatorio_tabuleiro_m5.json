@@ -1,20 +1,20 @@
 {
-    "atualizado_em": "2026-11-12T07:46:21.253919+00:00",
+    "atualizado_em": "2026-11-12T07:51:41.063965+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
         "eventos": 5525,
-        "eventos_avaliados": 5508,
+        "eventos_avaliados": 5509,
         "regioes_analisadas": 182,
-        "transicoes_analisadas": 1090,
+        "transicoes_analisadas": 1091,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "ROMPIMENTO_ALTA": 1058,
         "TOQUE_SUPERIOR": 711,
         "ROMPIMENTO_BAIXA": 1151,
         "TOQUE_INFERIOR": 763,
+        "ROMPIMENTO_ALTA": 1058,
         "REJEICAO_INFERIOR": 943,
         "REJEICAO_SUPERIOR": 899
     },
@@ -285,6 +285,15 @@
             "amostra_suficiente": "NAO"
         },
         {
+            "origem": "2637",
+            "destino": "2639",
+            "transicoes": "6",
+            "saidas_origem": "10",
+            "probabilidade": "0.6",
+            "visitas_origem": "10",
+            "amostra_suficiente": "NAO"
+        },
+        {
             "origem": "2718",
             "destino": "2717",
             "transicoes": "4",
@@ -300,15 +309,6 @@
             "saidas_origem": "9",
             "probabilidade": "0.5556",
             "visitas_origem": "10",
-            "amostra_suficiente": "NAO"
-        },
-        {
-            "origem": "2637",
-            "destino": "2639",
-            "transicoes": "5",
-            "saidas_origem": "9",
-            "probabilidade": "0.5556",
-            "visitas_origem": "9",
             "amostra_suficiente": "NAO"
         },
         {
@@ -363,35 +363,35 @@
             "evento": "REJEICAO_INFERIOR",
             "amostras": 941,
             "taxa_favoravel_05": 42.27,
-            "taxa_favoravel_10": 41.38,
+            "taxa_favoravel_10": 41.49,
             "favoraveis_05": 347,
             "desfavoraveis_05": 466,
             "ambiguos_05": 120
         },
         {
             "evento": "REJEICAO_SUPERIOR",
-            "amostras": 896,
-            "taxa_favoravel_05": 49.63,
+            "amostras": 897,
+            "taxa_favoravel_05": 49.69,
             "taxa_favoravel_10": 48.05,
-            "favoraveis_05": 398,
+            "favoraveis_05": 399,
             "desfavoraveis_05": 402,
             "ambiguos_05": 94
         },
         {
             "evento": "ROMPIMENTO_ALTA",
-            "amostras": 1055,
-            "taxa_favoravel_05": 45.82,
-            "taxa_favoravel_10": 43.45,
+            "amostras": 1054,
+            "taxa_favoravel_05": 45.86,
+            "taxa_favoravel_10": 43.59,
             "favoraveis_05": 427,
-            "desfavoraveis_05": 499,
+            "desfavoraveis_05": 498,
             "ambiguos_05": 123
         },
         {
             "evento": "ROMPIMENTO_BAIXA",
-            "amostras": 1144,
-            "taxa_favoravel_05": 49.6,
+            "amostras": 1145,
+            "taxa_favoravel_05": 49.65,
             "taxa_favoravel_10": 49.78,
-            "favoraveis_05": 501,
+            "favoraveis_05": 502,
             "desfavoraveis_05": 505,
             "ambiguos_05": 134
         },
