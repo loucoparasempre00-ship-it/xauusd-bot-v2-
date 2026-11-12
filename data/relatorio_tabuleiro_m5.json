@@ -1,12 +1,12 @@
 {
-    "atualizado_em": "2026-11-12T04:41:15.624200+00:00",
+    "atualizado_em": "2026-11-12T04:46:07.238644+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
-        "eventos": 5500,
-        "eventos_avaliados": 5482,
+        "eventos": 5501,
+        "eventos_avaliados": 5483,
         "regioes_analisadas": 182,
-        "transicoes_analisadas": 1078,
+        "transicoes_analisadas": 1080,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
@@ -15,7 +15,7 @@
         "REJEICAO_INFERIOR": 938,
         "ROMPIMENTO_ALTA": 1057,
         "ROMPIMENTO_BAIXA": 1145,
-        "TOQUE_INFERIOR": 758,
+        "TOQUE_INFERIOR": 759,
         "REJEICAO_SUPERIOR": 893
     },
     "melhores_regioes": [
@@ -267,15 +267,6 @@
             "amostra_suficiente": "NAO"
         },
         {
-            "origem": "2650",
-            "destino": "2652",
-            "transicoes": "1",
-            "saidas_origem": "1",
-            "probabilidade": "1.0",
-            "visitas_origem": "2",
-            "amostra_suficiente": "NAO"
-        },
-        {
             "origem": "2720",
             "destino": "2718",
             "transicoes": "1",
@@ -355,6 +346,15 @@
             "probabilidade": "0.5",
             "visitas_origem": "3",
             "amostra_suficiente": "NAO"
+        },
+        {
+            "origem": "2594",
+            "destino": "2593",
+            "transicoes": "1",
+            "saidas_origem": "2",
+            "probabilidade": "0.5",
+            "visitas_origem": "2",
+            "amostra_suficiente": "NAO"
         }
     ],
     "melhores_sequencias": [],
@@ -388,11 +388,11 @@
         },
         {
             "evento": "ROMPIMENTO_BAIXA",
-            "amostras": 1141,
-            "taxa_favoravel_05": 49.75,
-            "taxa_favoravel_10": 49.73,
+            "amostras": 1142,
+            "taxa_favoravel_05": 49.7,
+            "taxa_favoravel_10": 49.69,
             "favoraveis_05": 501,
-            "desfavoraveis_05": 502,
+            "desfavoraveis_05": 503,
             "ambiguos_05": 134
         },
         {
