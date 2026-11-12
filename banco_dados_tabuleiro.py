@@ -1,361 +1,300 @@
-import csv
-import os
-import sqlite3
-from datetime import datetime, timezone
 
-CSV_ENTRADA = "data/tabuleiro_m5.csv"
-BANCO_SAIDA = "data/tabuleiro_m5.db"
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS velas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL UNIQUE,
-    eixo_x INTEGER NOT NULL,
-    eixo_y INTEGER NOT NULL,
-    open REAL NOT NULL,
-    high REAL NOT NULL,
-    low REAL NOT NULL,
-    close REAL NOT NULL,
-    atr REAL NOT NULL,
-    largura_regiao REAL NOT NULL,
-    amplitude REAL NOT NULL,
-    corpo REAL NOT NULL,
-    direcao TEXT NOT NULL,
-    evento TEXT NOT NULL,
-    processado_em TEXT NOT NULL
-);
+"""
+BANCO DE DADOS DO TABULEIRO M5
 
-CREATE TABLE IF NOT EXISTS regioes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    eixo_y INTEGER NOT NULL,
-    primeira_visita TEXT NOT NULL,
-    ultima_visita TEXT NOT NULL,
-    total_visitas INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(eixo_y)
-);
+Responsabilidade:
+- Ler a matriz M5 já construída.
+- Validar e normalizar os registros.
+- Gerar arquivos de entrega.
+- Não criar banco SQLite.
+- Não gravar diretamente nos bancos oficiais.
 
-CREATE TABLE IF NOT EXISTS transicoes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    regiao_origem INTEGER NOT NULL,
-    regiao_destino INTEGER NOT NULL,
-    timestamp_origem TEXT NOT NULL,
-    timestamp_destino TEXT NOT NULL,
-    intervalo_velas INTEGER NOT NULL,
-    UNIQUE(timestamp_origem, timestamp_destino)
-);
-
-CREATE TABLE IF NOT EXISTS eventos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL,
-    eixo_y INTEGER NOT NULL,
-    tipo_evento TEXT NOT NULL,
-    preco REAL NOT NULL,
-    atr REAL NOT NULL,
-    descricao TEXT
-);
-
-CREATE TABLE IF NOT EXISTS controle (
-    chave TEXT PRIMARY KEY,
-    valor TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_velas_timestamp
-ON velas(timestamp);
-
-CREATE INDEX IF NOT EXISTS idx_velas_eixo_y
-ON velas(eixo_y);
-
-CREATE INDEX IF NOT EXISTS idx_transicoes_origem
-ON transicoes(regiao_origem);
-
-CREATE INDEX IF NOT EXISTS idx_transicoes_destino
-ON transicoes(regiao_destino);
-
-CREATE INDEX IF NOT EXISTS idx_eventos_regiao
-ON eventos(eixo_y);
+Toda persistência passa pelo Coletor e Organizador.
 """
 
+import csv
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 
-def conectar():
-    os.makedirs(os.path.dirname(BANCO_SAIDA), exist_ok=True)
+ROOT = Path(__file__).resolve().parent
+DATA = ROOT / "data"
 
-    conexao = sqlite3.connect(BANCO_SAIDA)
-    conexao.execute("PRAGMA journal_mode=WAL")
-    conexao.execute("PRAGMA synchronous=FULL")
-    conexao.execute("PRAGMA foreign_keys=ON")
+CSV_ENTRADA = DATA / "tabuleiro_m5.csv"
 
-    return conexao
+CSV_ENTREGA = DATA / "entrega_tabuleiro_m5.csv"
+JSON_CONTROLE = DATA / "controle_tabuleiro_m5.json"
+
+CAMPOS = [
+    "timestamp",
+    "eixo_x",
+    "eixo_y",
+    "open",
+    "high",
+    "low",
+    "close",
+    "atr",
+    "largura_regiao",
+    "amplitude",
+    "corpo",
+    "direcao",
+    "evento",
+]
 
 
-def criar_estrutura(conexao):
-    conexao.executescript(SCHEMA)
-    conexao.commit()
+def agora():
+    return datetime.now(timezone.utc).isoformat()
 
 
-def carregar_csv():
-    if not os.path.exists(CSV_ENTRADA):
-        raise FileNotFoundError(
-            f"CSV não encontrado: {CSV_ENTRADA}"
+def numero(valor, campo):
+    try:
+        resultado = float(str(valor).strip().replace(",", "."))
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"Valor numérico inválido no campo {campo}: {valor}"
         )
 
-    with open(
-        CSV_ENTRADA,
+    return resultado
+
+
+def inteiro(valor, campo):
+    try:
+        return int(float(str(valor).strip()))
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"Valor inteiro inválido no campo {campo}: {valor}"
+        )
+
+
+def carregar_registros():
+    if not CSV_ENTRADA.is_file():
+        raise FileNotFoundError(
+            f"Matriz do tabuleiro não encontrada: {CSV_ENTRADA}"
+        )
+
+    registros = {}
+    descartados = 0
+
+    with CSV_ENTRADA.open(
         "r",
         encoding="utf-8-sig",
         newline=""
     ) as arquivo:
-        leitor = csv.DictReader(arquivo)
-        campos = leitor.fieldnames or []
 
-        obrigatorios = [
-            "timestamp",
-            "eixo_x",
-            "eixo_y",
-            "open",
-            "high",
-            "low",
-            "close",
-            "atr",
-            "largura_regiao",
-            "amplitude",
-            "corpo",
-            "direcao",
-            "evento"
-        ]
+        leitor = csv.DictReader(arquivo)
+        campos_origem = leitor.fieldnames or []
 
         ausentes = [
-            campo for campo in obrigatorios
-            if campo not in campos
+            campo for campo in CAMPOS
+            if campo not in campos_origem
         ]
 
         if ausentes:
             raise ValueError(
-                f"Colunas ausentes no CSV: {ausentes}"
+                f"Colunas ausentes na matriz: {ausentes}"
             )
-
-        registros = []
 
         for linha in leitor:
             try:
+                timestamp = str(
+                    linha["timestamp"] or ""
+                ).strip()
+
+                if not timestamp:
+                    descartados += 1
+                    continue
+
                 registro = {
-                    "timestamp": linha["timestamp"].strip(),
-                    "eixo_x": int(linha["eixo_x"]),
-                    "eixo_y": int(linha["eixo_y"]),
-                    "open": float(linha["open"]),
-                    "high": float(linha["high"]),
-                    "low": float(linha["low"]),
-                    "close": float(linha["close"]),
-                    "atr": float(linha["atr"]),
-                    "largura_regiao": float(
-                        linha["largura_regiao"]
+                    "timestamp": timestamp,
+                    "eixo_x": inteiro(
+                        linha["eixo_x"], "eixo_x"
                     ),
-                    "amplitude": float(linha["amplitude"]),
-                    "corpo": float(linha["corpo"]),
-                    "direcao": linha["direcao"],
-                    "evento": linha["evento"]
+                    "eixo_y": inteiro(
+                        linha["eixo_y"], "eixo_y"
+                    ),
+                    "open": numero(linha["open"], "open"),
+                    "high": numero(linha["high"], "high"),
+                    "low": numero(linha["low"], "low"),
+                    "close": numero(linha["close"], "close"),
+                    "atr": numero(linha["atr"], "atr"),
+                    "largura_regiao": numero(
+                        linha["largura_regiao"],
+                        "largura_regiao"
+                    ),
+                    "amplitude": numero(
+                        linha["amplitude"], "amplitude"
+                    ),
+                    "corpo": numero(
+                        linha["corpo"], "corpo"
+                    ),
+                    "direcao": str(
+                        linha["direcao"] or "NEUTRA"
+                    ).strip().upper(),
+                    "evento": str(
+                        linha["evento"] or "VISITA"
+                    ).strip().upper(),
                 }
 
-                if registro["timestamp"]:
-                    registros.append(registro)
+                if registro["high"] < registro["low"]:
+                    descartados += 1
+                    continue
+
+                if registro["largura_regiao"] <= 0:
+                    descartados += 1
+                    continue
+
+                # Uma única ocorrência por timestamp.
+                registros[timestamp] = registro
 
             except (ValueError, TypeError, KeyError):
-                continue
+                descartados += 1
 
-    return registros
+    ordenados = sorted(
+        registros.values(),
+        key=lambda item: item["timestamp"]
+    )
+
+    if not ordenados:
+        raise RuntimeError(
+            "Nenhum registro válido foi encontrado na matriz."
+        )
+
+    return ordenados, descartados
 
 
-def registrar_velas(conexao, registros):
-    inseridas = 0
+def validar_sequencia(registros):
+    erros = []
+
+    for anterior, atual in zip(
+        registros,
+        registros[1:]
+    ):
+        if atual["eixo_x"] <= anterior["eixo_x"]:
+            erros.append({
+                "timestamp": atual["timestamp"],
+                "erro": "Eixo X não está em ordem crescente."
+            })
+
+    return erros
+
+
+def gerar_entrega(registros):
+    DATA.mkdir(parents=True, exist_ok=True)
+
+    with CSV_ENTREGA.open(
+        "w",
+        encoding="utf-8",
+        newline=""
+    ) as arquivo:
+
+        escritor = csv.DictWriter(
+            arquivo,
+            fieldnames=CAMPOS
+        )
+
+        escritor.writeheader()
+        escritor.writerows(registros)
+
+
+def gerar_controle(registros, descartados, erros):
+    regioes = {}
 
     for registro in registros:
-        cursor = conexao.execute(
-            """
-            INSERT OR IGNORE INTO velas (
-                timestamp,
-                eixo_x,
-                eixo_y,
-                open,
-                high,
-                low,
-                close,
-                atr,
-                largura_regiao,
-                amplitude,
-                corpo,
-                direcao,
-                evento,
-                processado_em
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                registro["timestamp"],
-                registro["eixo_x"],
-                registro["eixo_y"],
-                registro["open"],
-                registro["high"],
-                registro["low"],
-                registro["close"],
-                registro["atr"],
-                registro["largura_regiao"],
-                registro["amplitude"],
-                registro["corpo"],
-                registro["direcao"],
-                registro["evento"],
-                datetime.now(timezone.utc).isoformat()
-            )
-        )
+        eixo_y = str(registro["eixo_y"])
 
-        inseridas += cursor.rowcount
+        if eixo_y not in regioes:
+            regioes[eixo_y] = {
+                "visitas": 0,
+                "primeira_visita": registro["timestamp"],
+                "ultima_visita": registro["timestamp"],
+            }
 
-    return inseridas
+        regioes[eixo_y]["visitas"] += 1
+        regioes[eixo_y]["ultima_visita"] = registro["timestamp"]
 
-
-def atualizar_regioes(conexao):
-    conexao.execute(
-        """
-        INSERT INTO regioes (
-            eixo_y,
-            primeira_visita,
-            ultima_visita,
-            total_visitas
-        )
-        SELECT
-            eixo_y,
-            MIN(timestamp),
-            MAX(timestamp),
-            COUNT(*)
-        FROM velas
-        GROUP BY eixo_y
-        ON CONFLICT(eixo_y) DO UPDATE SET
-            primeira_visita = excluded.primeira_visita,
-            ultima_visita = excluded.ultima_visita,
-            total_visitas = excluded.total_visitas
-        """
-    )
-
-
-def atualizar_transicoes(conexao):
-    conexao.execute(
-        """
-        INSERT OR IGNORE INTO transicoes (
-            regiao_origem,
-            regiao_destino,
-            timestamp_origem,
-            timestamp_destino,
-            intervalo_velas
-        )
-        SELECT
-            anterior.eixo_y,
-            atual.eixo_y,
-            anterior.timestamp,
-            atual.timestamp,
-            atual.eixo_x - anterior.eixo_x
-        FROM velas atual
-        JOIN velas anterior
-          ON anterior.timestamp = (
-              SELECT v.timestamp
-              FROM velas v
-              WHERE v.timestamp < atual.timestamp
-              ORDER BY v.timestamp DESC
-              LIMIT 1
-          )
-        WHERE anterior.eixo_y != atual.eixo_y
-        """
-    )
-
-
-def atualizar_controle(conexao):
-    total = conexao.execute(
-        "SELECT COUNT(*) FROM velas"
-    ).fetchone()[0]
-
-    ultima = conexao.execute(
-        "SELECT MAX(timestamp) FROM velas"
-    ).fetchone()[0]
-
-    agora = datetime.now(timezone.utc).isoformat()
-
-    dados = {
-        "total_velas": str(total),
-        "ultima_vela": str(ultima or ""),
-        "ultima_atualizacao": agora,
-        "versao_banco": "1"
+    controle = {
+        "versao": 2,
+        "modulo": "banco_dados_tabuleiro",
+        "atualizado_em": agora(),
+        "status": "SUCESSO" if not erros else "ERRO",
+        "origem": CSV_ENTRADA.name,
+        "entrega": CSV_ENTREGA.name,
+        "persistencia_direta": False,
+        "persistencia": (
+            "Coletor e Organizador"
+        ),
+        "metodo_regioes": {
+            "largura_fixa_usd": 1.50,
+            "eixo_x": "Tempo cronológico M5",
+            "eixo_y": "Região de preço",
+            "atr_altera_largura": False,
+        },
+        "resumo": {
+            "total_registros": len(registros),
+            "total_regioes": len(regioes),
+            "registros_descartados": descartados,
+            "total_erros": len(erros),
+            "primeiro_timestamp": registros[0]["timestamp"],
+            "ultimo_timestamp": registros[-1]["timestamp"],
+        },
+        "regioes": regioes,
+        "erros": erros,
     }
 
-    for chave, valor in dados.items():
-        conexao.execute(
-            """
-            INSERT INTO controle (chave, valor)
-            VALUES (?, ?)
-            ON CONFLICT(chave) DO UPDATE SET
-                valor = excluded.valor
-            """,
-            (chave, valor)
-        )
-
-
-def gerar_resumo(conexao):
-    total_velas = conexao.execute(
-        "SELECT COUNT(*) FROM velas"
-    ).fetchone()[0]
-
-    total_regioes = conexao.execute(
-        "SELECT COUNT(*) FROM regioes"
-    ).fetchone()[0]
-
-    total_transicoes = conexao.execute(
-        "SELECT COUNT(*) FROM transicoes"
-    ).fetchone()[0]
-
-    total_eventos = conexao.execute(
-        "SELECT COUNT(*) FROM eventos"
-    ).fetchone()[0]
-
-    ultima = conexao.execute(
-        "SELECT MAX(timestamp) FROM velas"
-    ).fetchone()[0]
-
-    print("\n========== BANCO DO TABULEIRO ==========")
-    print(f"Velas armazenadas: {total_velas}")
-    print(f"Regiões identificadas: {total_regioes}")
-    print(f"Transições registradas: {total_transicoes}")
-    print(f"Eventos registrados: {total_eventos}")
-    print(f"Última vela: {ultima}")
-    print(f"Banco: {BANCO_SAIDA}")
-    print("========================================\n")
+    JSON_CONTROLE.write_text(
+        json.dumps(
+            controle,
+            ensure_ascii=False,
+            indent=2
+        ),
+        encoding="utf-8"
+    )
 
 
 def processar():
-    registros = carregar_csv()
+    print("======================================")
+    print("PREPARADOR DE ENTREGA DO TABULEIRO M5")
+    print("======================================")
 
-    conexao = conectar()
+    registros, descartados = carregar_registros()
 
-    try:
-        criar_estrutura(conexao)
+    erros = validar_sequencia(registros)
 
-        novas = registrar_velas(
-            conexao,
-            registros
+    if erros:
+        raise RuntimeError(
+            "A sequência cronológica da matriz apresenta erros. "
+            "Entrega interrompida para proteger os dados."
         )
 
-        atualizar_regioes(conexao)
-        atualizar_transicoes(conexao)
-        atualizar_controle(conexao)
+    gerar_entrega(registros)
 
-        conexao.commit()
+    gerar_controle(
+        registros,
+        descartados,
+        erros
+    )
 
-        print(f"Registros recebidos: {len(registros)}")
-        print(f"Novas velas armazenadas: {novas}")
+    regioes = len({
+        registro["eixo_y"]
+        for registro in registros
+    })
 
-        gerar_resumo(conexao)
-
-    except Exception:
-        conexao.rollback()
-        raise
-
-    finally:
-        conexao.close()
+    print("--------------------------------------")
+    print("Registros válidos:", len(registros))
+    print("Regiões identificadas:", regioes)
+    print("Registros descartados:", descartados)
+    print("--------------------------------------")
+    print("Arquivos de entrega:")
+    print(CSV_ENTREGA)
+    print(JSON_CONTROLE)
+    print("--------------------------------------")
+    print("Nenhum banco SQLite foi criado ou alterado.")
+    print("Persistência reservada ao Coletor e Organizador.")
+    print("PROCESSAMENTO CONCLUIDO")
+    print("======================================")
 
 
 if __name__ == "__main__":
