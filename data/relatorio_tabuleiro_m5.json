@@ -1,19 +1,19 @@
 {
-    "atualizado_em": "2026-11-12T09:06:30.514717+00:00",
+    "atualizado_em": "2026-11-12T09:12:19.190892+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
-        "eventos": 5521,
-        "eventos_avaliados": 5504,
+        "eventos": 5520,
+        "eventos_avaliados": 5503,
         "regioes_analisadas": 182,
         "transicoes_analisadas": 1093,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "ROMPIMENTO_ALTA": 1055,
-        "REJEICAO_INFERIOR": 939,
-        "ROMPIMENTO_BAIXA": 1155,
+        "ROMPIMENTO_BAIXA": 1156,
+        "ROMPIMENTO_ALTA": 1054,
+        "REJEICAO_INFERIOR": 938,
         "REJEICAO_SUPERIOR": 899,
         "TOQUE_INFERIOR": 763,
         "TOQUE_SUPERIOR": 710
@@ -361,11 +361,11 @@
     "desempenho_eventos": [
         {
             "evento": "REJEICAO_INFERIOR",
-            "amostras": 938,
-            "taxa_favoravel_05": 42.12,
-            "taxa_favoravel_10": 41.41,
+            "amostras": 937,
+            "taxa_favoravel_05": 42.18,
+            "taxa_favoravel_10": 41.45,
             "favoraveis_05": 345,
-            "desfavoraveis_05": 466,
+            "desfavoraveis_05": 465,
             "ambiguos_05": 119
         },
         {
@@ -379,19 +379,19 @@
         },
         {
             "evento": "ROMPIMENTO_ALTA",
-            "amostras": 1054,
-            "taxa_favoravel_05": 45.86,
-            "taxa_favoravel_10": 43.68,
+            "amostras": 1053,
+            "taxa_favoravel_05": 45.91,
+            "taxa_favoravel_10": 43.73,
             "favoraveis_05": 427,
-            "desfavoraveis_05": 498,
+            "desfavoraveis_05": 497,
             "ambiguos_05": 123
         },
         {
             "evento": "ROMPIMENTO_BAIXA",
-            "amostras": 1146,
-            "taxa_favoravel_05": 49.65,
-            "taxa_favoravel_10": 49.78,
-            "favoraveis_05": 503,
+            "amostras": 1147,
+            "taxa_favoravel_05": 49.7,
+            "taxa_favoravel_10": 49.73,
+            "favoraveis_05": 504,
             "desfavoraveis_05": 506,
             "ambiguos_05": 133
         },
