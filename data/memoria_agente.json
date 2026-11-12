@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:46:10.296180+00:00",
-  "total_registros": 353,
+  "atualizado_utc": "2026-11-12T01:51:15.359759+00:00",
+  "total_registros": 354,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6607,6 +6607,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:46:10.296180+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:45:00+00:00",
+      "id_sinal": 43137254980,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o contexto H1 e o impulso recente sugiram pressão vendedora, o preço encontra-se em uma zona de suporte imediato (3980-3982) com alta densidade de interações. A tendência estrutural no M5 e M15 permanece altista, criando um conflito de prazos. A falta de um rompimento claro do suporte de 3980 torna a venda arriscada neste momento, sugerindo cautela até que o preço confirme a perda desta região de estabilidade.",
+      "atr14": 4.7731,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:51:15.359759+00:00"
     }
   ]
 }

@@ -7518,5 +7518,48 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T01:46:10.296180+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T01:45:00+00:00",
+    "id_sinal": 43137254980,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 50.0,
+    "pontuacao_compra": 25.0,
+    "pontuacao_venda": 50.0,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 4.7731,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T01:45:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 65,
+      "justificativa": "Embora o contexto H1 e o impulso recente sugiram pressão vendedora, o preço encontra-se em uma zona de suporte imediato (3980-3982) com alta densidade de interações. A tendência estrutural no M5 e M15 permanece altista, criando um conflito de prazos. A falta de um rompimento claro do suporte de 3980 torna a venda arriscada neste momento, sugerindo cautela até que o preço confirme a perda desta região de estabilidade.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T01:45:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 2,
+      "pontuacao_venda": 4,
+      "diferenca": -2,
+      "motivos": [
+        "Contexto H1 de baixa",
+        "Impulso vendedor",
+        "Rompimento da mínima recente",
+        "RSI favorável à venda"
+      ],
+      "preco": 3983.305,
+      "atr_14": 4.575,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "ALTA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T01:51:15.359759+00:00"
   }
 ]
