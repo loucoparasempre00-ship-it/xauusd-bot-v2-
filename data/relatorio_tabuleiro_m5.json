@@ -1,21 +1,21 @@
 {
-    "atualizado_em": "2026-11-12T06:37:23.630754+00:00",
+    "atualizado_em": "2026-11-12T06:41:19.246520+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
-        "eventos": 5527,
+        "eventos": 5526,
         "eventos_avaliados": 5506,
         "regioes_analisadas": 182,
-        "transicoes_analisadas": 1086,
+        "transicoes_analisadas": 1085,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "ROMPIMENTO_ALTA": 1059,
-        "REJEICAO_INFERIOR": 943,
         "REJEICAO_SUPERIOR": 901,
         "ROMPIMENTO_BAIXA": 1147,
+        "ROMPIMENTO_ALTA": 1059,
         "TOQUE_SUPERIOR": 712,
+        "REJEICAO_INFERIOR": 942,
         "TOQUE_INFERIOR": 765
     },
     "melhores_regioes": [
@@ -379,11 +379,11 @@
         },
         {
             "evento": "ROMPIMENTO_ALTA",
-            "amostras": 1057,
-            "taxa_favoravel_05": 45.82,
-            "taxa_favoravel_10": 43.46,
+            "amostras": 1056,
+            "taxa_favoravel_05": 45.87,
+            "taxa_favoravel_10": 43.5,
             "favoraveis_05": 428,
-            "desfavoraveis_05": 500,
+            "desfavoraveis_05": 499,
             "ambiguos_05": 123
         },
         {
@@ -406,10 +406,10 @@
         },
         {
             "evento": "TOQUE_SUPERIOR",
-            "amostras": 708,
-            "taxa_favoravel_05": 55.25,
-            "taxa_favoravel_10": 53.01,
-            "favoraveis_05": 347,
+            "amostras": 709,
+            "taxa_favoravel_05": 55.33,
+            "taxa_favoravel_10": 52.93,
+            "favoraveis_05": 348,
             "desfavoraveis_05": 274,
             "ambiguos_05": 80
         }

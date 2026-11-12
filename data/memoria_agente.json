@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T06:37:23.859475+00:00",
-  "total_registros": 408,
+  "atualizado_utc": "2026-11-12T06:41:19.388468+00:00",
+  "total_registros": 409,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7927,6 +7927,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T06:37:23.859475+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T06:35:00+00:00",
+      "id_sinal": 43169798063,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3974.556,
+      "stop": 3981.599,
+      "stop_loss": 3981.599,
+      "gain": 3963.991,
+      "take_profit": 3963.991,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta um alinhamento de tendência de baixa em múltiplos tempos gráficos (M5, M15, H1). O preço atual de 3974.55 está testando uma região de suporte imediato (3973.45), mas a estrutura de topos descendentes recentes e o posicionamento das EMAs (6 e 20) indicam pressão vendedora contínua. Embora o mercado esteja em uma zona de transição lateral, a falta de força compradora e o alinhamento das médias móveis favorecem a continuidade do movimento de baixa, desde que o suporte em 3973.45 seja rompido com convicção.",
+      "atr14": 4.69526,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T06:41:19.388468+00:00"
     }
   ]
 }
