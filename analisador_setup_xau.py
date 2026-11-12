@@ -8,13 +8,9 @@ ANALISADOR DE SETUP XAUUSD
 Fontes oficiais:
 - data/graficos.db ou data/graficos.db.gz
 - data/estatisticas_m5.db ou data/estatisticas_m5.db.gz
-- data/resultados_operacoes.db ou .db.gz (consulta complementar)
 
-Estrutura dos bancos:
-- tabela do respectivo modulo
-- arquivos_origem
-- controle_importacao
-- referencias_modulos
+O histórico de operações NÃO é consultado aqui.
+O histórico de operações pertence ao Condutor de Operações.
 
 Modelo:
 - Regressao logistica em Python puro.
@@ -205,7 +201,10 @@ def carregar_csv_banco(nome_banco, nomes_aceitos):
                 continue
 
             try:
-                texto = bytes(conteudo).decode("utf-8-sig")
+                if isinstance(conteudo, str):
+                    texto = conteudo
+                else:
+                    texto = bytes(conteudo).decode("utf-8-sig")
 
                 leitor = csv.DictReader(
                     io.StringIO(texto)
@@ -224,7 +223,7 @@ def carregar_csv_banco(nome_banco, nomes_aceitos):
 
                     return linhas
 
-            except (UnicodeDecodeError, csv.Error):
+            except (UnicodeDecodeError, csv.Error, TypeError):
                 continue
 
     return []
@@ -279,18 +278,10 @@ def carregar_dados():
             nomes
         )
 
-    # Banco complementar: verifica se o historico de resultados
-    # de operacoes existe, sem misturar esse historico com
-    # a direcao geral do mercado.
-    resultados_operacoes = carregar_csv_banco(
-        "resultados_operacoes",
-        [
-            "resultados_operacoes.csv",
-            "resultados_operacoes.json"
-        ]
-    )
-
-    return tabuleiro, estatisticas, len(resultados_operacoes)
+    # O terceiro retorno e mantido para compatibilidade
+    # com os arquivos que ja chamam carregar_dados().
+    # Nenhum banco de operacoes e consultado.
+    return tabuleiro, estatisticas, None
 
 
 # ============================================================
@@ -854,47 +845,6 @@ def avaliar(teste, modelo, calibracao):
 
 
 # ============================================================
-# CONSULTA COMPLEMENTAR DO BANCO DE RESULTADOS
-# ============================================================
-
-def consultar_banco_resultados():
-
-    try:
-        with conectar_banco("resultados_operacoes") as db:
-
-            tabelas = {
-                linha["name"]
-                for linha in db.execute("""
-                    SELECT name
-                    FROM sqlite_master
-                    WHERE type='table'
-                """)
-            }
-
-            if "resultados_operacoes" not in tabelas:
-                return {
-                    "disponivel": False,
-                    "registros": 0
-                }
-
-            total = db.execute("""
-                SELECT COUNT(*)
-                FROM resultados_operacoes
-            """).fetchone()[0]
-
-            return {
-                "disponivel": True,
-                "registros": int(total)
-            }
-
-    except (FileNotFoundError, sqlite3.Error):
-        return {
-            "disponivel": False,
-            "registros": 0
-        }
-
-
-# ============================================================
 # SAIDA NEUTRA
 # ============================================================
 
@@ -938,7 +888,7 @@ def main():
     print("ANALISADOR DE SETUP XAUUSD")
     print("======================================")
 
-    tabuleiro, estatisticas, total_resultados = carregar_dados()
+    tabuleiro, estatisticas, _ = carregar_dados()
 
     velas = preparar_velas(tabuleiro)
 
@@ -1047,8 +997,6 @@ def main():
     p_alta = max(0.0, min(1.0, p_alta))
     p_baixa = 1.0 - p_alta
 
-    banco_resultados = consultar_banco_resultados()
-
     resultado = {
         "ativo": "XAUUSD",
         "atualizado_utc": agora(),
@@ -1097,7 +1045,6 @@ def main():
         "fontes": {
             "graficos": "graficos.db ou graficos.db.gz",
             "estatisticas": "estatisticas_m5.db ou .db.gz",
-            "resultados_operacoes": banco_resultados,
             "estatisticas_lidas": {
                 chave: len(valor)
                 for chave, valor in estatisticas.items()
