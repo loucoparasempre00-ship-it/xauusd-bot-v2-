@@ -5,13 +5,9 @@
 """
 COLETOR XAUUSD
 
-Origem exclusiva:
-Artefato memoria-xauusd-condutor, publicado pelo workflow
-Memoria Persistente XAUUSD.
-
-Nao varre a pasta data/ procurando arquivos soltos.
+Recebe o artefato da Memoria Persistente.
 Nao altera os seis bancos oficiais.
-Prepara os arquivos recebidos para o Organizador.
+Ausencias e falhas sao registradas, sem interromper a coleta.
 """
 
 import json
@@ -21,10 +17,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
-
 ENTRADA = DATA / "entrada_workflow"
 SAIDA = DATA / "coletor_saida"
 
@@ -41,29 +35,14 @@ MODULOS = (
 )
 
 EXTENSOES_ACEITAS = {
-    ".json",
-    ".jsonl",
-    ".csv",
-    ".txt",
-    ".db",
-    ".sqlite",
-    ".sqlite3",
-    ".gz",
+    ".json", ".jsonl", ".csv", ".txt",
+    ".db", ".sqlite", ".sqlite3", ".gz",
 }
 
 BANCOS_OFICIAIS = {
-    "graficos.db",
-    "graficos.db.gz",
-    "sinais.db",
-    "sinais.db.gz",
-    "memoria.db",
-    "memoria.db.gz",
-    "operacoes.db",
-    "operacoes.db.gz",
-    "estatisticas_m5.db",
-    "estatisticas_m5.db.gz",
-    "resultados_operacoes.db",
-    "resultados_operacoes.db.gz",
+    f"{nome}{ext}"
+    for nome in MODULOS
+    for ext in (".db", ".db.gz")
 }
 
 
@@ -79,12 +58,12 @@ def executar_comando(comando):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-
     print(resultado.stdout)
 
     if resultado.returncode != 0:
         raise RuntimeError(
-            "Falha ao executar: " + " ".join(comando)
+            f"Comando terminou com codigo {resultado.returncode}: "
+            + " ".join(comando)
         )
 
     return resultado.stdout
@@ -94,86 +73,46 @@ def identificar_run():
     evento = os.getenv("GITHUB_EVENT_NAME", "")
     caminho_evento = os.getenv("GITHUB_EVENT_PATH", "")
 
-    if evento == "workflow_run":
-        if not caminho_evento:
-            raise RuntimeError(
-                "GITHUB_EVENT_PATH nao foi informado."
-            )
-
+    if evento == "workflow_run" and caminho_evento:
         dados = json.loads(
             Path(caminho_evento).read_text(encoding="utf-8")
         )
+        run = dados.get("workflow_run", {})
+        run_id = run.get("id")
 
-        run_id = (
-            dados.get("workflow_run", {}).get("id")
-        )
-
-        conclusao = (
-            dados.get("workflow_run", {}).get("conclusion")
-        )
-
-        if not run_id:
-            raise RuntimeError(
-                "ID da execucao de origem nao encontrado."
-            )
-
-        if conclusao != "success":
-            raise RuntimeError(
-                "A Memoria Persistente nao terminou com sucesso."
-            )
-
-        return str(run_id)
+        if run_id:
+            return str(run_id)
 
     if evento == "workflow_dispatch":
         saida = executar_comando([
-            "gh",
-            "run",
-            "list",
-            "--workflow",
-            WORKFLOW_MEMORIA,
-            "--status",
-            "success",
-            "--limit",
-            "1",
-            "--json",
-            "databaseId",
+            "gh", "run", "list",
+            "--workflow", WORKFLOW_MEMORIA,
+            "--status", "success",
+            "--limit", "1",
+            "--json", "databaseId",
         ])
 
         execucoes = json.loads(saida)
 
-        if not execucoes:
-            raise RuntimeError(
-                "Nenhuma execucao bem-sucedida da Memoria foi encontrada."
-            )
-
-        run_id = execucoes[0].get("databaseId")
-
-        if not run_id:
-            raise RuntimeError(
-                "ID da ultima execucao da Memoria nao encontrado."
-            )
-
-        return str(run_id)
+        if execucoes:
+            run_id = execucoes[0].get("databaseId")
+            if run_id:
+                return str(run_id)
 
     raise RuntimeError(
-        f"Evento nao suportado pelo Coletor: {evento}"
+        "Nao foi possivel identificar uma execucao de origem."
     )
 
 
 def baixar_artefato():
     token = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
-
-    if not token:
-        raise RuntimeError(
-            "Token GH_TOKEN nao foi disponibilizado ao Coletor."
-        )
-
     repositorio = os.getenv("GITHUB_REPOSITORY")
 
+    if not token:
+        raise RuntimeError("Token GH_TOKEN/GITHUB_TOKEN ausente.")
+
     if not repositorio:
-        raise RuntimeError(
-            "GITHUB_REPOSITORY nao foi informado."
-        )
+        raise RuntimeError("GITHUB_REPOSITORY ausente.")
 
     run_id = identificar_run()
 
@@ -192,37 +131,24 @@ def baixar_artefato():
     os.environ["GH_TOKEN"] = token
 
     executar_comando([
-        "gh",
-        "run",
-        "download",
-        run_id,
-        "--repo",
-        repositorio,
-        "--name",
-        ARTEFATO,
-        "--dir",
-        str(ENTRADA),
+        "gh", "run", "download", run_id,
+        "--repo", repositorio,
+        "--name", ARTEFATO,
+        "--dir", str(ENTRADA),
     ])
 
     arquivos = [
-        x for x in ENTRADA.rglob("*")
-        if x.is_file()
+        item for item in ENTRADA.rglob("*")
+        if item.is_file()
     ]
 
-    if not arquivos:
-        raise RuntimeError(
-            "O artefato foi baixado, mas nao contem arquivos."
-        )
-
     print("ARQUIVOS RECEBIDOS:", len(arquivos))
-
     return run_id, arquivos
 
 
 def classificar(arquivo):
     nome = arquivo.name.lower()
 
-    # OPERACOES E COORDENADOR
     if nome in {
         "acompanhamento_autonomo_estado.json",
         "entrada_recepcao_operacoes.json",
@@ -233,7 +159,6 @@ def classificar(arquivo):
     }:
         return "operacoes"
 
-    # RESULTADOS REAIS DE OPERACOES
     if any(x in nome for x in (
         "resultados_operacoes",
         "resultado_operacoes",
@@ -245,7 +170,6 @@ def classificar(arquivo):
     )):
         return "resultados_operacoes"
 
-    # ESTATISTICAS E PROBABILIDADE M5
     if any(x in nome for x in (
         "probabilidade_direcional_xau",
         "estatisticas_regioes_m5",
@@ -259,7 +183,6 @@ def classificar(arquivo):
     )):
         return "estatisticas_m5"
 
-    # SINAIS
     if any(x in nome for x in (
         "resultado-agente-gemini",
         "historico-agente-gemini",
@@ -275,7 +198,6 @@ def classificar(arquivo):
     )):
         return "sinais"
 
-    # MEMORIA E APRENDIZADO
     if any(x in nome for x in (
         "memoria",
         "gemini",
@@ -285,11 +207,9 @@ def classificar(arquivo):
         "estatisticas_consolidacao",
         "indice_arquivos",
         "manifesto_memoria",
-        "probabilidade_direcional",
     )):
         return "memoria"
 
-    # GRAFICOS, CANDLES E TABULEIRO
     if any(x in nome for x in (
         "xauusd_m5",
         "historico_velas",
@@ -304,6 +224,7 @@ def classificar(arquivo):
         "entrega_tabuleiro",
         "controle_tabuleiro",
         "relatorio_tabuleiro",
+        "contexto_tabuleiro",
     )):
         return "graficos"
 
@@ -313,28 +234,24 @@ def classificar(arquivo):
 def executar():
     print("COLETOR XAUUSD - INICIANDO")
 
-    run_id, arquivos = baixar_artefato()
-
     if SAIDA.exists():
         shutil.rmtree(SAIDA)
 
     for modulo in MODULOS:
-        (SAIDA / modulo).mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        (SAIDA / modulo).mkdir(parents=True, exist_ok=True)
 
     relatorio = {
-        "versao": 2,
+        "versao": 3,
         "origem": "workflow_artifact",
         "workflow_origem": "Memoria Persistente XAUUSD",
         "artefato": ARTEFATO,
-        "run_id_origem": run_id,
         "data_utc": agora(),
         "status": "INICIADO",
+        "run_id_origem": None,
         "modulos": {},
         "sem_classificacao": [],
         "erros": [],
+        "avisos": [],
     }
 
     for modulo in MODULOS:
@@ -342,6 +259,20 @@ def executar():
             "arquivos": 0,
             "bytes": 0,
         }
+
+    arquivos = []
+
+    try:
+        run_id, arquivos = baixar_artefato()
+        relatorio["run_id_origem"] = run_id
+
+    except Exception as erro:
+        mensagem = f"{type(erro).__name__}: {erro}"
+        relatorio["avisos"].append({
+            "etapa": "recebimento_artefato",
+            "mensagem": mensagem,
+        })
+        print("[AVISO] Nao foi possivel receber o artefato:", mensagem)
 
     for arquivo in sorted(arquivos):
         nome = arquivo.name
@@ -358,49 +289,29 @@ def executar():
         modulo = classificar(arquivo)
 
         if modulo is None:
-            relatorio["sem_classificacao"].append(nome)
+            relatorio["sem_classificacao"].append(
+                arquivo.relative_to(ENTRADA).as_posix()
+            )
             print("[SEM CLASSIFICACAO]", nome)
             continue
 
         try:
-            destino = SAIDA / modulo / arquivo.name
-            destino.parent.mkdir(
-                parents=True,
-                exist_ok=True,
-            )
-
+            destino = SAIDA / modulo / nome
+            destino.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(arquivo, destino)
 
             tamanho = destino.stat().st_size
-
             relatorio["modulos"][modulo]["arquivos"] += 1
             relatorio["modulos"][modulo]["bytes"] += tamanho
 
-            print(
-                f"[{modulo.upper()}] "
-                f"{nome} | {tamanho} bytes"
-            )
+            print(f"[{modulo.upper()}] {nome} | {tamanho} bytes")
 
         except Exception as erro:
             relatorio["erros"].append({
                 "arquivo": nome,
-                "erro": str(erro),
+                "erro": f"{type(erro).__name__}: {erro}",
             })
 
-    total = sum(
-        item["arquivos"]
-        for item in relatorio["modulos"].values()
-    )
-
-    relatorio["total_arquivos"] = total
-    relatorio["total_sem_classificacao"] = len(
-        relatorio["sem_classificacao"]
-    )
-    relatorio["total_erros"] = len(
-        relatorio["erros"]
-    )
-
-    # Arquivos fundamentais publicados pela Memoria.
     obrigatorios = {
         "memoria_agente.json",
         "historico_decisoes_xau.json",
@@ -410,52 +321,56 @@ def executar():
         "manifesto_memoria_xau.json",
     }
 
-    nomes_recebidos = {
-        arquivo.name for arquivo in arquivos
-    }
-
-    ausentes = sorted(
-        obrigatorios - nomes_recebidos
-    )
+    nomes_recebidos = {arquivo.name for arquivo in arquivos}
+    ausentes = sorted(obrigatorios - nomes_recebidos)
 
     relatorio["arquivos_obrigatorios_ausentes"] = ausentes
-
-    sucesso = (
-        total > 0
-        and not relatorio["erros"]
-        and not ausentes
+    relatorio["total_arquivos_recebidos"] = len(arquivos)
+    relatorio["total_arquivos_coletados"] = sum(
+        item["arquivos"] for item in relatorio["modulos"].values()
     )
+    relatorio["total_sem_classificacao"] = len(
+        relatorio["sem_classificacao"]
+    )
+    relatorio["total_erros"] = len(relatorio["erros"])
+
+    if ausentes:
+        relatorio["avisos"].append({
+            "etapa": "validacao_fontes",
+            "arquivos_ausentes": ausentes,
+        })
+
+    if relatorio["total_arquivos_coletados"] == 0:
+        relatorio["avisos"].append({
+            "etapa": "coleta",
+            "mensagem": "Nenhum arquivo foi coletado.",
+        })
 
     relatorio["status"] = (
-        "SUCESSO"
-        if sucesso
-        else "CONCLUIDO_COM_ERROS"
+        "CONCLUIDO_COM_ERROS"
+        if relatorio["erros"]
+        else (
+            "CONCLUIDO_COM_AVISOS"
+            if relatorio["avisos"] or ausentes
+            else "SUCESSO"
+        )
     )
 
-    SAIDA.mkdir(parents=True, exist_ok=True)
-
-    (SAIDA / "manifesto_coletor.json").write_text(
-        json.dumps(
-            relatorio,
-            ensure_ascii=False,
-            indent=2,
-        ),
+    manifesto = SAIDA / "manifesto_coletor.json"
+    manifesto.write_text(
+        json.dumps(relatorio, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
     print("=" * 60)
     print("ARQUIVOS RECEBIDOS:", len(arquivos))
-    print("ARQUIVOS COLETADOS:", total)
-    print("SEM CLASSIFICACAO:", len(
-        relatorio["sem_classificacao"]
-    ))
+    print("ARQUIVOS COLETADOS:", relatorio["total_arquivos_coletados"])
     print("OBRIGATORIOS AUSENTES:", ausentes)
-    print("ERROS:", len(relatorio["erros"]))
+    print("ERROS:", relatorio["total_erros"])
     print("STATUS:", relatorio["status"])
     print("=" * 60)
 
-    if not sucesso:
-        raise SystemExit(1)
+    return relatorio
 
 
 if __name__ == "__main__":
