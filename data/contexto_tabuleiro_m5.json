@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-12T00:30:21.380080+00:00",
+    "atualizado_em": "2026-11-12T00:35:19.257544+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -16,66 +16,83 @@
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-12 00:25:00",
+        "timestamp": "2026-11-12 00:30:00",
         "eixo_x": 5000,
-        "preco": 3982.09685,
-        "atr": 4.57911,
+        "preco": 3982.87756,
+        "atr": 4.51825,
         "direcao_vela": "ALTA",
-        "regiao": 2654,
-        "limite_inferior": 3981.0,
-        "limite_superior": 3982.5,
-        "visitas_regiao": 13
+        "regiao": 2655,
+        "limite_inferior": 3982.5,
+        "limite_superior": 3984.0,
+        "visitas_regiao": 12
     },
     "transicoes_historicas_da_regiao": [
         {
-            "origem": 2654,
-            "destino": 2655,
-            "transicoes": 3,
-            "saidas_origem": 9,
-            "probabilidade": 33.33,
-            "amostra_suficiente": false
+            "origem": 2655,
+            "destino": 2657,
+            "transicoes": 5,
+            "saidas_origem": 11,
+            "probabilidade": 45.45,
+            "amostra_suficiente": true
         },
         {
-            "origem": 2654,
+            "origem": 2655,
+            "destino": 2654,
+            "transicoes": 4,
+            "saidas_origem": 11,
+            "probabilidade": 36.36,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2655,
             "destino": 2653,
-            "transicoes": 2,
-            "saidas_origem": 9,
-            "probabilidade": 22.22,
-            "amostra_suficiente": false
+            "transicoes": 1,
+            "saidas_origem": 11,
+            "probabilidade": 9.09,
+            "amostra_suficiente": true
         },
         {
-            "origem": 2654,
-            "destino": 2651,
+            "origem": 2655,
+            "destino": 2662,
             "transicoes": 1,
-            "saidas_origem": 9,
-            "probabilidade": 11.11,
-            "amostra_suficiente": false
-        },
-        {
-            "origem": 2654,
-            "destino": 2652,
-            "transicoes": 1,
-            "saidas_origem": 9,
-            "probabilidade": 11.11,
-            "amostra_suficiente": false
-        },
-        {
-            "origem": 2654,
-            "destino": 2656,
-            "transicoes": 1,
-            "saidas_origem": 9,
-            "probabilidade": 11.11,
-            "amostra_suficiente": false
-        },
-        {
-            "origem": 2654,
-            "destino": 2658,
-            "transicoes": 1,
-            "saidas_origem": 9,
-            "probabilidade": 11.11,
-            "amostra_suficiente": false
+            "saidas_origem": 11,
+            "probabilidade": 9.09,
+            "amostra_suficiente": true
         }
     ],
-    "transicoes_com_amostra_minima": [],
+    "transicoes_com_amostra_minima": [
+        {
+            "origem": 2655,
+            "destino": 2657,
+            "transicoes": 5,
+            "saidas_origem": 11,
+            "probabilidade": 45.45,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2655,
+            "destino": 2654,
+            "transicoes": 4,
+            "saidas_origem": 11,
+            "probabilidade": 36.36,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2655,
+            "destino": 2653,
+            "transicoes": 1,
+            "saidas_origem": 11,
+            "probabilidade": 9.09,
+            "amostra_suficiente": true
+        },
+        {
+            "origem": 2655,
+            "destino": 2662,
+            "transicoes": 1,
+            "saidas_origem": 11,
+            "probabilidade": 9.09,
+            "amostra_suficiente": true
+        }
+    ],
     "observacao": "Frequências históricas não são garantias de movimentos futuros. Amostras pequenas não devem ser tratadas como probabilidades confiáveis."
 }
