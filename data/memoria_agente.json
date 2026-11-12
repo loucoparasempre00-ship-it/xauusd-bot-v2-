@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T02:31:16.950196+00:00",
-  "total_registros": 362,
+  "atualizado_utc": "2026-11-12T02:36:23.587615+00:00",
+  "total_registros": 363,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6823,6 +6823,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T02:31:16.950196+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T02:30:00+00:00",
+      "id_sinal": 43142470818,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de transição lateral com ausência de momentum direcional claro. Embora a tendência estrutural de prazos maiores (M15 e H1) seja de baixa, o preço atual está consolidado entre médias móveis (EMA6 e EMA20) e apresenta uma estrutura de fundos ascendentes recentes no M5. A falta de alinhamento entre a pressão vendedora dos indicadores e a estabilidade da região de preço atual sugere um cenário de indecisão, onde o risco de uma reversão ou lateralização prolongada supera a probabilidade de um movimento de tendência definido.",
+      "atr14": 4.57902,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T02:36:23.587615+00:00"
     }
   ]
 }
