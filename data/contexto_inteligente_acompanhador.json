@@ -1,35 +1,34 @@
 {
   "versao": "3.0",
-  "gerado_utc": "2026-11-12T08:11:32.279121+00:00",
+  "gerado_utc": "2026-11-12T08:15:22.550036+00:00",
   "ativo": "XAUUSD",
-  "candle_utc": "2026-11-12T08:05:00+00:00",
-  "preco_atual": 3959.708,
+  "candle_utc": "2026-11-12T08:10:00+00:00",
+  "preco_atual": 3958.453,
   "validacao_temporal": {
-    "candle_tecnico": "2026-11-12T08:05:00+00:00",
-    "candle_tabuleiro": "2026-11-12 08:05:00",
+    "candle_tecnico": "2026-11-12T08:10:00+00:00",
+    "candle_tabuleiro": "2026-11-12 08:10:00",
     "coincidem": true
   },
   "contexto_tecnico": {
     "ativo": "XAUUSD",
     "timeframe": "M5",
-    "candle_utc": "2026-11-12T08:05:00+00:00",
-    "preco": 3959.708,
+    "candle_utc": "2026-11-12T08:10:00+00:00",
+    "preco": 3958.453,
     "decisao": "VENDA",
     "pontuacao_compra": 0,
-    "pontuacao_venda": 5,
+    "pontuacao_venda": 4,
     "tendencia_m5": "BAIXA",
     "tendencia_m15": "BAIXA",
     "tendencia_h1": "BAIXA",
-    "rsi_14": 41.73,
-    "atr_14": 4.588,
-    "stop": 3964.296,
-    "alvo": 3952.826,
+    "rsi_14": 40.52,
+    "atr_14": 4.432,
+    "stop": 3962.885,
+    "alvo": 3951.805,
     "relacao_risco_retorno": "1:1.5",
     "motivos": [
       "EMA9 abaixo da EMA21 no M5",
       "Contexto M15 de baixa",
       "Contexto H1 de baixa",
-      "Impulso vendedor",
       "RSI favorável à venda"
     ],
     "envio_telegram": false,
@@ -39,14 +38,14 @@
   },
   "contexto_matematico": {
     "timeframe": "M5",
-    "preco": 3959.70813,
+    "preco": 3958.45269,
     "indicadores": {
-      "ema6": 3961.66279,
-      "ema20": 3964.71501,
+      "ema6": 3960.63038,
+      "ema20": 3964.06994,
       "alinhamento_emas": "BAIXA",
-      "macd_linha": -3.56196,
-      "macd_sinal": -3.83825,
-      "macd_histograma": 0.27629,
+      "macd_linha": -3.66512,
+      "macd_sinal": -3.81083,
+      "macd_histograma": 0.14571,
       "consolidacao": false,
       "vwap": null,
       "vwap_status": "INDISPONIVEL_SEM_VOLUME_VALIDO"
@@ -55,75 +54,69 @@
       "tendencia_estrutural": "BAIXA",
       "ultimos_topos": [
         {
-          "indice": 4964,
+          "indice": 4963,
           "preco": 3980.1673,
           "timestamp": "2026-11-12T05:10:00+00:00"
         },
         {
-          "indice": 4969,
+          "indice": 4968,
           "preco": 3978.35773,
           "timestamp": "2026-11-12T05:35:00+00:00"
         },
         {
-          "indice": 4972,
+          "indice": 4971,
           "preco": 3981.8428,
           "timestamp": "2026-11-12T05:50:00+00:00"
         },
         {
-          "indice": 4975,
+          "indice": 4974,
           "preco": 3982.13853,
           "timestamp": "2026-11-12T06:05:00+00:00"
         },
         {
-          "indice": 4986,
+          "indice": 4985,
           "preco": 3972.51023,
           "timestamp": "2026-11-12T07:00:00+00:00"
         },
         {
-          "indice": 4997,
+          "indice": 4996,
           "preco": 3966.67989,
           "timestamp": "2026-11-12T07:55:00+00:00"
         }
       ],
       "ultimos_fundos": [
         {
-          "indice": 4947,
+          "indice": 4946,
           "preco": 3976.77563,
           "timestamp": "2026-11-12T03:45:00+00:00"
         },
         {
-          "indice": 4951,
+          "indice": 4950,
           "preco": 3978.04121,
           "timestamp": "2026-11-12T04:05:00+00:00"
         },
         {
-          "indice": 4957,
+          "indice": 4956,
           "preco": 3973.45731,
           "timestamp": "2026-11-12T04:35:00+00:00"
         },
         {
-          "indice": 4968,
+          "indice": 4967,
           "preco": 3970.2461,
           "timestamp": "2026-11-12T05:30:00+00:00"
         },
         {
-          "indice": 4989,
+          "indice": 4988,
           "preco": 3959.35217,
           "timestamp": "2026-11-12T07:15:00+00:00"
         },
         {
-          "indice": 4994,
+          "indice": 4993,
           "preco": 3955.6962,
           "timestamp": "2026-11-12T07:40:00+00:00"
         }
       ],
       "suportes_proximos": [
-        {
-          "minimo": 3959.35217,
-          "maximo": 3959.35217,
-          "quantidade": 1,
-          "centro": 3959.35217
-        },
         {
           "minimo": 3954.13207,
           "maximo": 3956.3222,
@@ -141,9 +134,21 @@
           "maximo": 3946.79717,
           "quantidade": 10,
           "centro": 3945.66136
+        },
+        {
+          "minimo": 3943.06218,
+          "maximo": 3943.06218,
+          "quantidade": 2,
+          "centro": 3943.06218
         }
       ],
       "resistencias_proximas": [
+        {
+          "minimo": 3958.67147,
+          "maximo": 3958.67147,
+          "quantidade": 1,
+          "centro": 3958.67147
+        },
         {
           "minimo": 3961.80817,
           "maximo": 3961.96381,
@@ -161,12 +166,6 @@
           "maximo": 3969.9869,
           "quantidade": 8,
           "centro": 3968.33339
-        },
-        {
-          "minimo": 3972.51023,
-          "maximo": 3972.51023,
-          "quantidade": 1,
-          "centro": 3972.51023
         }
       ],
       "rompimentos": [],
@@ -182,15 +181,6 @@
     "total_candles_historico": 5000,
     "candles_exibidos": 240,
     "serie": [
-      {
-        "timestamp": "2026-11-11T12:10:00+00:00",
-        "open": 4046.63465,
-        "high": 4046.63465,
-        "low": 4044.87705,
-        "close": 4045.11412,
-        "ema9": 4047.65652,
-        "ema21": 4049.54437
-      },
       {
         "timestamp": "2026-11-11T12:15:00+00:00",
         "open": 4045.58782,
@@ -2337,16 +2327,25 @@
         "timestamp": "2026-11-12T08:05:00+00:00",
         "open": 3962.82727,
         "high": 3962.84412,
-        "low": 3959.42047,
-        "close": 3959.70813,
-        "ema9": 3961.98002,
-        "ema21": 3964.97077
+        "low": 3958.98492,
+        "close": 3959.14349,
+        "ema9": 3961.86709,
+        "ema21": 3964.91943
+      },
+      {
+        "timestamp": "2026-11-12T08:10:00+00:00",
+        "open": 3959.41066,
+        "high": 3959.41066,
+        "low": 3957.41818,
+        "close": 3958.45269,
+        "ema9": 3961.18421,
+        "ema21": 3964.33155
       }
     ]
   },
   "estado_central": {
     "disponivel": true,
-    "atualizado_em": "2026-11-12T08:11:30.886941+00:00",
+    "atualizado_em": "2026-11-12T08:15:20.776682+00:00",
     "idade_minutos": 0.0,
     "desatualizada": false,
     "horario_igual_ao_candle_atual": true
@@ -2361,58 +2360,58 @@
       "volume": "Não utilizado"
     },
     "diagnostico": {
-      "total_velas": 5000,
+      "total_velas": 5001,
       "total_regioes": 182,
       "total_transicoes": 1093,
       "minimo_amostras": 10
     },
     "mercado_atual": {
-      "timestamp": "2026-11-12 08:05:00",
-      "eixo_x": 4999,
-      "preco": 3959.70813,
-      "atr": 5.2094,
+      "timestamp": "2026-11-12 08:10:00",
+      "eixo_x": 5000,
+      "preco": 3958.45269,
+      "atr": 4.64116,
       "direcao_vela": "BAIXA",
-      "regiao": 2639,
-      "limite_inferior": 3958.5,
-      "limite_superior": 3960.0,
-      "visitas_regiao": 13
+      "regiao": 2638,
+      "limite_inferior": 3957.0,
+      "limite_superior": 3958.5,
+      "visitas_regiao": 11
     },
     "transicoes_historicas": [
       {
-        "origem": 2639,
+        "origem": 2638,
+        "destino": 2637,
+        "transicoes": 4,
+        "saidas_origem": 8,
+        "probabilidade": 50.0,
+        "amostra_suficiente": false
+      },
+      {
+        "origem": 2638,
         "destino": 2636,
-        "transicoes": 2,
-        "saidas_origem": 8,
-        "probabilidade": 25.0,
-        "amostra_suficiente": false
-      },
-      {
-        "origem": 2639,
-        "destino": 2638,
-        "transicoes": 2,
-        "saidas_origem": 8,
-        "probabilidade": 25.0,
-        "amostra_suficiente": false
-      },
-      {
-        "origem": 2639,
-        "destino": 2640,
-        "transicoes": 2,
-        "saidas_origem": 8,
-        "probabilidade": 25.0,
-        "amostra_suficiente": false
-      },
-      {
-        "origem": 2639,
-        "destino": 2635,
         "transicoes": 1,
         "saidas_origem": 8,
         "probabilidade": 12.5,
         "amostra_suficiente": false
       },
       {
-        "origem": 2639,
-        "destino": 2637,
+        "origem": 2638,
+        "destino": 2640,
+        "transicoes": 1,
+        "saidas_origem": 8,
+        "probabilidade": 12.5,
+        "amostra_suficiente": false
+      },
+      {
+        "origem": 2638,
+        "destino": 2642,
+        "transicoes": 1,
+        "saidas_origem": 8,
+        "probabilidade": 12.5,
+        "amostra_suficiente": false
+      },
+      {
+        "origem": 2638,
+        "destino": 2645,
         "transicoes": 1,
         "saidas_origem": 8,
         "probabilidade": 12.5,
