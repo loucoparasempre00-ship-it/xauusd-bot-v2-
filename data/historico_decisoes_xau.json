@@ -7561,5 +7561,49 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T01:51:15.359759+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T01:50:00+00:00",
+    "id_sinal": 43137801683,
+    "decisao_final": "VENDA",
+    "pontuacao_final": 78.75,
+    "pontuacao_compra": 12.5,
+    "pontuacao_venda": 78.75,
+    "entrada": 3980.314,
+    "stop_loss": 3987.205,
+    "take_profit": 3969.978,
+    "atr14": 4.59398,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T01:50:00+00:00",
+      "decisao": "VENDA",
+      "confianca": 65,
+      "justificativa": "O mercado apresenta um impulso vendedor claro no M5 com alinhamento das EMAs (6/20) indicando pressão de baixa. O preço rompeu a zona de suporte imediata em 3980.05 e está testando níveis inferiores. Embora a tendência estrutural de longo prazo seja de alta, o contexto de curto prazo (M5 e H1) favorece a continuidade do movimento corretivo ou de reversão de curto prazo. A ausência de volume validado e a amostra reduzida de transições sugerem cautela, mas a confluência de indicadores técnicos justifica a venda.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T01:50:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 1,
+      "pontuacao_venda": 5,
+      "diferenca": -4,
+      "motivos": [
+        "EMA9 abaixo da EMA21 no M5",
+        "Contexto H1 de baixa",
+        "Impulso vendedor",
+        "Rompimento da mínima recente",
+        "RSI favorável à venda"
+      ],
+      "preco": 3980.314,
+      "atr_14": 4.503,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "ALTA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T01:56:08.027119+00:00"
   }
 ]

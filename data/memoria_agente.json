@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:51:15.359759+00:00",
-  "total_registros": 354,
+  "atualizado_utc": "2026-11-12T01:56:08.027119+00:00",
+  "total_registros": 355,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6631,6 +6631,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:51:15.359759+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:50:00+00:00",
+      "id_sinal": 43137801683,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3980.314,
+      "stop": 3987.205,
+      "stop_loss": 3987.205,
+      "gain": 3969.978,
+      "take_profit": 3969.978,
+      "confianca": 65,
+      "pontuacao_final": 78.75,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 78.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um impulso vendedor claro no M5 com alinhamento das EMAs (6/20) indicando pressão de baixa. O preço rompeu a zona de suporte imediata em 3980.05 e está testando níveis inferiores. Embora a tendência estrutural de longo prazo seja de alta, o contexto de curto prazo (M5 e H1) favorece a continuidade do movimento corretivo ou de reversão de curto prazo. A ausência de volume validado e a amostra reduzida de transições sugerem cautela, mas a confluência de indicadores técnicos justifica a venda.",
+      "atr14": 4.59398,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:56:08.027119+00:00"
     }
   ]
 }
