@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T05:51:19.048946+00:00",
-  "total_registros": 399,
+  "atualizado_utc": "2026-11-12T05:56:23.645050+00:00",
+  "total_registros": 400,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7711,6 +7711,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T05:51:19.048946+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T05:50:00+00:00",
+      "id_sinal": 43164598809,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 37.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma estrutura de baixa consolidada em todos os timeframes (M5, M15, H1), com as EMAs alinhadas para venda. Embora o preço tenha apresentado uma leve reação de alta no candle atual, ele está contido abaixo de resistências imediatas (3980.16) e dentro de uma região de transição instável. A ausência de um setup matemático claro e a pressão vendedora estrutural sugerem cautela, não havendo gatilho técnico para entrada em nenhuma das direções.",
+      "atr14": 4.29913,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T05:56:23.645050+00:00"
     }
   ]
 }
