@@ -1,0 +1,97 @@
+
+name: Tabuleiro M5
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tabuleiro-m5
+  cancel-in-progress: false
+
+jobs:
+  tabuleiro:
+    name: Processar modulos do Tabuleiro
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Verificar arquivos de entrada
+        run: |
+          set -e
+
+          arquivos=(
+            data/tabuleiro_m5.csv
+            data/contexto_tabuleiro_m5.json
+            data/historico_velas_m5.csv
+          )
+
+          for arquivo in "${arquivos[@]}"; do
+            if [ ! -s "$arquivo" ]; then
+              echo "::error::Entrada ausente: $arquivo"
+              exit 1
+            fi
+          done
+
+      - name: 1 - Preparar entrega do Tabuleiro
+        run: python -u banco_dados_tabuleiro.py
+
+      - name: 2 - Detectar bordas
+        run: python -u detector_bordas_m5.py
+
+      - name: 3 - Processar estatisticas
+        run: python -u processador_estatistico_m5.py
+
+      - name: 4 - Identificar sequencias
+        run: python -u sequenciador_tabuleiro_m5.py
+
+      - name: 5 - Avaliar resultados
+        run: python -u avaliador_resultados_m5.py
+
+      - name: 6 - Gerar relatorio
+        run: python -u relatorio_tabuleiro_m5.py
+
+      - name: 7 - Preparar contexto do Acompanhador
+        run: python -u preparar_contexto_acompanhador.py
+
+      - name: Publicar entregas
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabuleiro-m5-entregas
+          path: |
+            data/entrega_tabuleiro_m5.csv
+            data/controle_tabuleiro_m5.json
+            data/eventos_bordas_m5.csv
+            data/estatisticas_regioes_m5.csv
+            data/transicoes_probabilidade_m5.csv
+            data/resumo_estatistico_m5.json
+            data/sequencias_provaveis_m5.csv
+            data/proximas_regioes_m5.json
+            data/resultados_eventos_m5.csv
+            data/resumo_resultados_m5.csv
+            data/relatorio_tabuleiro_m5.json
+            data/relatorio_geral_tabuleiro_m5.csv
+            data/contexto_inteligente_acompanhador.json
+          if-no-files-found: error
+          retention-days: 30
