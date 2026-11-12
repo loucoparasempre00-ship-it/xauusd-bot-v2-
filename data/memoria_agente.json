@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T03:51:22.617651+00:00",
-  "total_registros": 378,
+  "atualizado_utc": "2026-11-12T03:56:10.456516+00:00",
+  "total_registros": 379,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7207,6 +7207,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T03:51:22.617651+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T03:50:00+00:00",
+      "id_sinal": 43151389875,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em um momento de indecisão técnica. Embora a estrutura de prazos maiores (M5, M15, H1) indique uma tendência de baixa, o preço atual de 3982.389 está operando exatamente em uma zona de transição entre suportes e resistências imediatas (3981.09 - 3983.82). A ausência de volume validado (VWAP indisponível) e a proximidade das EMAs 6 e 20 sugerem uma consolidação de curto prazo. Não há força direcional clara para justificar uma entrada, sendo prudente aguardar o rompimento da região de 3984.85 para uma possível continuação de alta ou a perda definitiva de 3977.40 para retomar a tendência de baixa.",
+      "atr14": 3.9146,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T03:56:10.456516+00:00"
     }
   ]
 }
