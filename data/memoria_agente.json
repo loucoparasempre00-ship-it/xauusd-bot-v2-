@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T08:21:33.429186+00:00",
-  "total_registros": 429,
+  "atualizado_utc": "2026-11-12T08:26:21.633001+00:00",
+  "total_registros": 430,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8431,6 +8431,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T08:21:33.429186+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T08:20:00+00:00",
+      "id_sinal": 43182812894,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3952.92,
+      "stop": 3959.111,
+      "stop_loss": 3959.111,
+      "gain": 3943.633,
+      "take_profit": 3943.633,
+      "confianca": 85,
+      "pontuacao_final": 96.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 96.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento de tendência de baixa em todos os tempos gráficos (M5, M15, H1). O preço atual de 3952.92 está operando abaixo das EMAs de curto prazo, confirmando a pressão vendedora. A estrutura de topos e fundos descendentes é clara, e o rompimento recente de fundos reforça o impulso. A região de suporte relevante mais próxima está situada em 3945.66, o que oferece espaço técnico para a continuidade do movimento de queda antes de encontrar uma zona de maior liquidez ou exaustão.",
+      "atr14": 4.12736,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T08:26:21.633001+00:00"
     }
   ]
 }
