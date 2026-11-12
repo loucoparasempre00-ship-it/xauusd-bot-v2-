@@ -1,5 +1,7 @@
+
 import csv
 import json
+import math
 import os
 from datetime import datetime, timezone
 from collections import defaultdict
@@ -18,7 +20,12 @@ DIFERENCA_MINIMA = 2
 
 
 def numero(valor):
-    return float(str(valor).strip().replace(",", "."))
+    resultado = float(str(valor).strip().replace(",", "."))
+
+    if not math.isfinite(resultado):
+        raise ValueError("Valor numérico inválido.")
+
+    return resultado
 
 
 def ler_data(valor):
@@ -35,6 +42,7 @@ def ler_data(valor):
         data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
     except ValueError:
         data = None
+
         for formato in formatos:
             try:
                 data = datetime.strptime(valor, formato)
@@ -73,7 +81,7 @@ def carregar_candles():
     if not os.path.exists(ARQUIVO_ENTRADA):
         raise FileNotFoundError(
             f"Arquivo não encontrado: {ARQUIVO_ENTRADA}. "
-            "Execute primeiro o filtro de candles fechados."
+            "Execute primeiro a coleta e o filtro de candles fechados."
         )
 
     with open(
@@ -119,6 +127,14 @@ def carregar_candles():
                 }
 
                 if (
+                    candle["open"] <= 0
+                    or candle["high"] <= 0
+                    or candle["low"] <= 0
+                    or candle["close"] <= 0
+                ):
+                    continue
+
+                if (
                     candle["high"] < candle["low"]
                     or candle["high"] < max(
                         candle["open"], candle["close"]
@@ -138,6 +154,7 @@ def carregar_candles():
 
     # Remove registros repetidos pelo horário.
     unicos = {}
+
     for candle in candles:
         unicos[candle["tempo"]] = candle
 
@@ -291,7 +308,6 @@ def avaliar_tendencia(candles):
 def analisar(candles):
     fechamentos = [c["close"] for c in candles]
     atual = candles[-1]
-    anterior = candles[-2]
 
     tendencia_m5 = avaliar_tendencia(candles)
 
@@ -308,7 +324,6 @@ def analisar(candles):
         raise ValueError("Não foi possível calcular ATR ou RSI.")
 
     corpo = abs(atual["close"] - atual["open"])
-    amplitude = atual["high"] - atual["low"]
 
     impulso_alta = (
         atual["close"] > atual["open"]
