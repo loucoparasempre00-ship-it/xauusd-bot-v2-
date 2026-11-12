@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T09:12:19.385403+00:00",
-  "total_registros": 439,
+  "atualizado_utc": "2026-11-12T09:16:24.111977+00:00",
+  "total_registros": 440,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8671,6 +8671,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T09:12:19.385403+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T09:10:00+00:00",
+      "id_sinal": 43189868456,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma tendência de baixa consolidada em todos os timeframes (M5, M15, H1) com o preço operando abaixo das EMAs. Embora o RSI esteja em zona de sobrevenda (27.52), não há sinais técnicos de reversão ou exaustão do movimento vendedor. O preço está testando uma região de resistência imediata em 3932.36, e a estrutura de topos e fundos descendentes sugere que qualquer tentativa de compra é contra a tendência principal. A ausência de volume validado e a falta de um setup de entrada claro recomendam cautela e a manutenção da posição neutra.",
+      "atr14": 5.18343,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T09:16:24.111977+00:00"
     }
   ]
 }
