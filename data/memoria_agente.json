@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T06:56:27.154061+00:00",
-  "total_registros": 412,
+  "atualizado_utc": "2026-11-12T07:01:19.417803+00:00",
+  "total_registros": 413,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8023,6 +8023,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T06:56:27.154061+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T06:55:00+00:00",
+      "id_sinal": 43172094559,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3965.144,
+      "stop": 3971.27,
+      "stop_loss": 3971.27,
+      "gain": 3955.953,
+      "take_profit": 3955.953,
+      "confianca": 85,
+      "pontuacao_final": 71.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 71.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento baixista consistente em múltiplos tempos gráficos (M5, M15, H1). O preço atual de 3965.14 está operando abaixo das EMAs de curto prazo (EMA6 e EMA20), confirmando a pressão vendedora. O RSI em 32.73 indica espaço para continuidade do movimento antes de atingir condições de sobrevenda extrema. A estrutura de topos e fundos descendentes reforça a tendência de baixa, e o rompimento recente de fundos sugere que o momentum vendedor permanece dominante, com suporte relevante apenas na região de 3959.85.",
+      "atr14": 4.08466,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T07:01:19.417803+00:00"
     }
   ]
 }

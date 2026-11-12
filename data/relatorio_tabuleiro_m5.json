@@ -1,22 +1,22 @@
 {
-    "atualizado_em": "2026-11-12T06:56:26.750793+00:00",
+    "atualizado_em": "2026-11-12T07:01:19.257456+00:00",
     "diagnostico": {
         "estado": "DADOS_DISPONIVEIS",
         "velas": 5000,
-        "eventos": 5526,
+        "eventos": 5525,
         "eventos_avaliados": 5506,
         "regioes_analisadas": 182,
-        "transicoes_analisadas": 1088,
+        "transicoes_analisadas": 1087,
         "sequencias_calculadas": 0,
         "resumos_de_resultados": 6
     },
     "eventos": {
-        "REJEICAO_SUPERIOR": 901,
-        "ROMPIMENTO_BAIXA": 1148,
         "ROMPIMENTO_ALTA": 1058,
         "TOQUE_SUPERIOR": 712,
         "REJEICAO_INFERIOR": 943,
-        "TOQUE_INFERIOR": 764
+        "REJEICAO_SUPERIOR": 901,
+        "TOQUE_INFERIOR": 764,
+        "ROMPIMENTO_BAIXA": 1147
     },
     "melhores_regioes": [
         {
@@ -371,11 +371,11 @@
         {
             "evento": "REJEICAO_SUPERIOR",
             "amostras": 896,
-            "taxa_favoravel_05": 49.25,
-            "taxa_favoravel_10": 47.71,
+            "taxa_favoravel_05": 49.31,
+            "taxa_favoravel_10": 47.82,
             "favoraveis_05": 395,
-            "desfavoraveis_05": 405,
-            "ambiguos_05": 94
+            "desfavoraveis_05": 404,
+            "ambiguos_05": 95
         },
         {
             "evento": "ROMPIMENTO_ALTA",
@@ -388,27 +388,27 @@
         },
         {
             "evento": "ROMPIMENTO_BAIXA",
-            "amostras": 1144,
-            "taxa_favoravel_05": 49.5,
-            "taxa_favoravel_10": 49.51,
+            "amostras": 1143,
+            "taxa_favoravel_05": 49.55,
+            "taxa_favoravel_10": 49.55,
             "favoraveis_05": 500,
-            "desfavoraveis_05": 506,
+            "desfavoraveis_05": 505,
             "ambiguos_05": 134
         },
         {
             "evento": "TOQUE_INFERIOR",
-            "amostras": 759,
+            "amostras": 760,
             "taxa_favoravel_05": 46.15,
-            "taxa_favoravel_10": 45.43,
+            "taxa_favoravel_10": 45.37,
             "favoraveis_05": 318,
             "desfavoraveis_05": 364,
-            "ambiguos_05": 70
+            "ambiguos_05": 71
         },
         {
             "evento": "TOQUE_SUPERIOR",
             "amostras": 709,
             "taxa_favoravel_05": 55.33,
-            "taxa_favoravel_10": 52.93,
+            "taxa_favoravel_10": 53.08,
             "favoraveis_05": 348,
             "desfavoraveis_05": 274,
             "ambiguos_05": 80
