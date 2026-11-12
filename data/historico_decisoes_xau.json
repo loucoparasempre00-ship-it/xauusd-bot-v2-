@@ -7934,5 +7934,50 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T02:36:23.587615+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T02:35:00+00:00",
+    "id_sinal": 43143047567,
+    "decisao_final": "VENDA",
+    "pontuacao_final": 96.25,
+    "pontuacao_compra": 0.0,
+    "pontuacao_venda": 96.25,
+    "entrada": 3979.356,
+    "stop_loss": 3986.895,
+    "take_profit": 3968.049,
+    "atr14": 5.02566,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T02:35:00+00:00",
+      "decisao": "VENDA",
+      "confianca": 85,
+      "justificativa": "O mercado apresenta um alinhamento técnico robusto de baixa em todos os tempos gráficos (M5, M15, H1). O preço atual de 3979.35 está operando abaixo das EMAs de curto prazo e testando a zona de suporte imediato em 3977.77. A estrutura de topos descendentes recente confirma a pressão vendedora. Com o RSI em 40.86, ainda há espaço para continuidade do movimento antes de atingir condições de sobrevenda. A ausência de força compradora significativa nas transições históricas reforça a probabilidade de rompimento do suporte atual em direção aos alvos inferiores.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T02:35:00+00:00",
+      "direcao": "VENDA",
+      "pontuacao_compra": 0,
+      "pontuacao_venda": 6,
+      "diferenca": -6,
+      "motivos": [
+        "EMA9 abaixo da EMA21 no M5",
+        "Contexto M15 de baixa",
+        "Contexto H1 de baixa",
+        "Impulso vendedor",
+        "Rompimento da mínima recente",
+        "RSI favorável à venda"
+      ],
+      "preco": 3979.356,
+      "atr_14": 4.819,
+      "tendencia_m5": "BAIXA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T02:41:20.567260+00:00"
   }
 ]
