@@ -1,6 +1,6 @@
 {
     "versao": "1.0",
-    "atualizado_em": "2026-11-12T04:41:14.382655+00:00",
+    "atualizado_em": "2026-11-12T04:45:17.300892+00:00",
     "metodo": {
         "eixo_x": "Uma posição por vela M5 em ordem cronológica",
         "eixo_y": "Faixas fixas de preço",
@@ -10,17 +10,17 @@
         "volume": "Não utilizado"
     },
     "diagnostico": {
-        "total_velas": 5000,
+        "total_velas": 5001,
         "total_regioes": 182,
-        "total_transicoes": 1078,
+        "total_transicoes": 1080,
         "minimo_amostras": 10
     },
     "mercado_atual": {
-        "timestamp": "2026-11-12 04:35:00",
-        "eixo_x": 4999,
-        "preco": 3974.89653,
-        "atr": 3.72169,
-        "direcao_vela": "ALTA",
+        "timestamp": "2026-11-12 04:40:00",
+        "eixo_x": 5000,
+        "preco": 3974.6549,
+        "atr": 3.44561,
+        "direcao_vela": "BAIXA",
         "regiao": 2649,
         "limite_inferior": 3973.5,
         "limite_superior": 3975.0,
@@ -31,24 +31,32 @@
             "origem": 2649,
             "destino": 2653,
             "transicoes": 2,
-            "saidas_origem": 4,
-            "probabilidade": 50.0,
+            "saidas_origem": 5,
+            "probabilidade": 40.0,
             "amostra_suficiente": false
         },
         {
             "origem": 2649,
             "destino": 2648,
             "transicoes": 1,
-            "saidas_origem": 4,
-            "probabilidade": 25.0,
+            "saidas_origem": 5,
+            "probabilidade": 20.0,
+            "amostra_suficiente": false
+        },
+        {
+            "origem": 2649,
+            "destino": 2650,
+            "transicoes": 1,
+            "saidas_origem": 5,
+            "probabilidade": 20.0,
             "amostra_suficiente": false
         },
         {
             "origem": 2649,
             "destino": 2651,
             "transicoes": 1,
-            "saidas_origem": 4,
-            "probabilidade": 25.0,
+            "saidas_origem": 5,
+            "probabilidade": 20.0,
             "amostra_suficiente": false
         }
     ],
