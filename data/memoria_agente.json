@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:41:18.771957+00:00",
-  "total_registros": 352,
+  "atualizado_utc": "2026-11-12T01:46:10.296180+00:00",
+  "total_registros": 353,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6583,6 +6583,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:41:18.771957+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:40:00+00:00",
+      "id_sinal": 43136684886,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 65,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 50.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o setup matemático e o contexto técnico indiquem uma pressão vendedora, o preço está operando em uma zona de suporte imediato (3985.28 - 3986.88) e a tendência estrutural no M5 e M15 permanece de alta. O preço atual de 3987.10 está logo abaixo de uma resistência densa (3987.39 - 3989.46), criando um cenário de compressão. A falta de alinhamento entre o H1 (baixa) e os tempos menores (alta) sugere cautela, sendo prudente aguardar um rompimento claro do suporte de 3985 ou uma falha de topo para confirmar a reversão.",
+      "atr14": 4.76583,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:46:10.296180+00:00"
     }
   ]
 }
