@@ -2,9 +2,9 @@
 name: Organizador XAUUSD
 
 on:
-  workflow_run:
+    workflow_run:
     workflows:
-      - "Condutor de Operacoes XAUUSD"
+      - "Memoria Persistente XAUUSD"
     types:
       - completed
 
