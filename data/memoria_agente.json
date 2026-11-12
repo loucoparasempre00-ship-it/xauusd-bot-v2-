@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T07:36:17.478585+00:00",
-  "total_registros": 420,
+  "atualizado_utc": "2026-11-12T07:41:47.322715+00:00",
+  "total_registros": 421,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8215,6 +8215,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T07:36:17.478585+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T07:35:00+00:00",
+      "id_sinal": 43177031467,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3958.59,
+      "stop": 3966.052,
+      "stop_loss": 3966.052,
+      "gain": 3947.397,
+      "take_profit": 3947.397,
+      "confianca": 85,
+      "pontuacao_final": 71.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 71.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta uma estrutura de baixa consolidada em todos os tempos gráficos (M5, M15, H1). O preço rompeu fundos recentes e encontra-se abaixo das EMAs de curto prazo, confirmando a pressão vendedora. Embora o preço esteja testando uma região de suporte imediato, a tendência macro e o alinhamento dos indicadores técnicos favorecem a continuação do movimento de queda. A ausência de sinais de reversão ou exaustão sugere que qualquer repique é uma oportunidade de venda em níveis mais altos.",
+      "atr14": 4.97478,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T07:41:47.322715+00:00"
     }
   ]
 }
