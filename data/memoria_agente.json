@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T06:46:24.741654+00:00",
-  "total_registros": 410,
+  "atualizado_utc": "2026-11-12T06:51:43.347701+00:00",
+  "total_registros": 411,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7975,6 +7975,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T06:46:24.741654+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T06:45:00+00:00",
+      "id_sinal": 43170960407,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3969.636,
+      "stop": 3976.529,
+      "stop_loss": 3976.529,
+      "gain": 3959.296,
+      "take_profit": 3959.296,
+      "confianca": 85,
+      "pontuacao_final": 96.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 96.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de baixa em todos os tempos gráficos (M5, M15, H1). O preço rompeu suportes estruturais recentes e encontra-se abaixo das EMAs de curto prazo, confirmando a pressão vendedora. A proximidade com a região de suporte em 3969.0 sugere uma possível pausa momentânea, mas o momentum atual favorece a continuidade do movimento de queda em direção aos alvos inferiores.",
+      "atr14": 4.59551,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T06:51:43.347701+00:00"
     }
   ]
 }
