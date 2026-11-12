@@ -1,38 +1,39 @@
 {
   "ativo": "XAUUSD",
-  "gerado_utc": "2026-11-12T03:41:17.314370+00:00",
-  "candle_utc": "2026-11-12T03:35:00+00:00",
+  "gerado_utc": "2026-11-12T03:46:27.488126+00:00",
+  "candle_utc": "2026-11-12T03:40:00+00:00",
   "grafico": {
     "versao": "3.0",
-    "gerado_utc": "2026-11-12T03:41:16.814380+00:00",
+    "gerado_utc": "2026-11-12T03:46:27.046664+00:00",
     "ativo": "XAUUSD",
-    "candle_utc": "2026-11-12T03:35:00+00:00",
-    "preco_atual": 3980.945,
+    "candle_utc": "2026-11-12T03:40:00+00:00",
+    "preco_atual": 3977.887,
     "validacao_temporal": {
-      "candle_tecnico": "2026-11-12T03:35:00+00:00",
-      "candle_tabuleiro": "2026-11-12 03:35:00",
+      "candle_tecnico": "2026-11-12T03:40:00+00:00",
+      "candle_tabuleiro": "2026-11-12 03:40:00",
       "coincidem": true
     },
     "contexto_tecnico": {
       "ativo": "XAUUSD",
       "timeframe": "M5",
-      "candle_utc": "2026-11-12T03:35:00+00:00",
-      "preco": 3980.945,
+      "candle_utc": "2026-11-12T03:40:00+00:00",
+      "preco": 3977.887,
       "decisao": "VENDA",
       "pontuacao_compra": 0,
-      "pontuacao_venda": 4,
+      "pontuacao_venda": 5,
       "tendencia_m5": "BAIXA",
       "tendencia_m15": "BAIXA",
       "tendencia_h1": "BAIXA",
-      "rsi_14": 46.69,
-      "atr_14": 4.095,
-      "stop": 3985.04,
-      "alvo": 3974.802,
+      "rsi_14": 42.43,
+      "atr_14": 4.138,
+      "stop": 3982.025,
+      "alvo": 3971.68,
       "relacao_risco_retorno": "1:1.5",
       "motivos": [
         "EMA9 abaixo da EMA21 no M5",
         "Contexto M15 de baixa",
         "Contexto H1 de baixa",
+        "Impulso vendedor",
         "RSI favorável à venda"
       ],
       "envio_telegram": false,
@@ -42,14 +43,14 @@
     },
     "contexto_matematico": {
       "timeframe": "M5",
-      "preco": 3980.94465,
+      "preco": 3977.88711,
       "indicadores": {
-        "ema6": 3980.87523,
-        "ema20": 3982.25845,
+        "ema6": 3979.81388,
+        "ema20": 3981.75448,
         "alinhamento_emas": "BAIXA",
-        "macd_linha": -1.50764,
-        "macd_sinal": -1.56557,
-        "macd_histograma": 0.05793,
+        "macd_linha": -1.73279,
+        "macd_sinal": -1.612,
+        "macd_histograma": -0.12079,
         "consolidacao": false,
         "vwap": null,
         "vwap_status": "INDISPONIVEL_SEM_VOLUME_VALIDO"
@@ -58,80 +59,74 @@
         "tendencia_estrutural": "ALTA",
         "ultimos_topos": [
           {
-            "indice": 4944,
-            "preco": 3994.88655,
-            "timestamp": "2026-11-11T23:00:00+00:00"
-          },
-          {
-            "indice": 4954,
+            "indice": 4953,
             "preco": 3984.06375,
             "timestamp": "2026-11-11T23:50:00+00:00"
           },
           {
-            "indice": 4972,
+            "indice": 4971,
             "preco": 4000.93773,
             "timestamp": "2026-11-12T01:20:00+00:00"
           },
           {
-            "indice": 4984,
+            "indice": 4983,
             "preco": 3990.10454,
             "timestamp": "2026-11-12T02:20:00+00:00"
           },
           {
-            "indice": 4990,
+            "indice": 4989,
             "preco": 3982.79433,
             "timestamp": "2026-11-12T02:50:00+00:00"
           },
           {
-            "indice": 4993,
+            "indice": 4992,
             "preco": 3983.74632,
             "timestamp": "2026-11-12T03:05:00+00:00"
+          },
+          {
+            "indice": 4997,
+            "preco": 3984.85754,
+            "timestamp": "2026-11-12T03:30:00+00:00"
           }
         ],
         "ultimos_fundos": [
           {
-            "indice": 4942,
+            "indice": 4941,
             "preco": 3987.39982,
             "timestamp": "2026-11-11T22:50:00+00:00"
           },
           {
-            "indice": 4958,
+            "indice": 4957,
             "preco": 3969.04148,
             "timestamp": "2026-11-12T00:10:00+00:00"
           },
           {
-            "indice": 4963,
+            "indice": 4962,
             "preco": 3980.52404,
             "timestamp": "2026-11-12T00:35:00+00:00"
           },
           {
-            "indice": 4978,
+            "indice": 4977,
             "preco": 3977.96954,
             "timestamp": "2026-11-12T01:50:00+00:00"
           },
           {
-            "indice": 4988,
+            "indice": 4987,
             "preco": 3974.87877,
             "timestamp": "2026-11-12T02:40:00+00:00"
           },
           {
-            "indice": 4996,
+            "indice": 4995,
             "preco": 3977.40832,
             "timestamp": "2026-11-12T03:20:00+00:00"
           }
         ],
         "suportes_proximos": [
           {
-            "minimo": 3980.01364,
-            "maximo": 3980.52404,
-            "quantidade": 3,
-            "centro": 3980.26884
-          },
-          {
             "minimo": 3977.40832,
-            "maximo": 3977.96954,
-            "quantidade": 3,
-            "centro": 3977.68893
+            "maximo": 3977.58455,
+            "quantidade": 2,
+            "centro": 3977.49644
           },
           {
             "minimo": 3974.72078,
@@ -144,14 +139,26 @@
             "maximo": 3969.04148,
             "quantidade": 1,
             "centro": 3969.04148
+          },
+          {
+            "minimo": 3965.89332,
+            "maximo": 3967.27671,
+            "quantidade": 3,
+            "centro": 3966.58502
           }
         ],
         "resistencias_proximas": [
           {
+            "minimo": 3979.30002,
+            "maximo": 3979.30002,
+            "quantidade": 1,
+            "centro": 3979.30002
+          },
+          {
             "minimo": 3981.8428,
-            "maximo": 3984.06375,
-            "quantidade": 5,
-            "centro": 3982.95327
+            "maximo": 3984.85754,
+            "quantidade": 6,
+            "centro": 3983.35017
           },
           {
             "minimo": 3986.28717,
@@ -164,12 +171,6 @@
             "maximo": 3996.004,
             "quantidade": 17,
             "centro": 3994.72737
-          },
-          {
-            "minimo": 3998.73748,
-            "maximo": 3999.09312,
-            "quantidade": 3,
-            "centro": 3998.9153
           }
         ],
         "rompimentos": [],
@@ -185,15 +186,6 @@
       "total_candles_historico": 5000,
       "candles_exibidos": 240,
       "serie": [
-        {
-          "timestamp": "2026-11-11T07:40:00+00:00",
-          "open": 4063.5397,
-          "high": 4063.5397,
-          "low": 4061.24355,
-          "close": 4062.35721,
-          "ema9": 4062.53867,
-          "ema21": 4060.3677
-        },
         {
           "timestamp": "2026-11-11T07:45:00+00:00",
           "open": 4062.20287,
@@ -2340,16 +2332,25 @@
           "timestamp": "2026-11-12T03:35:00+00:00",
           "open": 3982.40298,
           "high": 3982.40298,
-          "low": 3980.66793,
-          "close": 3980.94465,
-          "ema9": 3981.02735,
-          "ema21": 3982.36408
+          "low": 3979.47908,
+          "close": 3979.9274,
+          "ema9": 3980.8239,
+          "ema21": 3982.2716
+        },
+        {
+          "timestamp": "2026-11-12T03:40:00+00:00",
+          "open": 3980.84005,
+          "high": 3980.84005,
+          "low": 3977.25013,
+          "close": 3977.88711,
+          "ema9": 3980.23654,
+          "ema21": 3981.87301
         }
       ]
     },
     "estado_central": {
       "disponivel": true,
-      "atualizado_em": "2026-11-12T03:41:15.394319+00:00",
+      "atualizado_em": "2026-11-12T03:46:25.078536+00:00",
       "idade_minutos": 0.0,
       "desatualizada": false,
       "horario_igual_ao_candle_atual": true
@@ -2366,59 +2367,51 @@
       "diagnostico": {
         "total_velas": 5000,
         "total_regioes": 182,
-        "total_transicoes": 1074,
+        "total_transicoes": 1075,
         "minimo_amostras": 10
       },
       "mercado_atual": {
-        "timestamp": "2026-11-12 03:35:00",
+        "timestamp": "2026-11-12 03:40:00",
         "eixo_x": 4999,
-        "preco": 3980.94465,
-        "atr": 4.12719,
+        "preco": 3977.88711,
+        "atr": 4.03934,
         "direcao_vela": "BAIXA",
-        "regiao": 2653,
-        "limite_inferior": 3979.5,
-        "limite_superior": 3981.0,
-        "visitas_regiao": 11
+        "regiao": 2651,
+        "limite_inferior": 3976.5,
+        "limite_superior": 3978.0,
+        "visitas_regiao": 5
       },
       "transicoes_historicas": [
         {
-          "origem": 2653,
-          "destino": 2654,
-          "transicoes": 4,
-          "saidas_origem": 9,
-          "probabilidade": 44.44,
+          "origem": 2651,
+          "destino": 2644,
+          "transicoes": 1,
+          "saidas_origem": 4,
+          "probabilidade": 25.0,
           "amostra_suficiente": false
         },
         {
-          "origem": 2653,
+          "origem": 2651,
+          "destino": 2648,
+          "transicoes": 1,
+          "saidas_origem": 4,
+          "probabilidade": 25.0,
+          "amostra_suficiente": false
+        },
+        {
+          "origem": 2651,
           "destino": 2652,
-          "transicoes": 2,
-          "saidas_origem": 9,
-          "probabilidade": 22.22,
+          "transicoes": 1,
+          "saidas_origem": 4,
+          "probabilidade": 25.0,
           "amostra_suficiente": false
         },
         {
-          "origem": 2653,
-          "destino": 2649,
+          "origem": 2651,
+          "destino": 2654,
           "transicoes": 1,
-          "saidas_origem": 9,
-          "probabilidade": 11.11,
-          "amostra_suficiente": false
-        },
-        {
-          "origem": 2653,
-          "destino": 2650,
-          "transicoes": 1,
-          "saidas_origem": 9,
-          "probabilidade": 11.11,
-          "amostra_suficiente": false
-        },
-        {
-          "origem": 2653,
-          "destino": 2655,
-          "transicoes": 1,
-          "saidas_origem": 9,
-          "probabilidade": 11.11,
+          "saidas_origem": 4,
+          "probabilidade": 25.0,
           "amostra_suficiente": false
         }
       ]
@@ -2440,37 +2433,38 @@
   "decisao_atual": {
     "ativo": "XAUUSD",
     "timeframe": "M5",
-    "candle_utc": "2026-11-12T03:35:00+00:00",
+    "candle_utc": "2026-11-12T03:40:00+00:00",
     "decisao_final": "VENDA",
-    "pontuacao_final": 66.25,
+    "pontuacao_final": 78.75,
     "pontuacao_compra": 0.0,
-    "pontuacao_venda": 66.25,
+    "pontuacao_venda": 78.75,
     "setup_matematico": {
       "ativo": "XAUUSD",
       "timeframe": "M5",
-      "candle_utc": "2026-11-12T03:35:00+00:00",
+      "candle_utc": "2026-11-12T03:40:00+00:00",
       "direcao": "VENDA",
       "pontuacao_compra": 0,
-      "pontuacao_venda": 4,
-      "diferenca": -4,
+      "pontuacao_venda": 5,
+      "diferenca": -5,
       "motivos": [
         "EMA9 abaixo da EMA21 no M5",
         "Contexto M15 de baixa",
         "Contexto H1 de baixa",
+        "Impulso vendedor",
         "RSI favorável à venda"
       ],
-      "preco": 3980.945,
-      "atr_14": 4.095,
+      "preco": 3977.887,
+      "atr_14": 4.138,
       "tendencia_m5": "BAIXA",
       "tendencia_m15": "BAIXA",
       "tendencia_h1": "BAIXA"
     },
     "avaliacao_gemini": {
       "ativo": "XAUUSD",
-      "candle_utc": "2026-11-12T03:35:00+00:00",
+      "candle_utc": "2026-11-12T03:40:00+00:00",
       "decisao": "VENDA",
       "confianca": 65,
-      "justificativa": "O mercado apresenta um alinhamento de baixa consistente nos tempos gráficos maiores (M15 e H1), corroborado pela posição das EMAs no M5. O preço está testando uma região de suporte imediato (3980.01 - 3980.52), mas a pressão vendedora recente e o alinhamento das médias sugerem maior probabilidade de continuidade do movimento de baixa após a consolidação atual. A falta de volume validado e a amostra pequena de transições exigem cautela, mas a estrutura técnica favorece a venda.",
+      "justificativa": "O mercado apresenta um alinhamento de baixa consistente nos tempos gráficos M5, M15 e H1, com as EMAs no M5 confirmando a pressão vendedora. O preço atual está testando uma região de suporte imediato (3977.49), mas a estrutura de topos descendentes recentes sugere que o impulso vendedor ainda tem espaço para buscar o próximo nível de suporte em 3974.80. A ausência de força compradora significativa e o alinhamento das médias móveis reforçam a continuidade do movimento de baixa.",
       "modelo_utilizado": "models/gemini-3.1-flash-lite",
       "status": "disponivel"
     },
@@ -2480,17 +2474,17 @@
       "gemini": 25.0
     },
     "limiar": 40.0,
-    "atr14": 4.12719,
+    "atr14": 4.03934,
     "multiplicador_atr_stop": 1.5,
     "rr": 1.5,
-    "entrada": 3980.945,
-    "stop_loss": 3987.135,
-    "take_profit": 3971.658,
-    "distancia_stop": 6.191,
-    "distancia_alvo": 9.286,
+    "entrada": 3977.887,
+    "stop_loss": 3983.946,
+    "take_profit": 3968.799,
+    "distancia_stop": 6.059,
+    "distancia_alvo": 9.089,
     "envio_telegram": true,
     "execucao_ordens": false,
-    "id_sinal": 43149774866
+    "id_sinal": 43150317112
   },
   "operacoes_abertas": [
     {
@@ -2540,6 +2534,22 @@
       "resultado_r": "",
       "horario_resultado_utc": "",
       "motivo": "O mercado apresenta um alinhamento claro de tendência de baixa em todos os timeframes (M5, M15, H1). O preço atual de 3980.21 está abaixo das EMAs de curto prazo (EMA6 e EMA20), confirmando a pressão vendedora. A estrutura de topos e fundos descendentes reforça o movimento, e o preço está testando uma região de suporte imediato (3980.01-3980.09), cuja perda deve acelerar o movimento em direção aos próximos alvos estruturais em 3977.77 e 3974.80. O RSI em 44.42 ainda permite espaço para desvalorização sem entrar em zona de sobrevenda extrema."
+    },
+    {
+      "id_sinal": "4dd90d10a88167b6a0d6",
+      "tipo_avaliacao": "REAL",
+      "origem": "SINAL_REAL",
+      "horario_sinal_utc": "2026-11-12T03:40:00+00:00",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "direcao": "VENDA",
+      "entrada": "3977.88700",
+      "stop": "3983.94600",
+      "alvo": "3968.79900",
+      "status": "EM_ABERTO",
+      "resultado_r": "",
+      "horario_resultado_utc": "",
+      "motivo": "O mercado apresenta um alinhamento de baixa consistente nos tempos gráficos M5, M15 e H1, com as EMAs no M5 confirmando a pressão vendedora. O preço atual está testando uma região de suporte imediato (3977.49), mas a estrutura de topos descendentes recentes sugere que o impulso vendedor ainda tem espaço para buscar o próximo nível de suporte em 3974.80. A ausência de força compradora significativa e o alinhamento das médias móveis reforçam a continuidade do movimento de baixa."
     },
     {
       "id_sinal": "788e3ebed1e71b7dc80b",
@@ -2688,14 +2698,14 @@
   ],
   "ranking": {
     "ativo": "XAUUSD",
-    "atualizado_utc": "2026-11-12T03:41:17.312165+00:00",
+    "atualizado_utc": "2026-11-12T03:46:27.484613+00:00",
     "criterio": "Somente sinais reais avaliados por candles M5 fechados.",
     "geral": {
-      "total": 216,
+      "total": 217,
       "alvos": 87,
       "stops": 107,
       "ambiguos": 5,
-      "em_aberto": 12,
+      "em_aberto": 13,
       "taxa_acerto_percentual": 44.85,
       "resultado_r_acumulado": 23.5
     },
@@ -2710,11 +2720,11 @@
         "resultado_r_acumulado": -6.0
       },
       "VENDA": {
-        "total": 165,
+        "total": 166,
         "alvos": 71,
         "stops": 77,
         "ambiguos": 5,
-        "em_aberto": 12,
+        "em_aberto": 13,
         "taxa_acerto_percentual": 47.97,
         "resultado_r_acumulado": 29.5
       }
@@ -3388,6 +3398,16 @@
       "entrada": "3980.21000",
       "stop": "3987.63700",
       "alvo": "3969.07000",
+      "status": "EM_ABERTO",
+      "resultado_r": ""
+    },
+    {
+      "id_sinal": "4dd90d10a88167b6a0d6",
+      "candle_utc": "2026-11-12T03:40:00+00:00",
+      "direcao": "VENDA",
+      "entrada": "3977.88700",
+      "stop": "3983.94600",
+      "alvo": "3968.79900",
       "status": "EM_ABERTO",
       "resultado_r": ""
     },
