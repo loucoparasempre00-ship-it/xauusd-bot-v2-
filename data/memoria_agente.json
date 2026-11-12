@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T00:36:17.245649+00:00",
-  "total_registros": 340,
+  "atualizado_utc": "2026-11-12T00:41:20.728517+00:00",
+  "total_registros": 341,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6295,6 +6295,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T00:36:17.245649+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T00:35:00+00:00",
+      "id_sinal": 43129010999,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma clara tendência de baixa em todos os timeframes analisados (M5, M15, H1). Embora o preço esteja tentando uma leve recuperação técnica, ele permanece abaixo das resistências imediatas e as EMAs (6 e 20) confirmam o alinhamento baixista. A região atual (2655) apresenta transições incertas e a falta de volume validado (VWAP indisponível) torna qualquer entrada prematura. Não há força compradora suficiente para reverter a estrutura de topos e fundos descendentes, mas o preço atual está em uma zona de suporte intermediário, o que desaconselha uma venda a mercado neste momento exato.",
+      "atr14": 4.83135,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T00:41:20.728517+00:00"
     }
   ]
 }
