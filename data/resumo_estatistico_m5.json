@@ -1,7 +1,7 @@
 {
   "versao": 2,
   "modulo": "processador_estatistico_m5",
-  "atualizado_em": "2026-11-12T06:01:25.726926+00:00",
+  "atualizado_em": "2026-11-12T06:05:26.865385+00:00",
   "metodo": {
     "eixo_x": "Tempo cronológico M5",
     "eixo_y": "Regiões fixas de preço",
@@ -11,23 +11,23 @@
     "minimo_amostras": 20
   },
   "resumo": {
-    "total_velas": 5000,
+    "total_velas": 5001,
     "total_regioes": 182,
-    "total_visitas": 5000,
-    "total_eventos_borda": 5517,
-    "total_transicoes": 2817,
-    "regioes_com_amostra_suficiente": 111,
+    "total_visitas": 5001,
+    "total_eventos_borda": 5520,
+    "total_transicoes": 2818,
+    "regioes_com_amostra_suficiente": 112,
     "transicoes_com_amostra_suficiente": 457,
     "velas_descartadas": 0,
     "eventos_descartados": 0
   },
   "eventos": {
-    "TOQUE_INFERIOR": 761,
+    "TOQUE_INFERIOR": 763,
     "ROMPIMENTO_BAIXA": 1147,
     "ROMPIMENTO_ALTA": 1060,
     "TOQUE_SUPERIOR": 711,
     "REJEICAO_INFERIOR": 941,
-    "REJEICAO_SUPERIOR": 897
+    "REJEICAO_SUPERIOR": 898
   },
   "melhores_regioes_rejeicao": [
     {
@@ -211,24 +211,24 @@
       "toques_inferiores": 4
     },
     {
-      "regiao": 2733,
-      "limite_inferior": 4099.5,
-      "limite_superior": 4101.0,
+      "regiao": 2653,
+      "limite_inferior": 3979.5,
+      "limite_superior": 3981.0,
       "visitas": 15,
-      "toques": 3,
+      "toques": 4,
       "rejeicoes": 9,
-      "rompimentos": 11,
+      "rompimentos": 10,
       "prob_rejeicao": 0.3913,
-      "prob_rompimento": 0.4783,
+      "prob_rompimento": 0.4348,
       "limite_inferior_rejeicao": 0.2216,
       "amostras": 23,
       "amostra_suficiente": "SIM",
       "rejeicoes_superiores": 4,
       "rejeicoes_inferiores": 5,
       "rompimentos_alta": 5,
-      "rompimentos_baixa": 6,
-      "toques_superiores": 2,
-      "toques_inferiores": 1
+      "rompimentos_baixa": 5,
+      "toques_superiores": 1,
+      "toques_inferiores": 3
     }
   ],
   "transicoes_mais_frequentes": [
