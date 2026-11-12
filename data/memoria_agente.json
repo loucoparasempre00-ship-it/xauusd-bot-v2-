@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T11:22:40.649583+00:00",
-  "total_registros": 448,
+  "atualizado_utc": "2026-11-12T11:26:32.678818+00:00",
+  "total_registros": 449,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8887,6 +8887,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T11:22:40.649583+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T11:20:00+00:00",
+      "id_sinal": 43209052020,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma zona de compressão entre a resistência imediata em 3947.88 e o suporte em 3944.52. Embora a tendência estrutural no M5 seja de alta, o alinhamento de prazos maiores (M15 e H1) é de baixa, criando um conflito direcional. O preço está operando exatamente na região de transição 2631, sem força clara para romper a resistência superior ou confirmar um suporte robusto. A ausência de volume validado e a divergência entre a estrutura de curto prazo e a tendência macro sugerem cautela, justificando a manutenção da neutralidade até que ocorra um rompimento claro de um dos extremos da zona de consolidação atual.",
+      "atr14": 2.58431,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T11:26:32.678818+00:00"
     }
   ]
 }

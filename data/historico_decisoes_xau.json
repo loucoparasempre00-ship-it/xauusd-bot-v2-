@@ -11562,5 +11562,43 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T11:22:40.649583+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T11:20:00+00:00",
+    "id_sinal": 43209052020,
+    "decisao_final": "SEM_SINAL",
+    "pontuacao_final": 37.5,
+    "pontuacao_compra": 12.5,
+    "pontuacao_venda": 37.5,
+    "entrada": null,
+    "stop_loss": null,
+    "take_profit": null,
+    "atr14": 2.58431,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T11:20:00+00:00",
+      "decisao": "SEM_SINAL",
+      "confianca": 85,
+      "justificativa": "O mercado encontra-se em uma zona de compressão entre a resistência imediata em 3947.88 e o suporte em 3944.52. Embora a tendência estrutural no M5 seja de alta, o alinhamento de prazos maiores (M15 e H1) é de baixa, criando um conflito direcional. O preço está operando exatamente na região de transição 2631, sem força clara para romper a resistência superior ou confirmar um suporte robusto. A ausência de volume validado e a divergência entre a estrutura de curto prazo e a tendência macro sugerem cautela, justificando a manutenção da neutralidade até que ocorra um rompimento claro de um dos extremos da zona de consolidação atual.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T11:20:00+00:00",
+      "direcao": "SEM_SETUP",
+      "pontuacao_compra": 1,
+      "pontuacao_venda": 3,
+      "diferenca": -2,
+      "motivos": [],
+      "preco": 3947.649,
+      "atr_14": 3.28,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T11:26:32.678818+00:00"
   }
 ]
