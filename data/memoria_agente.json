@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T01:06:16.355900+00:00",
-  "total_registros": 346,
+  "atualizado_utc": "2026-11-12T01:11:21.349643+00:00",
+  "total_registros": 347,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6439,6 +6439,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T01:06:16.355900+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T01:05:00+00:00",
+      "id_sinal": 43132642276,
+      "sinal": "COMPRA",
+      "decisao": "COMPRA",
+      "decisao_final": "COMPRA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3996.013,
+      "stop": 3987.638,
+      "stop_loss": 3987.638,
+      "gain": 4008.575,
+      "take_profit": 4008.575,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 66.25,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O ativo apresenta um impulso de curto prazo no M5 com rompimento de topo recente e alinhamento altista das EMAs. Embora o contexto de H1 e M15 seja baixista, o preço está operando acima de suportes imediatos (3993.39) e mostra força compradora no MACD. A região atual (3996) é de transição, mas a pressão compradora justifica uma entrada técnica com alvo próximo à resistência de 4001.38, mantendo o stop abaixo da zona de suporte consolidada.",
+      "atr14": 5.58309,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T01:11:21.349643+00:00"
     }
   ]
 }

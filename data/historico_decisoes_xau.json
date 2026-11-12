@@ -7242,5 +7242,48 @@
     },
     "modelo_utilizado": "models/gemini-3.1-flash-lite",
     "registrado_utc": "2026-11-12T01:06:16.355900+00:00"
+  },
+  {
+    "candle_utc": "2026-11-12T01:05:00+00:00",
+    "id_sinal": 43132642276,
+    "decisao_final": "COMPRA",
+    "pontuacao_final": 66.25,
+    "pontuacao_compra": 66.25,
+    "pontuacao_venda": 25.0,
+    "entrada": 3996.013,
+    "stop_loss": 3987.638,
+    "take_profit": 4008.575,
+    "atr14": 5.58309,
+    "avaliacao_gemini": {
+      "ativo": "XAUUSD",
+      "candle_utc": "2026-11-12T01:05:00+00:00",
+      "decisao": "COMPRA",
+      "confianca": 65,
+      "justificativa": "O ativo apresenta um impulso de curto prazo no M5 com rompimento de topo recente e alinhamento altista das EMAs. Embora o contexto de H1 e M15 seja baixista, o preço está operando acima de suportes imediatos (3993.39) e mostra força compradora no MACD. A região atual (3996) é de transição, mas a pressão compradora justifica uma entrada técnica com alvo próximo à resistência de 4001.38, mantendo o stop abaixo da zona de suporte consolidada.",
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "status": "disponivel"
+    },
+    "setup_matematico": {
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "candle_utc": "2026-11-12T01:05:00+00:00",
+      "direcao": "COMPRA",
+      "pontuacao_compra": 4,
+      "pontuacao_venda": 2,
+      "diferenca": 2,
+      "motivos": [
+        "EMA9 acima da EMA21 no M5",
+        "Impulso comprador",
+        "Rompimento da máxima recente",
+        "RSI favorável à compra"
+      ],
+      "preco": 3996.013,
+      "atr_14": 4.443,
+      "tendencia_m5": "ALTA",
+      "tendencia_m15": "BAIXA",
+      "tendencia_h1": "BAIXA"
+    },
+    "modelo_utilizado": "models/gemini-3.1-flash-lite",
+    "registrado_utc": "2026-11-12T01:11:21.349643+00:00"
   }
 ]
