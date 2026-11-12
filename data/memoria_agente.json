@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T09:31:50.269178+00:00",
-  "total_registros": 443,
+  "atualizado_utc": "2026-11-12T09:36:27.353486+00:00",
+  "total_registros": 444,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8767,6 +8767,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T09:31:50.269178+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T09:30:00+00:00",
+      "id_sinal": 43192810179,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3940.267,
+      "stop": 3949.401,
+      "stop_loss": 3949.401,
+      "gain": 3926.565,
+      "take_profit": 3926.565,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 25.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de baixa clara nos tempos gráficos maiores (M15 e H1) e o preço atual está testando uma resistência imediata (3940.46-3940.73). Embora o preço tenha apresentado uma pequena reação de alta no candle atual, ele permanece abaixo da EMA20 (3942.54), confirmando a pressão vendedora. A falta de volume na VWAP e a amostra limitada de transições sugerem cautela, mas a confluência técnica aponta para a continuidade da tendência de baixa.",
+      "atr14": 6.08977,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T09:36:27.353486+00:00"
     }
   ]
 }
