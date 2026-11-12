@@ -1,7 +1,7 @@
 {
   "versao": 2,
   "modulo": "processador_estatistico_m5",
-  "atualizado_em": "2026-11-12T09:46:19.288735+00:00",
+  "atualizado_em": "2026-11-12T09:50:22.231504+00:00",
   "metodo": {
     "eixo_x": "Tempo cronológico M5",
     "eixo_y": "Regiões fixas de preço",
@@ -11,18 +11,18 @@
     "minimo_amostras": 20
   },
   "resumo": {
-    "total_velas": 5000,
+    "total_velas": 5001,
     "total_regioes": 182,
-    "total_visitas": 5000,
-    "total_eventos_borda": 5519,
-    "total_transicoes": 2826,
-    "regioes_com_amostra_suficiente": 114,
+    "total_visitas": 5001,
+    "total_eventos_borda": 5520,
+    "total_transicoes": 2827,
+    "regioes_com_amostra_suficiente": 115,
     "transicoes_com_amostra_suficiente": 434,
     "velas_descartadas": 0,
     "eventos_descartados": 0
   },
   "eventos": {
-    "ROMPIMENTO_ALTA": 1056,
+    "ROMPIMENTO_ALTA": 1057,
     "REJEICAO_INFERIOR": 939,
     "ROMPIMENTO_BAIXA": 1156,
     "REJEICAO_SUPERIOR": 898,
@@ -191,6 +191,26 @@
       "toques_inferiores": 4
     },
     {
+      "regiao": 2627,
+      "limite_inferior": 3940.5,
+      "limite_superior": 3942.0,
+      "visitas": 14,
+      "toques": 2,
+      "rejeicoes": 8,
+      "rompimentos": 10,
+      "prob_rejeicao": 0.4,
+      "prob_rompimento": 0.5,
+      "limite_inferior_rejeicao": 0.2188,
+      "amostras": 20,
+      "amostra_suficiente": "SIM",
+      "rejeicoes_superiores": 5,
+      "rejeicoes_inferiores": 3,
+      "rompimentos_alta": 3,
+      "rompimentos_baixa": 7,
+      "toques_superiores": 2,
+      "toques_inferiores": 0
+    },
+    {
       "regiao": 2744,
       "limite_inferior": 4116.0,
       "limite_superior": 4117.5,
@@ -209,26 +229,6 @@
       "rompimentos_baixa": 13,
       "toques_superiores": 3,
       "toques_inferiores": 9
-    },
-    {
-      "regiao": 2684,
-      "limite_inferior": 4026.0,
-      "limite_superior": 4027.5,
-      "visitas": 30,
-      "toques": 9,
-      "rejeicoes": 19,
-      "rompimentos": 20,
-      "prob_rejeicao": 0.3958,
-      "prob_rompimento": 0.4167,
-      "limite_inferior_rejeicao": 0.2702,
-      "amostras": 48,
-      "amostra_suficiente": "SIM",
-      "rejeicoes_superiores": 6,
-      "rejeicoes_inferiores": 13,
-      "rompimentos_alta": 13,
-      "rompimentos_baixa": 7,
-      "toques_superiores": 5,
-      "toques_inferiores": 4
     }
   ],
   "transicoes_mais_frequentes": [
