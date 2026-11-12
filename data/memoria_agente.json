@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T00:46:44.106458+00:00",
-  "total_registros": 342,
+  "atualizado_utc": "2026-11-12T00:51:13.429040+00:00",
+  "total_registros": 343,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6343,6 +6343,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T00:46:44.106458+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T00:45:00+00:00",
+      "id_sinal": 43130234834,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 45,
+      "pontuacao_final": 50.0,
+      "pontuacao_compra": 50.0,
+      "pontuacao_venda": 25.0,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "Embora o M5 apresente um impulso comprador de curto prazo com as EMAs alinhadas e RSI favorável, o contexto estrutural macro (M15 e H1) permanece em tendência de baixa. O preço atual está testando uma resistência imediata (3990.90) e encontra-se em uma região de transição com alta probabilidade de reversão ou lateralização (31.25% de chance de recuo para a região 2658). A divergência entre o impulso de curtíssimo prazo e a estrutura maior torna a operação de compra arriscada neste momento.",
+      "atr14": 5.4325,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T00:51:13.429040+00:00"
     }
   ]
 }
