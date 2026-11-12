@@ -1,21 +1,40 @@
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+AVALIADOR DE RESULTADOS M5 - TABULEIRO ESTAVEL
+
+Responsabilidades:
+- Ler as velas da matriz XY.
+- Ler os eventos do detector de bordas.
+- Avaliar o comportamento nas 12 velas seguintes.
+- Medir movimentos favoráveis e contrários.
+- Avaliar alvos de 0.5 ATR e 1.0 ATR.
+- Gerar arquivos de entrega para o Coletor.
+
+Não cria banco paralelo.
+Não grava diretamente nos bancos oficiais.
+"""
+
 import csv
-import os
+from collections import defaultdict
+from pathlib import Path
 from datetime import datetime, timezone
 
-ARQUIVO_VELAS = "data/tabuleiro_m5.csv"
-ARQUIVO_EVENTOS = "data/eventos_bordas_m5.csv"
 
-SAIDA = "data/resultados_eventos_m5.csv"
-RESUMO = "data/resumo_resultados_m5.csv"
+ROOT = Path(__file__).resolve().parent
+DATA = ROOT / "data"
 
-# Quantas velas fechadas serão observadas depois do evento.
+ARQUIVO_VELAS = DATA / "tabuleiro_m5.csv"
+ARQUIVO_EVENTOS = DATA / "eventos_bordas_m5.csv"
+
+SAIDA = DATA / "resultados_eventos_m5.csv"
+RESUMO = DATA / "resumo_resultados_m5.csv"
+
 HORIZONTE = 12
-
-# Distâncias de avaliação em ATR.
 ALVOS_ATR = [0.5, 1.0]
 
-# Relação entre evento e direção esperada.
 DIRECOES = {
     "REJEICAO_SUPERIOR": -1,
     "REJEICAO_INFERIOR": 1,
@@ -28,75 +47,185 @@ DIRECOES = {
 }
 
 
+def numero(valor, campo):
+    try:
+        return float(
+            str(valor).strip().replace(",", ".")
+        )
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"Valor inválido em {campo}: {valor}"
+        )
+
+
+def inteiro(valor, campo):
+    try:
+        return int(float(str(valor).strip()))
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"Valor inválido em {campo}: {valor}"
+        )
+
+
 def ler_csv(caminho):
-    if not os.path.exists(caminho):
+    if not caminho.is_file():
         raise FileNotFoundError(
             f"Arquivo não encontrado: {caminho}"
         )
 
-    with open(
-        caminho,
+    with caminho.open(
         "r",
         newline="",
         encoding="utf-8-sig"
     ) as arquivo:
-        return list(csv.DictReader(arquivo))
 
+        leitor = csv.DictReader(arquivo)
 
-def numero(valor, padrao=None):
-    try:
-        return float(str(valor).replace(",", "."))
-    except (ValueError, TypeError):
-        return padrao
+        if not leitor.fieldnames:
+            raise ValueError(
+                f"CSV sem cabeçalho: {caminho}"
+            )
 
-
-def campo(linha, nomes, padrao=None):
-    for nome in nomes:
-        valor = linha.get(nome)
-
-        if valor not in (None, ""):
-            return valor
-
-    return padrao
-
-
-def timestamp(linha):
-    return str(campo(
-        linha,
-        ["timestamp", "timestamp_utc"],
-        ""
-    ))
+        return list(leitor)
 
 
 def preparar_velas():
-    velas = ler_csv(ARQUIVO_VELAS)
+    registros = ler_csv(ARQUIVO_VELAS)
 
-    velas.sort(key=timestamp)
+    obrigatorias = [
+        "timestamp",
+        "eixo_x",
+        "eixo_y",
+        "open",
+        "high",
+        "low",
+        "close",
+        "atr",
+    ]
 
-    resultado = []
+    campos = list(registros[0].keys()) if registros else []
 
-    for vela in velas:
-        resultado.append({
-            "timestamp": timestamp(vela),
-            "open": numero(vela.get("open")),
-            "high": numero(vela.get("high")),
-            "low": numero(vela.get("low")),
-            "close": numero(vela.get("close")),
-            "atr": numero(vela.get("atr")),
-            "regiao": campo(
-                vela,
-                ["eixo_y", "regiao"],
-                ""
+    ausentes = [
+        nome for nome in obrigatorias
+        if nome not in campos
+    ]
+
+    if ausentes:
+        raise ValueError(
+            f"Colunas ausentes na matriz: {ausentes}"
+        )
+
+    por_tempo = {}
+
+    for linha in registros:
+        try:
+            momento = str(
+                linha["timestamp"] or ""
+            ).strip()
+
+            if not momento:
+                continue
+
+            vela = {
+                "timestamp": momento,
+                "eixo_x": inteiro(
+                    linha["eixo_x"], "eixo_x"
+                ),
+                "regiao": inteiro(
+                    linha["eixo_y"], "eixo_y"
+                ),
+                "open": numero(linha["open"], "open"),
+                "high": numero(linha["high"], "high"),
+                "low": numero(linha["low"], "low"),
+                "close": numero(linha["close"], "close"),
+                "atr": numero(linha["atr"], "atr"),
+            }
+
+            if vela["high"] < vela["low"]:
+                continue
+
+            if vela["atr"] <= 0:
+                continue
+
+            por_tempo[momento] = vela
+
+        except (ValueError, TypeError, KeyError):
+            continue
+
+    velas = sorted(
+        por_tempo.values(),
+        key=lambda item: item["eixo_x"]
+    )
+
+    if not velas:
+        raise ValueError(
+            "Nenhuma vela válida encontrada."
+        )
+
+    for anterior, atual in zip(velas, velas[1:]):
+        if atual["eixo_x"] <= anterior["eixo_x"]:
+            raise ValueError(
+                "Eixo X duplicado ou fora de ordem."
             )
-        })
 
-    return resultado
+    return velas
 
 
 def preparar_eventos():
-    eventos = ler_csv(ARQUIVO_EVENTOS)
+    registros = ler_csv(ARQUIVO_EVENTOS)
 
-    eventos.sort(key=timestamp)
+    eventos = []
+
+    for linha in registros:
+        try:
+            momento = str(
+                linha["timestamp"] or ""
+            ).strip()
+
+            tipo = str(
+                linha["evento"] or ""
+            ).strip().upper()
+
+            if not momento or tipo not in DIRECOES:
+                continue
+
+            evento = {
+                "timestamp": momento,
+                "evento": tipo,
+                "nivel_borda": numero(
+                    linha["nivel_borda"],
+                    "nivel_borda"
+                ),
+            }
+
+            # A região anterior é a região cuja borda
+            # foi testada pelo detector novo.
+            if linha.get("regiao_anterior") not in (
+                None, ""
+            ):
+                evento["regiao_borda"] = inteiro(
+                    linha["regiao_anterior"],
+                    "regiao_anterior"
+                )
+            else:
+                evento["regiao_borda"] = None
+
+            if linha.get("regiao_atual") not in (
+                None, ""
+            ):
+                evento["regiao_atual"] = inteiro(
+                    linha["regiao_atual"],
+                    "regiao_atual"
+                )
+            else:
+                evento["regiao_atual"] = None
+
+            eventos.append(evento)
+
+        except (ValueError, TypeError, KeyError):
+            continue
+
+    eventos.sort(key=lambda item: item["timestamp"])
 
     return eventos
 
@@ -117,12 +246,12 @@ def avaliar_alvo(
         alvo = entrada - distancia
         adverso = entrada + distancia
 
-    for indice, vela in enumerate(velas_futuras, start=1):
+    for indice, vela in enumerate(
+        velas_futuras,
+        start=1
+    ):
         maxima = vela["high"]
         minima = vela["low"]
-
-        if maxima is None or minima is None:
-            continue
 
         if direcao == 1:
             atingiu_alvo = maxima >= alvo
@@ -131,54 +260,45 @@ def avaliar_alvo(
             atingiu_alvo = minima <= alvo
             atingiu_adverso = maxima >= adverso
 
-        # Se os dois níveis forem atingidos na mesma vela,
-        # não sabemos qual ocorreu primeiro usando apenas OHLC.
+        # OHLC não informa qual nível foi atingido primeiro
+        # quando alvo e adverso aparecem na mesma vela.
         if atingiu_alvo and atingiu_adverso:
-            return {
-                "resultado": "AMBIGUO",
-                "velas": indice,
-                "preco_alvo": alvo,
-                "preco_adverso": adverso
-            }
+            resultado = "AMBIGUO"
 
-        if atingiu_alvo:
-            return {
-                "resultado": "FAVORAVEL",
-                "velas": indice,
-                "preco_alvo": alvo,
-                "preco_adverso": adverso
-            }
+        elif atingiu_alvo:
+            resultado = "FAVORAVEL"
 
-        if atingiu_adverso:
-            return {
-                "resultado": "DESFAVORAVEL",
-                "velas": indice,
-                "preco_alvo": alvo,
-                "preco_adverso": adverso
-            }
+        elif atingiu_adverso:
+            resultado = "DESFAVORAVEL"
+
+        else:
+            continue
+
+        return {
+            "resultado": resultado,
+            "velas": indice,
+            "preco_alvo": round(alvo, 5),
+            "preco_adverso": round(adverso, 5),
+        }
 
     return {
         "resultado": "NAO_ATINGIDO",
         "velas": len(velas_futuras),
-        "preco_alvo": alvo,
-        "preco_adverso": adverso
+        "preco_alvo": round(alvo, 5),
+        "preco_adverso": round(adverso, 5),
     }
 
 
 def avaliar_evento(evento, indice, velas):
-    tipo = campo(evento, ["event", "evento"], "")
-
-    direcao = DIRECOES.get(tipo)
-
-    if direcao is None:
-        return None
+    tipo = evento["evento"]
+    direcao = DIRECOES[tipo]
 
     vela_evento = velas[indice]
 
     entrada = vela_evento["close"]
     atr = vela_evento["atr"]
 
-    if entrada is None or atr is None or atr <= 0:
+    if atr <= 0:
         return None
 
     futuras = velas[
@@ -186,15 +306,12 @@ def avaliar_evento(evento, indice, velas):
         indice + 1 + HORIZONTE
     ]
 
-    if not futuras:
-        return None
-
-    # Somente eventos com horizonte completo são avaliados.
+    # Só avalia eventos que tenham as 12 velas seguintes.
     if len(futuras) < HORIZONTE:
         return None
 
-    melhor_movimento = 0
-    pior_movimento = 0
+    melhor_movimento = 0.0
+    pior_movimento = 0.0
 
     for vela in futuras:
         if direcao == 1:
@@ -203,9 +320,6 @@ def avaliar_evento(evento, indice, velas):
         else:
             favoravel = entrada - vela["low"]
             contrario = vela["high"] - entrada
-
-        if vela["high"] is None or vela["low"] is None:
-            continue
 
         melhor_movimento = max(
             melhor_movimento,
@@ -228,18 +342,33 @@ def avaliar_evento(evento, indice, velas):
             alvo
         )
 
-        resultados[f"resultado_{alvo}atr"] = (
+        chave = str(alvo).replace(".", "_")
+
+        resultados[f"resultado_{chave}atr"] = (
             avaliacao["resultado"]
         )
 
-        resultados[f"velas_{alvo}atr"] = (
+        resultados[f"velas_{chave}atr"] = (
             avaliacao["velas"]
         )
 
+        resultados[f"preco_alvo_{chave}atr"] = (
+            avaliacao["preco_alvo"]
+        )
+
+    regiao_borda = evento["regiao_borda"]
+
+    if regiao_borda is None:
+        regiao_borda = vela_evento["regiao"]
+
     registro = {
-        "timestamp_evento": timestamp(evento),
+        "timestamp_evento": evento["timestamp"],
         "tipo_evento": tipo,
-        "regiao": vela_evento["regiao"],
+        "regiao_borda": regiao_borda,
+        "regiao_fechamento": vela_evento["regiao"],
+        "nivel_borda": round(
+            evento["nivel_borda"], 5
+        ),
         "direcao_esperada": (
             "ALTA" if direcao == 1 else "BAIXA"
         ),
@@ -252,7 +381,7 @@ def avaliar_evento(evento, indice, velas):
         "maximo_contrario_atr": round(
             pior_movimento / atr, 4
         ),
-        "timestamp_fim": futuras[-1]["timestamp"]
+        "timestamp_fim": futuras[-1]["timestamp"],
     }
 
     registro.update(resultados)
@@ -261,31 +390,35 @@ def avaliar_evento(evento, indice, velas):
 
 
 def salvar_resultados(resultados):
-    os.makedirs("data", exist_ok=True)
-
     campos = [
         "timestamp_evento",
         "tipo_evento",
-        "regiao",
+        "regiao_borda",
+        "regiao_fechamento",
+        "nivel_borda",
         "direcao_esperada",
         "entrada",
         "atr_evento",
         "horizonte_velas",
         "maximo_favoravel_atr",
         "maximo_contrario_atr",
-        "resultado_0.5atr",
-        "velas_0.5atr",
-        "resultado_1.0atr",
-        "velas_1.0atr",
-        "timestamp_fim"
+        "resultado_0_5atr",
+        "velas_0_5atr",
+        "preco_alvo_0_5atr",
+        "resultado_1_0atr",
+        "velas_1_0atr",
+        "preco_alvo_1_0atr",
+        "timestamp_fim",
     ]
 
-    with open(
-        SAIDA,
+    DATA.mkdir(parents=True, exist_ok=True)
+
+    with SAIDA.open(
         "w",
         newline="",
         encoding="utf-8"
     ) as arquivo:
+
         escritor = csv.DictWriter(
             arquivo,
             fieldnames=campos
@@ -296,64 +429,64 @@ def salvar_resultados(resultados):
 
 
 def gerar_resumo(resultados):
-    grupos = {}
+    grupos = defaultdict(lambda: {
+        "eventos_avaliados": 0,
+        "favoravel_05": 0,
+        "desfavoravel_05": 0,
+        "ambiguo_05": 0,
+        "nao_atingido_05": 0,
+        "favoravel_10": 0,
+        "desfavoravel_10": 0,
+        "ambiguo_10": 0,
+        "nao_atingido_10": 0,
+    })
 
     for resultado in resultados:
         tipo = resultado["tipo_evento"]
-
-        if tipo not in grupos:
-            grupos[tipo] = {
-                "eventos_avaliados": 0,
-                "favoravel_05": 0,
-                "desfavoravel_05": 0,
-                "ambiguo_05": 0,
-                "nao_atingido_05": 0,
-                "favoravel_10": 0,
-                "desfavoravel_10": 0,
-                "ambiguo_10": 0,
-                "nao_atingido_10": 0
-            }
-
         grupo = grupos[tipo]
+
         grupo["eventos_avaliados"] += 1
 
-        for alvo, sufixo in [
-            ("0.5atr", "05"),
-            ("1.0atr", "10")
+        for chave_alvo, sufixo in [
+            ("0_5atr", "05"),
+            ("1_0atr", "10"),
         ]:
-            valor = resultado[f"resultado_{alvo}"]
+            valor = resultado[
+                f"resultado_{chave_alvo}"
+            ]
 
-            chave = {
+            coluna = {
                 "FAVORAVEL": f"favoravel_{sufixo}",
                 "DESFAVORAVEL": f"desfavoravel_{sufixo}",
                 "AMBIGUO": f"ambiguo_{sufixo}",
-                "NAO_ATINGIDO": f"nao_atingido_{sufixo}"
+                "NAO_ATINGIDO": f"nao_atingido_{sufixo}",
             }.get(valor)
 
-            if chave:
-                grupo[chave] += 1
+            if coluna:
+                grupo[coluna] += 1
 
-    with open(
-        RESUMO,
+    campos = [
+        "tipo_evento",
+        "eventos_avaliados",
+        "favoravel_05",
+        "desfavoravel_05",
+        "ambiguo_05",
+        "nao_atingido_05",
+        "favoravel_10",
+        "desfavoravel_10",
+        "ambiguo_10",
+        "nao_atingido_10",
+        "taxa_favoravel_05",
+        "taxa_favoravel_10",
+    ]
+
+    DATA.mkdir(parents=True, exist_ok=True)
+
+    with RESUMO.open(
         "w",
         newline="",
         encoding="utf-8"
     ) as arquivo:
-
-        campos = [
-            "tipo_evento",
-            "eventos_avaliados",
-            "favoravel_05",
-            "desfavoravel_05",
-            "ambiguo_05",
-            "nao_atingido_05",
-            "favoravel_10",
-            "desfavoravel_10",
-            "ambiguo_10",
-            "nao_atingido_10",
-            "taxa_favoravel_05",
-            "taxa_favoravel_10"
-        ]
 
         escritor = csv.DictWriter(
             arquivo,
@@ -374,51 +507,71 @@ def gerar_resumo(resultados):
             )
 
             taxa_05 = (
-                grupo["favoravel_05"] / avaliaveis_05 * 100
+                grupo["favoravel_05"]
+                / avaliaveis_05 * 100
                 if avaliaveis_05 else 0
             )
 
             taxa_10 = (
-                grupo["favoravel_10"] / avaliaveis_10 * 100
+                grupo["favoravel_10"]
+                / avaliaveis_10 * 100
                 if avaliaveis_10 else 0
             )
 
             escritor.writerow({
                 "tipo_evento": tipo,
                 **grupo,
-                "taxa_favoravel_05": round(taxa_05, 2),
-                "taxa_favoravel_10": round(taxa_10, 2)
+                "taxa_favoravel_05": round(
+                    taxa_05, 2
+                ),
+                "taxa_favoravel_10": round(
+                    taxa_10, 2
+                ),
             })
 
 
 def main():
-    print("1/4 - Carregando velas fechadas...")
+    print("======================================")
+    print("AVALIADOR DE RESULTADOS TABULEIRO M5")
+    print("======================================")
+
+    print("1/4 - Carregando matriz XY...")
 
     velas = preparar_velas()
 
-    print(f"Velas carregadas: {len(velas)}")
+    print("Velas válidas:", len(velas))
 
     print("2/4 - Carregando eventos de borda...")
 
     eventos = preparar_eventos()
 
-    print(f"Eventos encontrados: {len(eventos)}")
+    print("Eventos encontrados:", len(eventos))
 
     indice_por_timestamp = {
-        vela["timestamp"]: i
-        for i, vela in enumerate(velas)
+        vela["timestamp"]: indice
+        for indice, vela in enumerate(velas)
     }
 
-    print("3/4 - Avaliando resultados futuros...")
+    print("3/4 - Avaliando histórico futuro...")
 
     resultados = []
+    sem_vela = 0
+    sem_horizonte = 0
 
     for evento in eventos:
-        momento = timestamp(evento)
-
-        indice = indice_por_timestamp.get(momento)
+        indice = indice_por_timestamp.get(
+            evento["timestamp"]
+        )
 
         if indice is None:
+            sem_vela += 1
+            continue
+
+        if len(
+            velas[indice + 1:
+                  indice + 1 + HORIZONTE]
+        ) < HORIZONTE:
+            sem_horizonte += 1
             continue
 
         resultado = avaliar_evento(
@@ -432,17 +585,29 @@ def main():
 
     salvar_resultados(resultados)
 
-    print(f"Eventos avaliados: {len(resultados)}")
+    print("Eventos avaliados:", len(resultados))
+    print("Eventos sem vela correspondente:", sem_vela)
+    print("Eventos sem horizonte completo:", sem_horizonte)
 
-    print("4/4 - Gerando resumo por tipo de evento...")
+    print("4/4 - Gerando resumo...")
 
     gerar_resumo(resultados)
 
-    print("\nArquivos gerados:")
+    print("--------------------------------------")
+    print("Arquivos de entrega:")
     print(SAIDA)
     print(RESUMO)
-
-    print("\nAvaliação concluída.")
+    print("--------------------------------------")
+    print("Horizonte:", HORIZONTE, "velas M5")
+    print("Alvos:", ALVOS_ATR)
+    print("Banco paralelo criado: NÃO")
+    print("Gravação direta nos bancos oficiais: NÃO")
+    print("Persistência: Coletor e Organizador")
+    print("Atualizado em:", datetime.now(
+        timezone.utc
+    ).isoformat())
+    print("PROCESSAMENTO CONCLUÍDO")
+    print("======================================")
 
 
 if __name__ == "__main__":
