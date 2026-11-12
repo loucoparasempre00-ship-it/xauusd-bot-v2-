@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T08:31:29.250615+00:00",
-  "total_registros": 431,
+  "atualizado_utc": "2026-11-12T08:36:26.430957+00:00",
+  "total_registros": 432,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -8479,6 +8479,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T08:31:29.250615+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T08:30:00+00:00",
+      "id_sinal": 43184224499,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3952.247,
+      "stop": 3958.651,
+      "stop_loss": 3958.651,
+      "gain": 3942.641,
+      "take_profit": 3942.641,
+      "confianca": 75,
+      "pontuacao_final": 68.75,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 68.75,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de baixa clara em todos os tempos gráficos (M5, M15, H1), com as EMAs alinhadas para venda e o preço operando abaixo das médias. O preço atual está próximo de uma resistência imediata (3952.73 - 3953.19), o que favorece a continuação do movimento de baixa em direção aos suportes mais fortes na região de 3945.66. A ausência de força compradora significativa e a tendência estrutural de topos e fundos descendentes reforçam a probabilidade de continuidade da venda.",
+      "atr14": 4.2693,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T08:36:26.430957+00:00"
     }
   ]
 }
