@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T12:27:18.170699+00:00",
-  "total_registros": 461,
+  "atualizado_utc": "2026-11-12T12:32:19.634416+00:00",
+  "total_registros": 462,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -9199,6 +9199,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T12:27:18.170699+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T12:25:00+00:00",
+      "id_sinal": 43218528893,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3942.182,
+      "stop": 3947.52,
+      "stop_loss": 3947.52,
+      "gain": 3934.176,
+      "take_profit": 3934.176,
+      "confianca": 85,
+      "pontuacao_final": 96.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 96.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de tendência de baixa em todos os timeframes (M5, M15, H1). O preço atual de 3942.18 está testando uma zona de suporte imediato (3940.88 - 3941.96), mas a estrutura de topos e fundos descendentes, somada ao rompimento recente de mínimas e ao posicionamento das EMAs, indica forte pressão vendedora. O RSI em 42.16 ainda permite espaço para desvalorização antes de atingir condições de sobrevenda. A probabilidade de continuidade do movimento de baixa é alta, dado que o preço está operando abaixo das médias móveis e o momentum é claramente baixista.",
+      "atr14": 3.55851,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T12:32:19.634416+00:00"
     }
   ]
 }
