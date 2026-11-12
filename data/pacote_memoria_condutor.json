@@ -1,10 +1,10 @@
 {
   "ativo": "XAUUSD",
-  "gerado_utc": "2026-11-12T02:26:09.950686+00:00",
+  "gerado_utc": "2026-11-12T02:28:27.690610+00:00",
   "candle_utc": "2026-11-12T02:20:00+00:00",
   "grafico": {
     "versao": "3.0",
-    "gerado_utc": "2026-11-12T02:25:19.576698+00:00",
+    "gerado_utc": "2026-11-12T02:28:27.353252+00:00",
     "ativo": "XAUUSD",
     "candle_utc": "2026-11-12T02:20:00+00:00",
     "preco_atual": 3989.696,
@@ -2344,7 +2344,7 @@
     },
     "estado_central": {
       "disponivel": true,
-      "atualizado_em": "2026-11-12T02:25:18.240986+00:00",
+      "atualizado_em": "2026-11-12T02:28:26.052072+00:00",
       "idade_minutos": 0.0,
       "desatualizada": false,
       "horario_igual_ao_candle_atual": true
@@ -2359,14 +2359,14 @@
         "volume": "Não utilizado"
       },
       "diagnostico": {
-        "total_velas": 5001,
+        "total_velas": 5000,
         "total_regioes": 182,
         "total_transicoes": 1072,
         "minimo_amostras": 10
       },
       "mercado_atual": {
         "timestamp": "2026-11-12 02:20:00",
-        "eixo_x": 5000,
+        "eixo_x": 4999,
         "preco": 3989.69562,
         "atr": 4.74057,
         "direcao_vela": "ALTA",
@@ -2550,7 +2550,7 @@
   ],
   "ranking": {
     "ativo": "XAUUSD",
-    "atualizado_utc": "2026-11-12T02:26:09.949112+00:00",
+    "atualizado_utc": "2026-11-12T02:28:27.688519+00:00",
     "criterio": "Somente sinais reais avaliados por candles M5 fechados.",
     "geral": {
       "total": 203,
@@ -4614,6 +4614,13 @@
       "resultado_r": "-1.00"
     }
   ],
+  "tabuleiro": {
+    "contexto": "data/contexto_tabuleiro_m5.json",
+    "relatorio": "data/relatorio_tabuleiro_m5.json",
+    "proximas_regioes": "data/proximas_regioes_m5.json",
+    "estatisticas": "data/estatisticas_regioes_m5.csv",
+    "transicoes": "data/transicoes_probabilidade_m5.csv"
+  },
   "arquivos_referencia": {
     "memoria": "data/memoria_agente.json",
     "historico_decisoes": "data/historico_decisoes_xau.json",
