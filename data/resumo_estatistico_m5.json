@@ -1,7 +1,7 @@
 {
   "versao": 2,
   "modulo": "processador_estatistico_m5",
-  "atualizado_em": "2026-11-12T09:12:18.292645+00:00",
+  "atualizado_em": "2026-11-12T09:15:19.548707+00:00",
   "metodo": {
     "eixo_x": "Tempo cronológico M5",
     "eixo_y": "Regiões fixas de preço",
@@ -11,11 +11,11 @@
     "minimo_amostras": 20
   },
   "resumo": {
-    "total_velas": 5000,
+    "total_velas": 5001,
     "total_regioes": 182,
-    "total_visitas": 5000,
-    "total_eventos_borda": 5520,
-    "total_transicoes": 2824,
+    "total_visitas": 5001,
+    "total_eventos_borda": 5522,
+    "total_transicoes": 2825,
     "regioes_com_amostra_suficiente": 114,
     "transicoes_com_amostra_suficiente": 434,
     "velas_descartadas": 0,
@@ -24,10 +24,10 @@
   "eventos": {
     "ROMPIMENTO_BAIXA": 1156,
     "ROMPIMENTO_ALTA": 1054,
-    "REJEICAO_INFERIOR": 938,
+    "REJEICAO_INFERIOR": 939,
     "REJEICAO_SUPERIOR": 899,
     "TOQUE_INFERIOR": 763,
-    "TOQUE_SUPERIOR": 710
+    "TOQUE_SUPERIOR": 711
   },
   "melhores_regioes_rejeicao": [
     {
@@ -74,20 +74,20 @@
       "regiao": 2620,
       "limite_inferior": 3930.0,
       "limite_superior": 3931.5,
-      "visitas": 28,
-      "toques": 7,
-      "rejeicoes": 13,
+      "visitas": 29,
+      "toques": 8,
+      "rejeicoes": 14,
       "rompimentos": 9,
-      "prob_rejeicao": 0.4483,
-      "prob_rompimento": 0.3103,
-      "limite_inferior_rejeicao": 0.2841,
-      "amostras": 29,
+      "prob_rejeicao": 0.4516,
+      "prob_rompimento": 0.2903,
+      "limite_inferior_rejeicao": 0.2916,
+      "amostras": 31,
       "amostra_suficiente": "SIM",
       "rejeicoes_superiores": 4,
-      "rejeicoes_inferiores": 9,
+      "rejeicoes_inferiores": 10,
       "rompimentos_alta": 6,
       "rompimentos_baixa": 3,
-      "toques_superiores": 4,
+      "toques_superiores": 5,
       "toques_inferiores": 3
     },
     {
