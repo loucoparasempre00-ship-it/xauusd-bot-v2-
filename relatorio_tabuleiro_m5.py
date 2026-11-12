@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime, timezone
 
+
 ARQUIVOS = {
     "regioes": "data/estatisticas_regioes_m5.csv",
     "transicoes": "data/transicoes_probabilidade_m5.csv",
@@ -20,20 +21,41 @@ SAIDA_CSV = "data/relatorio_geral_tabuleiro_m5.csv"
 
 def ler_csv(caminho):
     if not os.path.exists(caminho):
+        print(f"AVISO: arquivo ainda não disponível: {caminho}")
         return []
 
-    with open(
-        caminho,
-        "r",
-        newline="",
-        encoding="utf-8-sig"
-    ) as arquivo:
-        return list(csv.DictReader(arquivo))
-
-
-def numero(valor, padrao=0):
     try:
-        return float(str(valor).replace(",", "."))
+        with open(
+            caminho,
+            "r",
+            newline="",
+            encoding="utf-8-sig"
+        ) as arquivo:
+            return list(csv.DictReader(arquivo))
+
+    except (OSError, csv.Error) as erro:
+        print(f"ERRO ao ler {caminho}: {erro}")
+        return []
+
+
+def numero(valor, padrao=0.0):
+    try:
+        if valor is None or str(valor).strip() == "":
+            return padrao
+
+        texto = str(valor).strip()
+        texto = texto.replace("%", "")
+        texto = texto.replace(",", ".")
+
+        return float(texto)
+
+    except (ValueError, TypeError):
+        return padrao
+
+
+def inteiro(valor, padrao=0):
+    try:
+        return int(numero(valor, padrao))
     except (ValueError, TypeError):
         return padrao
 
@@ -49,7 +71,14 @@ def contar_eventos(eventos):
     contagem = {}
 
     for evento in eventos:
-        tipo = evento.get("event", "DESCONHECIDO")
+        tipo = (
+            evento.get("event")
+            or evento.get("tipo_evento")
+            or evento.get("evento")
+            or "DESCONHECIDO"
+        )
+
+        tipo = str(tipo).strip().upper()
 
         contagem[tipo] = contagem.get(tipo, 0) + 1
 
@@ -73,12 +102,15 @@ def melhores_regioes(regioes):
 
 
 def melhores_transicoes(transicoes):
+    def pontuacao(item):
+        return numero(
+            item.get("probabilidade"),
+            numero(item.get("probabilidade_percentual"))
+        )
+
     ordenadas = sorted(
         transicoes,
-        key=lambda x: numero(
-            x.get("probabilidade"),
-            numero(x.get("probabilidade_percentual"))
-        ),
+        key=pontuacao,
         reverse=True
     )
 
@@ -86,11 +118,15 @@ def melhores_transicoes(transicoes):
 
 
 def melhores_sequencias(sequencias):
+    def pontuacao(item):
+        return numero(
+            item.get("probabilidade"),
+            numero(item.get("taxa_acerto"))
+        )
+
     ordenadas = sorted(
         sequencias,
-        key=lambda x: numero(
-            x.get("probabilidade")
-        ),
+        key=pontuacao,
         reverse=True
     )
 
@@ -101,12 +137,17 @@ def consolidar_resultados(resumos):
     resultado = []
 
     for item in resumos:
-        total = int(
-            numero(item.get("eventos_avaliados"))
+        total = inteiro(
+            item.get("eventos_avaliados"),
+            inteiro(item.get("total_eventos"))
         )
 
         resultado.append({
-            "evento": item.get("tipo_evento"),
+            "evento": (
+                item.get("tipo_evento")
+                or item.get("evento")
+                or "DESCONHECIDO"
+            ),
             "amostras": total,
             "taxa_favoravel_05": numero(
                 item.get("taxa_favoravel_05")
@@ -114,14 +155,14 @@ def consolidar_resultados(resumos):
             "taxa_favoravel_10": numero(
                 item.get("taxa_favoravel_10")
             ),
-            "favoraveis_05": int(
-                numero(item.get("favoravel_05"))
+            "favoraveis_05": inteiro(
+                item.get("favoravel_05")
             ),
-            "desfavoraveis_05": int(
-                numero(item.get("desfavoravel_05"))
+            "desfavoraveis_05": inteiro(
+                item.get("desfavoravel_05")
             ),
-            "ambiguos_05": int(
-                numero(item.get("ambiguo_05"))
+            "ambiguos_05": inteiro(
+                item.get("ambiguo_05")
             )
         })
 
@@ -135,10 +176,13 @@ def gerar_diagnostico(dados):
 
     if quantidade_velas == 0:
         estado = "SEM_DADOS"
+
     elif quantidade_eventos == 0:
         estado = "AGUARDANDO_EVENTOS"
+
     elif quantidade_resultados == 0:
         estado = "AGUARDANDO_HORIZONTE"
+
     else:
         estado = "DADOS_DISPONIVEIS"
 
@@ -149,14 +193,15 @@ def gerar_diagnostico(dados):
         "eventos_avaliados": quantidade_resultados,
         "regioes_analisadas": len(dados["regioes"]),
         "transicoes_analisadas": len(dados["transicoes"]),
-        "sequencias_calculadas": len(dados["sequencias"])
+        "sequencias_calculadas": len(dados["sequencias"]),
+        "resumos_de_resultados": len(dados["resumo"])
     }
 
 
 def gerar_relatorio(dados):
     diagnostico = gerar_diagnostico(dados)
 
-    relatorio = {
+    return {
         "atualizado_em": datetime.now(
             timezone.utc
         ).isoformat(),
@@ -187,15 +232,16 @@ def gerar_relatorio(dados):
             "Probabilidades representam frequências históricas.",
             "Sequências não garantem movimentos futuros.",
             "Resultados recentes podem estar incompletos.",
-            "Regiões precisam de numeração estável.",
-            "Amostras pequenas não devem ser tratadas como evidência forte."
+            "Regiões precisam manter identificação estável.",
+            "Amostras pequenas não devem ser tratadas como evidência forte.",
+            "Toques e hipóteses não representam confirmação de resultado."
         ]
     }
 
-    return relatorio
-
 
 def salvar_json(relatorio):
+    os.makedirs("data", exist_ok=True)
+
     with open(
         SAIDA_JSON,
         "w",
@@ -210,6 +256,8 @@ def salvar_json(relatorio):
 
 
 def salvar_csv(relatorio):
+    os.makedirs("data", exist_ok=True)
+
     linhas = []
 
     diagnostico = relatorio["diagnostico"]
@@ -228,16 +276,69 @@ def salvar_csv(relatorio):
             "valor": quantidade
         })
 
+    for item in relatorio["melhores_regioes"]:
+        identificacao = (
+            item.get("regiao")
+            or item.get("id_regiao")
+            or item.get("codigo_regiao")
+            or "REGIAO"
+        )
+
+        linhas.append({
+            "categoria": "MELHOR_REGIAO",
+            "indicador": identificacao,
+            "valor": json.dumps(
+                item,
+                ensure_ascii=False
+            )
+        })
+
+    for item in relatorio["melhores_transicoes"]:
+        origem = (
+            item.get("regiao_origem")
+            or item.get("origem")
+            or "?"
+        )
+
+        destino = (
+            item.get("regiao_destino")
+            or item.get("destino")
+            or "?"
+        )
+
+        linhas.append({
+            "categoria": "TRANSICAO",
+            "indicador": f"{origem} -> {destino}",
+            "valor": json.dumps(
+                item,
+                ensure_ascii=False
+            )
+        })
+
+    for item in relatorio["melhores_sequencias"]:
+        identificador = (
+            item.get("sequencia")
+            or item.get("padrao")
+            or item.get("bloco")
+            or "SEQUENCIA"
+        )
+
+        linhas.append({
+            "categoria": "SEQUENCIA",
+            "indicador": identificador,
+            "valor": json.dumps(
+                item,
+                ensure_ascii=False
+            )
+        })
+
     for item in relatorio["desempenho_eventos"]:
         linhas.append({
             "categoria": "DESEMPENHO",
             "indicador": item["evento"],
-            "valor": (
-                f"Amostras={item['amostras']}; "
-                f"Favorável 0.5 ATR="
-                f"{item['taxa_favoravel_05']}%; "
-                f"Favorável 1 ATR="
-                f"{item['taxa_favoravel_10']}%"
+            "valor": json.dumps(
+                item,
+                ensure_ascii=False
             )
         })
 
@@ -262,11 +363,11 @@ def salvar_csv(relatorio):
 
 
 def main():
-    print("1/3 - Carregando módulos do tabuleiro...")
+    print("1/3 - Carregando dados do Tabuleiro...")
 
     dados = carregar_dados()
 
-    print("2/3 - Consolidando estatísticas...")
+    print("2/3 - Consolidando estatísticas e resultados...")
 
     relatorio = gerar_relatorio(dados)
 
