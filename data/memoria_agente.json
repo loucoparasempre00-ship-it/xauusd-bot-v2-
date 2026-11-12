@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T00:11:15.443067+00:00",
-  "total_registros": 335,
+  "atualizado_utc": "2026-11-12T00:16:09.483641+00:00",
+  "total_registros": 336,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -6175,6 +6175,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T00:11:15.443067+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T00:10:00+00:00",
+      "id_sinal": 43125955249,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3974.331,
+      "stop": 3980.4,
+      "stop_loss": 3980.4,
+      "gain": 3965.228,
+      "take_profit": 3965.228,
+      "confianca": 65,
+      "pontuacao_final": 66.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 66.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado mantém uma estrutura de baixa clara em múltiplos tempos gráficos (M5, M15, H1). O preço atual está abaixo das EMAs de curto prazo (6 e 20), confirmando a pressão vendedora. Embora o candle atual apresente uma leve reação de alta, trata-se de um movimento corretivo dentro de uma tendência dominante. A ausência de volume validado e a proximidade de suportes relevantes exigem cautela, mas a tendência macro e o alinhamento das médias favorecem a continuidade do movimento de queda.",
+      "atr14": 4.04592,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T00:16:09.483641+00:00"
     }
   ]
 }
