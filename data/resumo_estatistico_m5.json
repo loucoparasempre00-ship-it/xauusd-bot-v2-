@@ -1,7 +1,7 @@
 {
   "versao": 2,
   "modulo": "processador_estatistico_m5",
-  "atualizado_em": "2026-11-12T12:10:21.148237+00:00",
+  "atualizado_em": "2026-11-12T12:11:27.403856+00:00",
   "metodo": {
     "eixo_x": "Tempo cronológico M5",
     "eixo_y": "Regiões fixas de preço",
@@ -11,11 +11,11 @@
     "minimo_amostras": 20
   },
   "resumo": {
-    "total_velas": 5001,
+    "total_velas": 5000,
     "total_regioes": 182,
-    "total_visitas": 5001,
-    "total_eventos_borda": 5517,
-    "total_transicoes": 2823,
+    "total_visitas": 5000,
+    "total_eventos_borda": 5515,
+    "total_transicoes": 2822,
     "regioes_com_amostra_suficiente": 115,
     "transicoes_com_amostra_suficiente": 432,
     "velas_descartadas": 0,
@@ -23,9 +23,9 @@
   },
   "eventos": {
     "REJEICAO_SUPERIOR": 897,
-    "ROMPIMENTO_BAIXA": 1155,
-    "TOQUE_SUPERIOR": 713,
+    "ROMPIMENTO_BAIXA": 1154,
     "ROMPIMENTO_ALTA": 1055,
+    "TOQUE_SUPERIOR": 712,
     "REJEICAO_INFERIOR": 935,
     "TOQUE_INFERIOR": 762
   },
@@ -350,21 +350,21 @@
       "amostra_suficiente": "SIM"
     },
     {
-      "origem": 2675,
-      "destino": 2674,
-      "transicoes": 12,
-      "saidas_origem": 34,
-      "probabilidade": 0.3529,
-      "visitas_origem": 45,
-      "amostra_suficiente": "SIM"
-    },
-    {
       "origem": 2746,
       "destino": 2745,
       "transicoes": 7,
       "saidas_origem": 20,
       "probabilidade": 0.35,
       "visitas_origem": 21,
+      "amostra_suficiente": "SIM"
+    },
+    {
+      "origem": 2708,
+      "destino": 2709,
+      "transicoes": 16,
+      "saidas_origem": 46,
+      "probabilidade": 0.3478,
+      "visitas_origem": 75,
       "amostra_suficiente": "SIM"
     }
   ],

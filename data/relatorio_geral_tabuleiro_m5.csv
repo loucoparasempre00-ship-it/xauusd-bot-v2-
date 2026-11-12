@@ -1,16 +1,16 @@
 categoria,indicador,valor
 DIAGNOSTICO,estado,DADOS_DISPONIVEIS
 DIAGNOSTICO,velas,5000
-DIAGNOSTICO,eventos,5516
-DIAGNOSTICO,eventos_avaliados,5500
+DIAGNOSTICO,eventos,5515
+DIAGNOSTICO,eventos_avaliados,5499
 DIAGNOSTICO,regioes_analisadas,182
 DIAGNOSTICO,transicoes_analisadas,1089
 DIAGNOSTICO,sequencias_calculadas,0
 DIAGNOSTICO,resumos_de_resultados,6
 EVENTO,REJEICAO_SUPERIOR,897
 EVENTO,ROMPIMENTO_BAIXA,1154
-EVENTO,TOQUE_SUPERIOR,713
 EVENTO,ROMPIMENTO_ALTA,1055
+EVENTO,TOQUE_SUPERIOR,712
 EVENTO,REJEICAO_INFERIOR,935
 EVENTO,TOQUE_INFERIOR,762
 MELHOR_REGIAO,2582,"{""regiao"": ""2582"", ""limite_inferior"": ""3873.0"", ""limite_superior"": ""3874.5"", ""visitas"": ""3"", ""toques"": ""3"", ""rejeicoes"": ""2"", ""rompimentos"": ""0"", ""prob_rejeicao"": ""0.4"", ""prob_rompimento"": ""0.0"", ""limite_inferior_rejeicao"": ""0.1176"", ""amostras"": ""5"", ""amostra_suficiente"": ""NAO"", ""rejeicoes_superiores"": ""0"", ""rejeicoes_inferiores"": ""2"", ""rompimentos_alta"": ""0"", ""rompimentos_baixa"": ""0"", ""toques_superiores"": ""2"", ""toques_inferiores"": ""1""}"
@@ -43,4 +43,4 @@ DESEMPENHO,REJEICAO_SUPERIOR,"{""evento"": ""REJEICAO_SUPERIOR"", ""amostras"": 
 DESEMPENHO,ROMPIMENTO_ALTA,"{""evento"": ""ROMPIMENTO_ALTA"", ""amostras"": 1053, ""taxa_favoravel_05"": 46.29, ""taxa_favoravel_10"": 44.11, ""favoraveis_05"": 431, ""desfavoraveis_05"": 494, ""ambiguos_05"": 122}"
 DESEMPENHO,ROMPIMENTO_BAIXA,"{""evento"": ""ROMPIMENTO_BAIXA"", ""amostras"": 1149, ""taxa_favoravel_05"": 49.95, ""taxa_favoravel_10"": 50.27, ""favoraveis_05"": 508, ""desfavoraveis_05"": 505, ""ambiguos_05"": 132}"
 DESEMPENHO,TOQUE_INFERIOR,"{""evento"": ""TOQUE_INFERIOR"", ""amostras"": 758, ""taxa_favoravel_05"": 46.0, ""taxa_favoravel_10"": 45.22, ""favoraveis_05"": 316, ""desfavoraveis_05"": 364, ""ambiguos_05"": 71}"
-DESEMPENHO,TOQUE_SUPERIOR,"{""evento"": ""TOQUE_SUPERIOR"", ""amostras"": 711, ""taxa_favoravel_05"": 55.8, ""taxa_favoravel_10"": 53.71, ""favoraveis_05"": 351, ""desfavoraveis_05"": 271, ""ambiguos_05"": 82}"
+DESEMPENHO,TOQUE_SUPERIOR,"{""evento"": ""TOQUE_SUPERIOR"", ""amostras"": 710, ""taxa_favoravel_05"": 55.73, ""taxa_favoravel_10"": 53.65, ""favoraveis_05"": 350, ""desfavoraveis_05"": 271, ""ambiguos_05"": 82}"
