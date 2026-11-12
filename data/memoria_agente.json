@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T05:36:16.582727+00:00",
-  "total_registros": 396,
+  "atualizado_utc": "2026-11-12T05:41:14.676595+00:00",
+  "total_registros": 397,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -7639,6 +7639,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T05:36:16.582727+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T05:35:00+00:00",
+      "id_sinal": 43162941763,
+      "sinal": "SEM_SINAL",
+      "decisao": "SEM_SINAL",
+      "decisao_final": "SEM_SINAL",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": null,
+      "stop": null,
+      "stop_loss": null,
+      "gain": null,
+      "take_profit": null,
+      "confianca": 85,
+      "pontuacao_final": 37.5,
+      "pontuacao_compra": 12.5,
+      "pontuacao_venda": 37.5,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado encontra-se em uma estrutura de baixa consolidada em todos os tempos gráficos (M5, M15, H1). Embora o preço esteja testando uma região de suporte imediato (3976.77), a pressão vendedora permanece dominante com as EMAs alinhadas para baixo e topos descendentes recentes. Não há sinais de reversão ou exaustão da tendência, e a volatilidade atual não oferece uma entrada de alta probabilidade contra a tendência principal.",
+      "atr14": 3.31919,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T05:41:14.676595+00:00"
     }
   ]
 }
