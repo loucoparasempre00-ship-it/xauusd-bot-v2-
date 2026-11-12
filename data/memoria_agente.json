@@ -1,7 +1,7 @@
 {
   "versao": 2,
-  "atualizado_utc": "2026-11-12T12:32:19.634416+00:00",
-  "total_registros": 462,
+  "atualizado_utc": "2026-11-12T12:36:50.503516+00:00",
+  "total_registros": 463,
   "historico": [
     {
       "candle_utc": "2026-10-30T17:00:00+00:00",
@@ -9223,6 +9223,30 @@
       "origem": "GERADOR_DE_SINAL_XAU",
       "resultado": "",
       "registrado_utc": "2026-11-12T12:32:19.634416+00:00"
+    },
+    {
+      "candle_utc": "2026-11-12T12:30:00+00:00",
+      "id_sinal": 43219356810,
+      "sinal": "VENDA",
+      "decisao": "VENDA",
+      "decisao_final": "VENDA",
+      "ativo": "XAUUSD",
+      "timeframe": "M5",
+      "entrada": 3937.626,
+      "stop": 3943.309,
+      "stop_loss": 3943.309,
+      "gain": 3929.102,
+      "take_profit": 3929.102,
+      "confianca": 85,
+      "pontuacao_final": 96.25,
+      "pontuacao_compra": 0.0,
+      "pontuacao_venda": 96.25,
+      "modelo_utilizado": "models/gemini-3.1-flash-lite",
+      "justificativa": "O mercado apresenta um alinhamento claro de tendência de baixa em múltiplos tempos gráficos (M5, M15, H1). O preço atual de 3937.62 está testando uma região de suporte imediato (3936.50 - 3937.39), mas o momentum vendedor é sustentado pelo rompimento de fundos recentes e pelo alinhamento das EMAs (6 e 20) no M5. A leitura das transições históricas indica uma probabilidade significativa de continuidade do movimento para regiões inferiores (2623/2624). O RSI em 36.82 ainda permite espaço para desvalorização antes de atingir condições de sobrevenda extrema.",
+      "atr14": 3.78873,
+      "origem": "GERADOR_DE_SINAL_XAU",
+      "resultado": "",
+      "registrado_utc": "2026-11-12T12:36:50.503516+00:00"
     }
   ]
 }
