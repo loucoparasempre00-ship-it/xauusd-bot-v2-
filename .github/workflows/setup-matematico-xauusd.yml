@@ -1,7 +1,14 @@
+
 name: Setup Matematico XAUUSD
 
 on:
   workflow_dispatch:
+
+  workflow_run:
+    workflows:
+      - Grafico XAUUSD
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -12,9 +19,10 @@ concurrency:
 
 jobs:
   setup-matematico:
-    name: Otimizacao, validacao e decisao
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    name: Calibracao, validacao e evento matematico
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Baixar repositorio
@@ -30,28 +38,21 @@ jobs:
       - name: Verificar arquivos e bancos oficiais
         run: |
           set -e
-
           test -f otimizador_parametros_setup.py
           test -f validador_setup.py
           test -f motor_setup_matematico.py
-
           test -f data/graficos.db.gz
           test -f data/sinais.db.gz
-
-          echo "Arquivos encontrados."
-          echo "Leitura: data/graficos.db.gz"
-          echo "Gravacao: data/sinais.db.gz"
-          echo "Bancos de operacoes nao serao acessados."
 
           python -m py_compile \
             otimizador_parametros_setup.py \
             validador_setup.py \
             motor_setup_matematico.py
 
-      - name: Otimizar parametros usando candles e indicadores
+      - name: Calibrar notas e gatilhos
         run: python otimizador_parametros_setup.py
 
-      - name: Validar em periodo posterior
+      - name: Validar LONG e SHORT
         id: validacao
         run: python validador_setup.py
 
@@ -59,14 +60,13 @@ jobs:
         if: steps.validacao.outputs.motor == 'sim'
         run: python motor_setup_matematico.py
 
-      - name: Registrar ausencia de aprovacao
+      - name: Informar ausencia de aprovacao
         if: steps.validacao.outputs.motor != 'sim'
         run: |
-          echo "Nenhuma versao aprovada existe ainda."
-          echo "Motor nao executado."
-          echo "Parametros reprovados foram preservados para auditoria."
+          echo "Nenhuma versao aprovada disponivel."
+          echo "Motor nao emitiu evento."
 
-      - name: Verificar integridade do banco de sinais
+      - name: Verificar integridade do banco
         run: |
           python - <<'PY'
           import gzip
@@ -74,9 +74,7 @@ jobs:
           import tempfile
           import os
 
-          origem = "data/sinais.db.gz"
-
-          with gzip.open(origem, "rb") as f:
+          with gzip.open("data/sinais.db.gz", "rb") as f:
               dados = f.read()
 
           fd, caminho = tempfile.mkstemp(suffix=".db")
@@ -88,64 +86,26 @@ jobs:
 
               con = sqlite3.connect(caminho)
 
-              integridade = con.execute(
+              resultado = con.execute(
                   "PRAGMA integrity_check"
               ).fetchone()[0]
 
-              if integridade != "ok":
-                  raise SystemExit(
-                      f"Falha de integridade: {integridade}"
-                  )
+              if resultado != "ok":
+                  raise SystemExit(resultado)
 
-              tabelas = {
-                  r[0] for r in con.execute(
-                      "SELECT name FROM sqlite_master WHERE type='table'"
-                  )
-              }
-
-              obrigatorias = {
-                  "setup_parametros",
-                  "setup_decisoes"
-              }
-
-              if not obrigatorias.issubset(tabelas):
-                  raise SystemExit(
-                      "Tabelas do setup nao foram gravadas."
-                  )
-
-              print("Integridade: OK")
-
-              print(
-                  "Versoes:",
-                  con.execute(
-                      "SELECT COUNT(*) FROM setup_parametros"
+              for tabela in ("setup_parametros", "setup_decisoes"):
+                  total = con.execute(
+                      f'SELECT COUNT(*) FROM "{tabela}"'
                   ).fetchone()[0]
-              )
+                  print(f"{tabela}: {total}")
 
-              print(
-                  "Decisoes:",
-                  con.execute(
-                      "SELECT COUNT(*) FROM setup_decisoes"
-                  ).fetchone()[0]
-              )
-
-              print(
-                  "Ultimo status:",
-                  con.execute("""
-                      SELECT status
-                      FROM setup_parametros
-                      ORDER BY versao DESC
-                      LIMIT 1
-                  """).fetchone()[0]
-              )
-
+              print("Integridade SQLite: OK")
               con.close()
-
           finally:
               os.remove(caminho)
           PY
 
-      - name: Salvar somente o banco oficial de sinais
+      - name: Salvar banco oficial de sinais
         run: |
           git config user.name "github-actions[bot]"
           git config user.email \
@@ -157,7 +117,7 @@ jobs:
             echo "Nenhuma alteracao para salvar."
           else
             git commit -m \
-              "Atualiza parametros e decisoes do setup matematico"
+              "Atualiza setup matematico XAUUSD"
 
-            git push
+            git push origin HEAD:main
           fi
