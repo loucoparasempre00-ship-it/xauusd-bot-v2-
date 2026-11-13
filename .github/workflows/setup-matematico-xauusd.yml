@@ -1,4 +1,3 @@
-
 name: Setup Matematico XAUUSD
 
 on:
@@ -15,59 +14,150 @@ jobs:
   setup-matematico:
     name: Otimizacao, validacao e decisao
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Baixar repositorio
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Preparar ambiente
+      - name: Verificar arquivos e bancos oficiais
         run: |
-          python -m pip install --upgrade pip
+          set -e
 
-      - name: Verificar bancos oficiais
-        run: |
+          test -f otimizador_parametros_setup.py
+          test -f validador_setup.py
+          test -f motor_setup_matematico.py
+
           test -f data/graficos.db.gz
-          echo "Banco de graficos encontrado."
-          echo "Bancos de operacoes nao serao consultados."
+          test -f data/sinais.db.gz
 
-      - name: Otimizar parametros matematicos
-        run: |
-          python otimizador_parametros_setup.py
+          echo "Arquivos encontrados."
+          echo "Leitura: data/graficos.db.gz"
+          echo "Gravacao: data/sinais.db.gz"
+          echo "Bancos de operacoes nao serao acessados."
 
-      - name: Validar parametros
-        run: |
-          python validador_setup.py
+          python -m py_compile \
+            otimizador_parametros_setup.py \
+            validador_setup.py \
+            motor_setup_matematico.py
+
+      - name: Otimizar parametros usando candles e indicadores
+        run: python otimizador_parametros_setup.py
+
+      - name: Validar em periodo posterior
+        id: validacao
+        run: python validador_setup.py
 
       - name: Executar motor matematico
+        if: steps.validacao.outputs.motor == 'sim'
+        run: python motor_setup_matematico.py
+
+      - name: Registrar ausencia de aprovacao
+        if: steps.validacao.outputs.motor != 'sim'
         run: |
-          python motor_setup_matematico.py
+          echo "Nenhuma versao aprovada existe ainda."
+          echo "Motor nao executado."
+          echo "Parametros reprovados foram preservados para auditoria."
 
-      - name: Verificar resultados
+      - name: Verificar integridade do banco de sinais
         run: |
-          test -f data/parametros_setups.json
-          test -f data/decisao_setup.json
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import tempfile
+          import os
 
-          echo "===== PARAMETROS ====="
-          cat data/parametros_setups.json
+          origem = "data/sinais.db.gz"
 
-          echo "===== DECISAO ====="
-          cat data/decisao_setup.json
+          with gzip.open(origem, "rb") as f:
+              dados = f.read()
 
-      - name: Salvar resultados
+          fd, caminho = tempfile.mkstemp(suffix=".db")
+          os.close(fd)
+
+          try:
+              with open(caminho, "wb") as f:
+                  f.write(dados)
+
+              con = sqlite3.connect(caminho)
+
+              integridade = con.execute(
+                  "PRAGMA integrity_check"
+              ).fetchone()[0]
+
+              if integridade != "ok":
+                  raise SystemExit(
+                      f"Falha de integridade: {integridade}"
+                  )
+
+              tabelas = {
+                  r[0] for r in con.execute(
+                      "SELECT name FROM sqlite_master WHERE type='table'"
+                  )
+              }
+
+              obrigatorias = {
+                  "setup_parametros",
+                  "setup_decisoes"
+              }
+
+              if not obrigatorias.issubset(tabelas):
+                  raise SystemExit(
+                      "Tabelas do setup nao foram gravadas."
+                  )
+
+              print("Integridade: OK")
+
+              print(
+                  "Versoes:",
+                  con.execute(
+                      "SELECT COUNT(*) FROM setup_parametros"
+                  ).fetchone()[0]
+              )
+
+              print(
+                  "Decisoes:",
+                  con.execute(
+                      "SELECT COUNT(*) FROM setup_decisoes"
+                  ).fetchone()[0]
+              )
+
+              print(
+                  "Ultimo status:",
+                  con.execute("""
+                      SELECT status
+                      FROM setup_parametros
+                      ORDER BY versao DESC
+                      LIMIT 1
+                  """).fetchone()[0]
+              )
+
+              con.close()
+
+          finally:
+              os.remove(caminho)
+          PY
+
+      - name: Salvar somente o banco oficial de sinais
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/parametros_setups.json data/decisao_setup.json
+          git add data/sinais.db.gz
 
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao para salvar."
           else
-            git commit -m "Atualiza parametros e decisao do setup matematico"
+            git commit -m \
+              "Atualiza parametros e decisoes do setup matematico"
+
             git push
           fi
