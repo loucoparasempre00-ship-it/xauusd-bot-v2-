@@ -3,154 +3,202 @@
 # -*- coding: utf-8 -*-
 
 """
-DETECTOR DE BORDAS M5 - TABULEIRO ESTAVEL
+DETECTOR DE BORDAS M5 - NOVA VERSAO
 
-Responsabilidades:
-- Ler a matriz XY produzida pelo Tabuleiro.
-- Identificar toques nas bordas das regiões.
-- Identificar rejeições.
-- Identificar rompimentos confirmados.
-- Gerar arquivo de entrega para o Coletor.
+Fonte:
+    data/graficos.db.gz
+    Tabela: candles
+
+Saidas:
+    data/bordas_m5.csv
+    data/eventos_bordas_m5.csv
+
+Objetivo:
+    Encontrar niveis de preco que funcionam como bordas,
+    medindo toques, rejeicoes e rompimentos.
 
 REGRAS:
-- Eixo X = tempo cronológico M5.
-- Eixo Y = regiões fixas de preço.
-- Largura padrão da região = US$ 1,50.
-- ATR mede distância de confirmação.
-- ATR não altera as regiões.
-- Não cria bancos de dados.
-- Não grava nos bancos oficiais.
+    X = tempo cronologico.
+    Y = preco.
+    Largura fixa das regioes = US$ 1,50.
+    ATR confirma movimentos, mas nao altera regioes.
+    Nao executa ordens.
+    Nao cria bancos de dados.
+    Nao modifica o banco oficial.
 """
 
 import csv
+import gzip
+import math
 import os
-from collections import Counter
+import sqlite3
+import tempfile
+
+from collections import defaultdict
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 
-ENTRADA = DATA / "tabuleiro_m5.csv"
-SAIDA = DATA / "eventos_bordas_m5.csv"
+BANCO = DATA / "graficos.db.gz"
+SAIDA_BORDAS = DATA / "bordas_m5.csv"
+SAIDA_EVENTOS = DATA / "eventos_bordas_m5.csv"
 
-LARGURA_REGIAO_PADRAO = 1.50
-
-# Tolerância fixa para identificar aproximação da borda.
-TOLERANCIA_USD = 0.10
-
-# ATR utilizado somente para confirmar rompimentos e rejeições.
+LARGURA_REGIAO = 1.50
+TOLERANCIA_TOQUE = 0.10
 CONFIRMACAO_ATR = 0.15
+PERIODO_ATR = 14
 
+MIN_TESTES_BORDA = 2
 MIN_ATR = 0.00001
 
 
-def numero(valor, campo):
-    try:
-        resultado = float(
-            str(valor).strip().replace(",", ".")
-        )
-    except (TypeError, ValueError):
-        raise ValueError(
-            f"Valor inválido em {campo}: {valor}"
-        )
+def encontrar_coluna(colunas, alternativas):
+    mapa = {
+        str(coluna).lower().strip(): coluna
+        for coluna in colunas
+    }
 
-    return resultado
+    for alternativa in alternativas:
+        encontrada = mapa.get(alternativa.lower())
 
+        if encontrada:
+            return encontrada
 
-def inteiro(valor, campo):
-    try:
-        return int(float(str(valor).strip()))
-    except (TypeError, ValueError):
-        raise ValueError(
-            f"Valor inválido em {campo}: {valor}"
-        )
+    return None
 
 
-def carregar_dados():
-    if not ENTRADA.is_file():
+def carregar_velas():
+    if not BANCO.is_file():
         raise FileNotFoundError(
-            f"Matriz do Tabuleiro não encontrada: {ENTRADA}"
+            f"Banco nao encontrado: {BANCO}"
         )
 
-    dados_por_tempo = {}
+    temporario = tempfile.NamedTemporaryFile(
+        suffix=".db",
+        delete=False
+    )
 
-    with ENTRADA.open(
-        "r",
-        encoding="utf-8-sig",
-        newline=""
-    ) as arquivo:
+    caminho_temp = temporario.name
+    temporario.close()
 
-        leitor = csv.DictReader(arquivo)
-        campos = leitor.fieldnames or []
+    try:
+        with gzip.open(BANCO, "rb") as origem:
+            with open(caminho_temp, "wb") as destino:
+                while True:
+                    bloco = origem.read(1024 * 1024)
 
-        obrigatorias = [
-            "timestamp",
-            "eixo_x",
-            "eixo_y",
-            "open",
-            "high",
-            "low",
-            "close",
-            "atr",
-            "largura_regiao",
+                    if not bloco:
+                        break
+
+                    destino.write(bloco)
+
+        conexao = sqlite3.connect(caminho_temp)
+        conexao.row_factory = sqlite3.Row
+
+        tabelas = conexao.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            """
+        ).fetchall()
+
+        nomes_tabelas = [
+            linha["name"] for linha in tabelas
         ]
 
+        if "candles" not in nomes_tabelas:
+            raise RuntimeError(
+                "Tabela candles nao encontrada no banco."
+            )
+
+        colunas = [
+            linha["name"]
+            for linha in conexao.execute(
+                "PRAGMA table_info(candles)"
+            ).fetchall()
+        ]
+
+        campos = {
+            "timeframe": encontrar_coluna(
+                colunas, ["timeframe", "periodo"]
+            ),
+            "timestamp": encontrar_coluna(
+                colunas, ["timestamp", "datetime", "data_hora"]
+            ),
+            "open": encontrar_coluna(
+                colunas, ["open", "abertura"]
+            ),
+            "high": encontrar_coluna(
+                colunas, ["high", "maxima", "máxima"]
+            ),
+            "low": encontrar_coluna(
+                colunas, ["low", "minima", "mínima"]
+            ),
+            "close": encontrar_coluna(
+                colunas, ["close", "fechamento"]
+            ),
+        }
+
         ausentes = [
-            campo for campo in obrigatorias
-            if campo not in campos
+            nome for nome, coluna in campos.items()
+            if coluna is None
         ]
 
         if ausentes:
-            raise ValueError(
-                f"Colunas ausentes na matriz: {ausentes}"
+            raise RuntimeError(
+                "Colunas ausentes na tabela candles: "
+                + ", ".join(ausentes)
             )
 
-        for linha in leitor:
+        consulta = f"""
+            SELECT
+                "{campos['timeframe']}" AS timeframe,
+                "{campos['timestamp']}" AS timestamp,
+                "{campos['open']}" AS open,
+                "{campos['high']}" AS high,
+                "{campos['low']}" AS low,
+                "{campos['close']}" AS close
+            FROM candles
+            ORDER BY "{campos['timestamp']}" ASC
+        """
+
+        registros = conexao.execute(consulta).fetchall()
+        conexao.close()
+
+        velas = []
+
+        for linha in registros:
+            periodo = str(linha["timeframe"]).lower().strip()
+
+            if periodo not in ("5min", "5m", "m5"):
+                continue
+
             try:
-                timestamp = str(
-                    linha["timestamp"] or ""
-                ).strip()
-
-                if not timestamp:
-                    continue
-
                 vela = {
-                    "timestamp": timestamp,
-                    "eixo_x": inteiro(
-                        linha["eixo_x"], "eixo_x"
-                    ),
-                    "eixo_y": inteiro(
-                        linha["eixo_y"], "eixo_y"
-                    ),
-                    "open": numero(
-                        linha["open"], "open"
-                    ),
-                    "high": numero(
-                        linha["high"], "high"
-                    ),
-                    "low": numero(
-                        linha["low"], "low"
-                    ),
-                    "close": numero(
-                        linha["close"], "close"
-                    ),
-                    "atr": numero(
-                        linha["atr"], "atr"
-                    ),
-                    "largura_regiao": numero(
-                        linha["largura_regiao"],
-                        "largura_regiao"
-                    ),
+                    "timestamp": str(linha["timestamp"]),
+                    "open": float(linha["open"]),
+                    "high": float(linha["high"]),
+                    "low": float(linha["low"]),
+                    "close": float(linha["close"]),
                 }
 
-                if vela["atr"] <= MIN_ATR:
+                valores = [
+                    vela["open"],
+                    vela["high"],
+                    vela["low"],
+                    vela["close"],
+                ]
+
+                if not all(math.isfinite(v) for v in valores):
+                    continue
+
+                if min(valores) <= 0:
                     continue
 
                 if vela["high"] < vela["low"]:
-                    continue
-
-                if vela["largura_regiao"] <= 0:
                     continue
 
                 if vela["high"] < max(
@@ -163,169 +211,248 @@ def carregar_dados():
                 ):
                     continue
 
-                # Uma ocorrência por timestamp.
-                dados_por_tempo[timestamp] = vela
+                velas.append(vela)
 
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError):
                 continue
 
-    dados = sorted(
-        dados_por_tempo.values(),
-        key=lambda item: item["eixo_x"]
-    )
+        # Uma vela por timestamp.
+        unicas = {}
 
-    if len(dados) < 2:
-        raise RuntimeError(
-            "Histórico insuficiente para detectar bordas."
+        for vela in velas:
+            unicas[vela["timestamp"]] = vela
+
+        velas = sorted(
+            unicas.values(),
+            key=lambda item: item["timestamp"]
         )
 
-    # O eixo X precisa ser cronológico e único.
-    for anterior, atual in zip(dados, dados[1:]):
-        if atual["eixo_x"] <= anterior["eixo_x"]:
-            raise ValueError(
-                "Eixo X inválido: posições repetidas "
-                "ou fora de ordem."
+        if len(velas) < PERIODO_ATR + 2:
+            raise RuntimeError(
+                "Historico M5 insuficiente."
             )
 
-    return dados
+        return velas
+
+    finally:
+        if os.path.exists(caminho_temp):
+            os.remove(caminho_temp)
 
 
-def identificar_bordas(velas):
+def calcular_atr(velas):
+    resultados = []
+    ranges = []
+
+    for indice, vela in enumerate(velas):
+        if indice == 0:
+            true_range = vela["high"] - vela["low"]
+        else:
+            anterior = velas[indice - 1]
+
+            true_range = max(
+                vela["high"] - vela["low"],
+                abs(vela["high"] - anterior["close"]),
+                abs(vela["low"] - anterior["close"]),
+            )
+
+        ranges.append(true_range)
+
+        inicio = max(
+            0,
+            indice - PERIODO_ATR + 1
+        )
+
+        janela = ranges[inicio:indice + 1]
+
+        atr = sum(janela) / len(janela)
+
+        resultados.append(max(atr, MIN_ATR))
+
+    return resultados
+
+
+def nivel_inferior(preco):
+    return math.floor(
+        preco / LARGURA_REGIAO
+    ) * LARGURA_REGIAO
+
+
+def identificar_eventos(velas, atrs):
     eventos = []
+    estatisticas = defaultdict(
+        lambda: {
+            "testes": 0,
+            "toques": 0,
+            "rejeicoes": 0,
+            "rompimentos": 0,
+            "rejeicoes_alta": 0,
+            "rejeicoes_baixa": 0,
+            "rompimentos_alta": 0,
+            "rompimentos_baixa": 0,
+        }
+    )
 
     for indice in range(1, len(velas)):
         anterior = velas[indice - 1]
         atual = velas[indice]
 
-        largura = anterior["largura_regiao"]
-
-        if largura <= 0:
-            largura = LARGURA_REGIAO_PADRAO
-
-        # As bordas vêm da região da vela anterior.
-        # Não são calculadas por máximas móveis.
-        regiao_anterior = anterior["eixo_y"]
-
-        limite_inferior = regiao_anterior * largura
-        limite_superior = limite_inferior + largura
-
-        abertura = atual["open"]
-        maxima = atual["high"]
-        minima = atual["low"]
-        fechamento = atual["close"]
-        atr = atual["atr"]
-
+        atr = atrs[indice]
         confirmacao = atr * CONFIRMACAO_ATR
 
-        # Verifica aproximação ou passagem pelas bordas.
-        toque_superior = (
-            maxima >= limite_superior - TOLERANCIA_USD
+        # Busca somente os niveis que a vela pode ter testado.
+        primeiro = nivel_inferior(
+            atual["low"] - TOLERANCIA_TOQUE
         )
 
-        toque_inferior = (
-            minima <= limite_inferior + TOLERANCIA_USD
+        ultimo = nivel_inferior(
+            atual["high"] + TOLERANCIA_TOQUE
         )
 
-        rompimento_alta = (
-            fechamento > limite_superior + confirmacao
+        quantidade = int(
+            round(
+                (ultimo - primeiro) / LARGURA_REGIAO
+            )
         )
 
-        rompimento_baixa = (
-            fechamento < limite_inferior - confirmacao
-        )
+        for posicao in range(quantidade + 1):
+            nivel = round(
+                primeiro + posicao * LARGURA_REGIAO,
+                5
+            )
 
-        rejeicao_superior = (
-            toque_superior
-            and fechamento < limite_superior - confirmacao
-            and fechamento < abertura
-        )
+            # A vela precisa alcancar a regiao da borda.
+            tocou = (
+                atual["low"] <= nivel + TOLERANCIA_TOQUE
+                and atual["high"] >= nivel - TOLERANCIA_TOQUE
+            )
 
-        rejeicao_inferior = (
-            toque_inferior
-            and fechamento > limite_inferior + confirmacao
-            and fechamento > abertura
-        )
+            if not tocou:
+                continue
 
-        eventos_vela = []
+            fechamento_anterior = anterior["close"]
+            fechamento = atual["close"]
 
-        if rompimento_alta:
-            eventos_vela.append((
-                "ROMPIMENTO_ALTA",
-                limite_superior
-            ))
+            tipo = None
 
-        elif rejeicao_superior:
-            eventos_vela.append((
-                "REJEICAO_SUPERIOR",
-                limite_superior
-            ))
+            # Preco vinha de baixo e encontrou a borda.
+            if fechamento_anterior < nivel:
+                if fechamento > nivel + confirmacao:
+                    tipo = "ROMPIMENTO_ALTA"
 
-        elif toque_superior:
-            eventos_vela.append((
-                "TOQUE_SUPERIOR",
-                limite_superior
-            ))
+                elif fechamento < nivel - confirmacao:
+                    tipo = "REJEICAO_SUPERIOR"
 
-        if rompimento_baixa:
-            eventos_vela.append((
-                "ROMPIMENTO_BAIXA",
-                limite_inferior
-            ))
+                else:
+                    tipo = "TOQUE_SUPERIOR"
 
-        elif rejeicao_inferior:
-            eventos_vela.append((
-                "REJEICAO_INFERIOR",
-                limite_inferior
-            ))
+            # Preco vinha de cima e encontrou a borda.
+            elif fechamento_anterior > nivel:
+                if fechamento < nivel - confirmacao:
+                    tipo = "ROMPIMENTO_BAIXA"
 
-        elif toque_inferior:
-            eventos_vela.append((
-                "TOQUE_INFERIOR",
-                limite_inferior
-            ))
+                elif fechamento > nivel + confirmacao:
+                    tipo = "REJEICAO_INFERIOR"
 
-        for tipo, nivel in eventos_vela:
-            distancia = abs(fechamento - nivel)
+                else:
+                    tipo = "TOQUE_INFERIOR"
+
+            else:
+                continue
+
+            dados = estatisticas[nivel]
+
+            dados["testes"] += 1
+
+            if tipo.startswith("TOQUE"):
+                dados["toques"] += 1
+
+            elif tipo.startswith("REJEICAO"):
+                dados["rejeicoes"] += 1
+
+                if tipo == "REJEICAO_SUPERIOR":
+                    dados["rejeicoes_baixa"] += 1
+                else:
+                    dados["rejeicoes_alta"] += 1
+
+            elif tipo.startswith("ROMPIMENTO"):
+                dados["rompimentos"] += 1
+
+                if tipo == "ROMPIMENTO_ALTA":
+                    dados["rompimentos_alta"] += 1
+                else:
+                    dados["rompimentos_baixa"] += 1
 
             eventos.append({
                 "timestamp": atual["timestamp"],
-                "indice_vela": atual["eixo_x"],
-                "regiao_anterior": regiao_anterior,
-                "regiao_atual": atual["eixo_y"],
-                "evento": tipo,
+                "indice_vela": indice,
                 "nivel_borda": round(nivel, 5),
+                "evento": tipo,
                 "preco_fechamento": round(
                     fechamento, 5
                 ),
                 "atr": round(atr, 5),
                 "distancia_atr": round(
-                    distancia / atr, 4
+                    abs(fechamento - nivel) / atr, 4
                 ),
-                "largura_regiao": round(
-                    largura, 5
-                ),
+                "largura_regiao": LARGURA_REGIAO,
             })
 
-    return eventos
+    return eventos, estatisticas
+
+
+def calcular_forca(dados):
+    testes = dados["testes"]
+
+    if testes == 0:
+        return 0.0
+
+    # Rejeicoes fortalecem a evidencia da borda.
+    # Rompimentos reduzem a evidencia de resistencia.
+    pontuacao = (
+        dados["rejeicoes"] * 2.0
+        + dados["toques"] * 0.5
+        - dados["rompimentos"] * 2.0
+    )
+
+    forca = (
+        pontuacao / (testes * 2.0)
+    ) * 100
+
+    return round(
+        max(0.0, min(100.0, forca)),
+        2
+    )
+
+
+def classificar_borda(dados):
+    if dados["testes"] < MIN_TESTES_BORDA:
+        return "EVIDENCIA_INSUFICIENTE"
+
+    if dados["rompimentos"] > dados["rejeicoes"]:
+        return "BORDA_FRAGIL"
+
+    if dados["rejeicoes"] >= 3:
+        return "BORDA_FORTE"
+
+    if dados["rejeicoes"] >= 1:
+        return "BORDA_EM_OBSERVACAO"
+
+    return "BORDA_NAO_CONFIRMADA"
 
 
 def salvar_eventos(eventos):
-    DATA.mkdir(parents=True, exist_ok=True)
-
     campos = [
         "timestamp",
         "indice_vela",
-        "regiao_anterior",
-        "regiao_atual",
-        "evento",
         "nivel_borda",
+        "evento",
         "preco_fechamento",
         "atr",
         "distancia_atr",
         "largura_regiao",
     ]
 
-    with SAIDA.open(
+    with SAIDA_EVENTOS.open(
         "w",
         newline="",
         encoding="utf-8"
@@ -340,49 +467,130 @@ def salvar_eventos(eventos):
         escritor.writerows(eventos)
 
 
-def gerar_resumo(eventos):
-    contagem = Counter(
-        evento["evento"]
-        for evento in eventos
+def salvar_bordas(estatisticas):
+    campos = [
+        "nivel_borda",
+        "limite_inferior",
+        "limite_superior",
+        "testes",
+        "toques",
+        "rejeicoes",
+        "rompimentos",
+        "rejeicoes_alta",
+        "rejeicoes_baixa",
+        "rompimentos_alta",
+        "rompimentos_baixa",
+        "forca",
+        "classificacao",
+    ]
+
+    with SAIDA_BORDAS.open(
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as arquivo:
+
+        escritor = csv.DictWriter(
+            arquivo,
+            fieldnames=campos
+        )
+
+        escritor.writeheader()
+
+        for nivel in sorted(estatisticas):
+            dados = estatisticas[nivel]
+
+            escritor.writerow({
+                "nivel_borda": round(nivel, 5),
+                "limite_inferior": round(
+                    nivel - LARGURA_REGIAO, 5
+                ),
+                "limite_superior": round(
+                    nivel + LARGURA_REGIAO, 5
+                ),
+                "testes": dados["testes"],
+                "toques": dados["toques"],
+                "rejeicoes": dados["rejeicoes"],
+                "rompimentos": dados["rompimentos"],
+                "rejeicoes_alta": dados["rejeicoes_alta"],
+                "rejeicoes_baixa": dados["rejeicoes_baixa"],
+                "rompimentos_alta": dados["rompimentos_alta"],
+                "rompimentos_baixa": dados["rompimentos_baixa"],
+                "forca": calcular_forca(dados),
+                "classificacao": classificar_borda(dados),
+            })
+
+
+def gerar_resumo(velas, eventos, estatisticas):
+    total_toques = sum(
+        dados["toques"]
+        for dados in estatisticas.values()
     )
 
-    print("\n========== DETECTOR DE BORDAS M5 ==========")
+    total_rejeicoes = sum(
+        dados["rejeicoes"]
+        for dados in estatisticas.values()
+    )
 
-    for tipo in [
-        "TOQUE_SUPERIOR",
-        "TOQUE_INFERIOR",
-        "REJEICAO_SUPERIOR",
-        "REJEICAO_INFERIOR",
-        "ROMPIMENTO_ALTA",
-        "ROMPIMENTO_BAIXA",
-    ]:
-        print(f"{tipo}: {contagem[tipo]}")
+    total_rompimentos = sum(
+        dados["rompimentos"]
+        for dados in estatisticas.values()
+    )
 
-    print("-------------------------------------------")
-    print("Total de eventos:", len(eventos))
-    print("Arquivo de entrega:", SAIDA)
-    print("Largura fixa padrão: US$ 1,50")
-    print("ATR altera largura das regiões: NÃO")
-    print("Gravação direta em banco: NÃO")
-    print("Destino da persistência: Coletor e Organizador")
-    print("===========================================\n")
+    fortes = sum(
+        1 for dados in estatisticas.values()
+        if classificar_borda(dados) == "BORDA_FORTE"
+    )
+
+    print("\n========================================")
+    print("DETECTOR DE BORDAS M5")
+    print("========================================")
+    print("Velas analisadas:", len(velas))
+    print("Niveis de preco encontrados:", len(estatisticas))
+    print("Eventos identificados:", len(eventos))
+    print("----------------------------------------")
+    print("Toques:", total_toques)
+    print("Rejeicoes:", total_rejeicoes)
+    print("Rompimentos:", total_rompimentos)
+    print("Bordas fortes:", fortes)
+    print("----------------------------------------")
+    print("Largura fixa: US$ 1,50")
+    print("ATR altera regioes: NAO")
+    print("Executa ordens: NAO")
+    print("Modifica banco oficial: NAO")
+    print("----------------------------------------")
+    print("Arquivo de bordas:", SAIDA_BORDAS)
+    print("Arquivo de eventos:", SAIDA_EVENTOS)
+    print("========================================\n")
 
 
 def processar():
-    print("======================================")
-    print("DETECTOR DE BORDAS - TABULEIRO M5")
-    print("======================================")
+    DATA.mkdir(parents=True, exist_ok=True)
 
-    velas = carregar_dados()
+    print("Carregando velas M5 do banco oficial...")
 
-    print("Velas carregadas:", len(velas))
+    velas = carregar_velas()
 
-    eventos = identificar_bordas(velas)
+    print("Calculando ATR...")
+
+    atrs = calcular_atr(velas)
+
+    print("Identificando bordas e eventos...")
+
+    eventos, estatisticas = identificar_eventos(
+        velas, atrs
+    )
 
     salvar_eventos(eventos)
-    gerar_resumo(eventos)
+    salvar_bordas(estatisticas)
 
-    print("PROCESSAMENTO CONCLUÍDO")
+    gerar_resumo(
+        velas,
+        eventos,
+        estatisticas
+    )
+
+    print("PROCESSAMENTO CONCLUIDO")
 
 
 if __name__ == "__main__":
