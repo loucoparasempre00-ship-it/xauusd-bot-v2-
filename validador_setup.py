@@ -5,213 +5,176 @@
 """
 VALIDADOR DO SETUP MATEMATICO
 
-Utiliza exclusivamente:
-    data/graficos.db.gz
-    data/parametros_setups.json
+Leitura: graficos.db.gz
+Leitura e gravacao: sinais.db.gz
 
 Nao consulta bancos de operacoes.
 """
 
-import gzip
 import json
 import os
-import sqlite3
-import math
-from datetime import datetime, timezone
 
-DB = "data/graficos.db.gz"
-PARAMETROS = "data/parametros_setups.json"
+from otimizador_parametros_setup import (
+    SINAIS,
+    abrir_sqlite_gz,
+    compactar_sqlite_gz,
+    carregar_amostras,
+    avaliar
+)
 
-MIN_AMOSTRAS_VALIDACAO = 30
-TAXA_MINIMA = 0.55
-
-
-def abrir_banco():
-    with gzip.open(DB, "rb") as f:
-        conteudo = f.read()
-    con = sqlite3.connect(":memory:")
-    con.deserialize(conteudo)
-    con.row_factory = sqlite3.Row
-    return con
-
-
-def localizar(colunas, candidatos):
-    mapa = {c.lower(): c for c in colunas}
-    for c in candidatos:
-        if c.lower() in mapa:
-            return mapa[c.lower()]
-    return None
-
-
-def numero(v):
-    try:
-        n = float(v)
-        return n if math.isfinite(n) else None
-    except (TypeError, ValueError):
-        return None
-
-
-def carregar():
-    with open(PARAMETROS, encoding="utf-8") as f:
-        return json.load(f)
+MIN_SINAIS_VALIDACAO = 30
 
 
 def validar():
-    parametros = carregar()
-    con = abrir_banco()
+    amostras = carregar_amostras()
 
-    tabelas = {
-        r[0] for r in con.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
+    corte = int(len(amostras) * 0.70)
+    validacao = amostras[corte:]
+
+    if len(validacao) < MIN_SINAIS_VALIDACAO:
+        raise RuntimeError(
+            f"Amostras de validacao insuficientes: "
+            f"{len(validacao)}"
         )
-    }
 
-    if "indicadores_tecnicos" not in tabelas or "candles" not in tabelas:
-        raise RuntimeError("Tabelas candles/indicadores_tecnicos ausentes.")
+    temporario, db_path, con = abrir_sqlite_gz(SINAIS)
 
-    ci = [r[1] for r in con.execute(
-        "PRAGMA table_info(indicadores_tecnicos)"
-    )]
-    cv = [r[1] for r in con.execute("PRAGMA table_info(candles)")]
+    try:
+        existe = con.execute("""
+            SELECT 1
+            FROM sqlite_master
+            WHERE type='table'
+            AND name='setup_parametros'
+        """).fetchone()
 
-    ti = localizar(ci, ["timestamp", "datetime", "time", "data_hora", "data"])
-    tv = localizar(cv, ["timestamp", "datetime", "time", "data_hora", "data"])
-    close = localizar(cv, ["close", "fechamento", "preco_fechamento"])
+        if not existe:
+            raise RuntimeError(
+                "Tabela setup_parametros nao existe. "
+                "Execute primeiro o otimizador."
+            )
 
-    if not ti or not tv or not close:
-        raise RuntimeError("Nao foi possivel identificar tempo e fechamento.")
+        linha = con.execute("""
+            SELECT *
+            FROM setup_parametros
+            WHERE status='PENDENTE_VALIDACAO'
+            ORDER BY versao DESC
+            LIMIT 1
+        """).fetchone()
 
-    inds = [dict(r) for r in con.execute("SELECT * FROM indicadores_tecnicos")]
-    velas = [dict(r) for r in con.execute("SELECT * FROM candles")]
-    con.close()
+        if linha is None:
+            raise RuntimeError(
+                "Nao existe versao pendente de validacao."
+            )
 
-    timeframe = localizar(ci, ["timeframe", "periodo", "intervalo"])
-    if timeframe:
-        inds = [
-            r for r in inds
-            if str(r.get(timeframe, "")).upper() in ("M5", "5M", "5MIN", "5")
-        ]
+        pesos = json.loads(linha["pesos_json"])
+        treino = json.loads(linha["treino_json"])
 
-    velas.sort(key=lambda r: str(r.get(tv, "")))
-    precos = [
-        (str(r.get(tv)), numero(r.get(close)))
-        for r in velas
-    ]
-    precos = [(t, p) for t, p in precos if p is not None]
-    indice = {t: i for i, (t, _) in enumerate(precos)}
+        limite = float(linha["limite_long"])
+        piso = float(treino["piso_movimento"])
 
-    # Validador usa somente os 30% finais, fora da amostra de ajuste.
-    corte = int(len(precos) * 0.70)
-    horizonte = int(parametros.get("horizonte_velas", 3))
-    pesos = parametros["pesos"]
+        resultado = avaliar(
+            validacao,
+            pesos,
+            limite,
+            piso
+        )
 
-    acertos = 0
-    decisoes = 0
-    long_count = 0
-    short_count = 0
-    lateral_count = 0
+        # Comparacao com todos os indicadores usando peso 1.
+        baseline = avaliar(
+            validacao,
+            {k: 1 for k in pesos},
+            limite,
+            piso
+        )
 
-    for ind in inds:
-        tempo = str(ind.get(ti))
-        i = indice.get(tempo)
+        aprovado = (
+            resultado["sinais"] >= MIN_SINAIS_VALIDACAO
+            and resultado["taxa_direcional"] >= 0.50
+            and resultado["taxa_direcional"]
+            >= baseline["taxa_direcional"]
+        )
 
-        if i is None or i < corte or i + horizonte >= len(precos):
-            continue
+        status = (
+            "APROVADO"
+            if aprovado
+            else "REPROVADO"
+        )
 
-        atual = precos[i][1]
-        futuro = precos[i + horizonte][1]
-        if not atual:
-            continue
-
-        # Medidas compatíveis com o otimizador.
-        medidas = {}
-
-        ema9 = localizar(ci, ["ema9", "mme9", "ema_9"])
-        ema21 = localizar(ci, ["ema21", "mme21", "ema_21"])
-        rsi_col = localizar(ci, ["rsi14", "rsi_14", "rsi"])
-        macd_col = localizar(ci, ["macd", "macd_line"])
-
-        if ema9 and ema21:
-            a, b = numero(ind.get(ema9)), numero(ind.get(ema21))
-            if a is not None and b is not None and atual:
-                medidas["EMA"] = max(-10, min(10, (a - b) / atual * 1000))
-
-        if rsi_col:
-            rsi = numero(ind.get(rsi_col))
-            if rsi is not None:
-                medidas["RSI"] = max(-10, min(10, (rsi - 50) / 5))
-
-        # MACD foi normalizado pelo otimizador. Para manter comparabilidade,
-        # nao se inventa uma escala diferente na validacao.
-        # Se o banco tiver MACD sem score normalizado, ele fica fora desta
-        # amostra de validacao e isso sera informado no resultado.
-
-        for c in ci:
-            nome = c.upper()
-            if nome.endswith("_SCORE") or nome.endswith("_MEDIDA"):
-                valor = numero(ind.get(c))
-                if valor is not None:
-                    medidas[nome] = max(-10, min(10, valor))
-
-        # Indicadores sem leitura nao recebem valor artificial.
-        disponiveis = {
-            k: v for k, v in medidas.items()
-            if k in pesos
+        relatorio = {
+            **resultado,
+            "baseline_pesos_iguais_1": baseline,
+            "minimo_sinais": MIN_SINAIS_VALIDACAO,
+            "criterio": (
+                "taxa >= 50%, pelo menos igual ao baseline "
+                "e amostra minima"
+            ),
+            "status": status
         }
-        if not disponiveis:
-            continue
 
-        numerador = sum(
-            v * max(1, numero(pesos.get(k)) or 1)
-            for k, v in disponiveis.items()
+        con.execute("""
+            UPDATE setup_parametros
+            SET status=?,
+                validacao_json=?
+            WHERE versao=?
+        """, (
+            status,
+            json.dumps(
+                relatorio,
+                ensure_ascii=False
+            ),
+            linha["versao"]
+        ))
+
+        con.commit()
+
+        versao = linha["versao"]
+
+        # Se a nova versao falhar, preserva a anterior aprovada.
+        tem_aprovado = con.execute("""
+            SELECT 1
+            FROM setup_parametros
+            WHERE status='APROVADO'
+            LIMIT 1
+        """).fetchone() is not None
+
+        print(json.dumps({
+            "versao": versao,
+            "validacao": relatorio
+        }, ensure_ascii=False, indent=2))
+
+        print("STATUS DA NOVA VERSAO:", status)
+        print("EXISTE VERSAO APROVADA:", tem_aprovado)
+
+        github_output = os.getenv("GITHUB_OUTPUT")
+
+        if github_output:
+            with open(
+                github_output,
+                "a",
+                encoding="utf-8"
+            ) as saida:
+                saida.write(f"status={status}\n")
+                saida.write(
+                    f"motor={'sim' if tem_aprovado else 'nao'}\n"
+                )
+
+        con.close()
+
+        compactar_sqlite_gz(
+            temporario,
+            db_path,
+            SINAIS
         )
-        denominador = sum(
-            max(1, numero(pesos.get(k)) or 1)
-            for k in disponiveis
-        )
-        score = numerador / denominador
 
-        retorno = (futuro - atual) / atual
-        limite = float(parametros["limite_long"])
+    except Exception:
+        try:
+            con.rollback()
+            con.close()
+        except Exception:
+            pass
 
-        if score >= limite:
-            long_count += 1
-            decisoes += 1
-            if retorno > 0:
-                acertos += 1
-        elif score <= -limite:
-            short_count += 1
-            decisoes += 1
-            if retorno < 0:
-                acertos += 1
-        else:
-            lateral_count += 1
-
-    taxa = acertos / decisoes if decisoes else 0.0
-
-    aprovado = (
-        decisoes >= MIN_AMOSTRAS_VALIDACAO
-        and taxa >= TAXA_MINIMA
-    )
-
-    parametros["status"] = "APROVADO" if aprovado else "REPROVADO"
-    parametros["validacao"] = {
-        "data_utc": datetime.now(timezone.utc).isoformat(),
-        "amostras_decididas": decisoes,
-        "long": long_count,
-        "short": short_count,
-        "lateral": lateral_count,
-        "acertos_direcionais": acertos,
-        "taxa_direcional": round(taxa, 4),
-        "minimo_amostras": MIN_AMOSTRAS_VALIDACAO,
-        "taxa_minima": TAXA_MINIMA
-    }
-
-    with open(PARAMETROS, "w", encoding="utf-8") as f:
-        json.dump(parametros, f, ensure_ascii=False, indent=2)
-
-    print(json.dumps(parametros["validacao"], ensure_ascii=False, indent=2))
-    print("STATUS:", parametros["status"])
+        temporario.cleanup()
+        raise
 
 
 if __name__ == "__main__":
