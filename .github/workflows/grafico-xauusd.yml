@@ -12,13 +12,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  construir-graficos:
-    name: Coleta, gráficos e indicadores
+  construir-graficos-e-estatisticas:
+    name: Graficos, indicadores e tabuleiro
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
-      - name: Baixar repositório
+      - name: Baixar repositorio
         uses: actions/checkout@v4
         with:
           ref: main
@@ -27,26 +27,31 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          
 
-      - name: Verificar arquivos
+      - name: Verificar arquivos Python
         run: |
+          set -e
+
           test -f coletor_validador_velas.py
           test -f construtor_graficos.py
           test -f indicadores_tecnicos.py
+          test -f detector_bordas_m5.py
+          test -f processador_estatistico_m5.py
+
+          echo "Todos os modulos foram encontrados."
 
       - name: Coletar e validar velas M5 M15 H1
         env:
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
         run: python coletor_validador_velas.py
 
-      - name: Construir gráficos
+      - name: Construir graficos M5 M15 H1
         run: python construtor_graficos.py
 
-      - name: Calcular indicadores técnicos
+      - name: Calcular indicadores tecnicos
         run: python indicadores_tecnicos.py
 
-      - name: Conferir banco de dados
+      - name: Verificar banco de graficos
         run: |
           python - <<'PY'
           import gzip
@@ -56,8 +61,8 @@ jobs:
 
           banco = "data/graficos.db.gz"
 
-          if not os.path.exists(banco):
-              raise SystemExit("Banco graficos.db.gz não encontrado.")
+          if not os.path.isfile(banco):
+              raise SystemExit("Banco de graficos nao encontrado.")
 
           with tempfile.NamedTemporaryFile(suffix=".db") as arquivo:
               with gzip.open(banco, "rb") as origem:
@@ -66,11 +71,13 @@ jobs:
 
               conexao = sqlite3.connect(arquivo.name)
 
-              for tabela in (
+              tabelas = [
                   "candles",
                   "estrutura_grafica",
                   "indicadores_tecnicos"
-              ):
+              ]
+
+              for tabela in tabelas:
                   existe = conexao.execute(
                       "SELECT 1 FROM sqlite_master "
                       "WHERE type='table' AND name=?",
@@ -84,7 +91,8 @@ jobs:
 
               for tf in ("M5", "M15", "H1"):
                   candles = conexao.execute(
-                      "SELECT COUNT(*) FROM candles WHERE timeframe=?",
+                      "SELECT COUNT(*) FROM candles "
+                      "WHERE timeframe=?",
                       (tf,)
                   ).fetchone()[0]
 
@@ -102,7 +110,7 @@ jobs:
 
                   print(
                       f"{tf}: candles={candles}, "
-                      f"gráficos={graficos}, "
+                      f"graficos={graficos}, "
                       f"indicadores={indicadores}"
                   )
 
@@ -114,16 +122,104 @@ jobs:
               conexao.close()
           PY
 
-      - name: Salvar banco atualizado no GitHub
+      - name: Detectar bordas M5
+        run: python detector_bordas_m5.py
+
+      - name: Processar estatisticas M5
+        run: python processador_estatistico_m5.py
+
+      - name: Verificar banco de estatisticas
+        run: |
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import tempfile
+          import os
+
+          banco = "data/estatisticas_m5.db.gz"
+
+          if not os.path.isfile(banco):
+              raise SystemExit(
+                  "Banco estatisticas_m5.db.gz nao encontrado."
+              )
+
+          with tempfile.NamedTemporaryFile(suffix=".db") as arquivo:
+              with gzip.open(banco, "rb") as origem:
+                  arquivo.write(origem.read())
+                  arquivo.flush()
+
+              conexao = sqlite3.connect(arquivo.name)
+
+              tabelas = [
+                  "estatisticas_regioes_m5",
+                  "transicoes_regioes_m5",
+                  "resumo_estatistico_m5",
+                  "execucoes_processador_m5"
+              ]
+
+              for tabela in tabelas:
+                  existe = conexao.execute(
+                      "SELECT 1 FROM sqlite_master "
+                      "WHERE type='table' AND name=?",
+                      (tabela,)
+                  ).fetchone()
+
+                  if not existe:
+                      raise SystemExit(
+                          f"Tabela ausente: {tabela}"
+                      )
+
+              for tabela in tabelas:
+                  total = conexao.execute(
+                      f'SELECT COUNT(*) FROM "{tabela}"'
+                  ).fetchone()[0]
+
+                  print(f"{tabela}: {total} registros")
+
+              total_velas = conexao.execute(
+                  "SELECT total_velas "
+                  "FROM resumo_estatistico_m5 "
+                  "WHERE timeframe='M5'"
+              ).fetchone()
+
+              if not total_velas or total_velas[0] <= 0:
+                  raise SystemExit(
+                      "Resumo estatistico sem historico M5."
+                  )
+
+              conexao.close()
+          PY
+
+      - name: Remover arquivos intermediarios
+        run: |
+          rm -f data/eventos_bordas_m5.csv
+
+      - name: Salvar bancos oficiais atualizados
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add data/graficos.db.gz
+          git add data/estatisticas_m5.db.gz
 
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração no banco."
+            echo "Nenhuma alteracao nos bancos."
           else
-            git commit -m "Atualiza gráficos e indicadores XAUUSD"
+            git commit -m "Atualiza graficos indicadores e estatisticas M5"
             git push origin HEAD:main
           fi
+
+      - name: Resumo final
+        if: success()
+        run: |
+          echo "=================================="
+          echo "PROCESSAMENTO XAUUSD CONCLUIDO"
+          echo "=================================="
+          echo "Velas M5 M15 H1: OK"
+          echo "Graficos: OK"
+          echo "Indicadores: OK"
+          echo "Detector de bordas M5: OK"
+          echo "Processador estatistico M5: OK"
+          echo "Banco graficos.db.gz: atualizado"
+          echo "Banco estatisticas_m5.db.gz: atualizado"
+          echo "=================================="
