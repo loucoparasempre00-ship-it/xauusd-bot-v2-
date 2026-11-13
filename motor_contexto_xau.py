@@ -6,12 +6,8 @@ import os
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
-# O coletor atual gera este arquivo.
 ARQUIVO_ENTRADA = "data/xauusd_m5.csv"
-
-# Compatibilidade com o arquivo antigo.
 ARQUIVO_ENTRADA_ANTIGO = "data/xauusd_m5_fechados.csv"
-
 ARQUIVO_SAIDA = "data/analise_tecnica_contexto.json"
 
 MINUTOS_CANDLE = 5
@@ -21,16 +17,18 @@ EMA_CURTA = 9
 EMA_LONGA = 21
 RSI_PERIODO = 14
 
+MACD_RAPIDA = 12
+MACD_LENTA = 26
+MACD_SINAL = 9
+
 PONTUACAO_MINIMA = 4
 DIFERENCA_MINIMA = 2
 
 
 def numero(valor):
     resultado = float(str(valor).strip().replace(",", "."))
-
     if not math.isfinite(resultado):
         raise ValueError("Valor numérico inválido.")
-
     return resultado
 
 
@@ -38,9 +36,7 @@ def ler_data(valor):
     valor = valor.strip()
 
     try:
-        data = datetime.fromisoformat(
-            valor.replace("Z", "+00:00")
-        )
+        data = datetime.fromisoformat(valor.replace("Z", "+00:00"))
     except ValueError:
         formatos = (
             "%Y-%m-%d %H:%M:%S",
@@ -185,9 +181,6 @@ def carregar_candles(agora=None):
                 ):
                     continue
 
-                # O timestamp representa a abertura do M5.
-                # Só aceita candles cujo intervalo de 5 minutos
-                # já terminou.
                 fechamento_candle = (
                     tempo + timedelta(minutes=MINUTOS_CANDLE)
                 )
@@ -195,8 +188,6 @@ def carregar_candles(agora=None):
                 if fechamento_candle > agora:
                     continue
 
-                # M5 precisa estar alinhado aos minutos 00, 05,
-                # 10, 15 etc.
                 if (
                     tempo.second != 0
                     or tempo.microsecond != 0
@@ -209,7 +200,6 @@ def carregar_candles(agora=None):
             except (ValueError, TypeError, KeyError):
                 continue
 
-    # Ordena e elimina duplicatas pelo horário.
     unicos = {}
 
     for candle in candles:
@@ -234,7 +224,6 @@ def ema(valores, periodo):
         return None
 
     multiplicador = 2 / (periodo + 1)
-
     resultado = sum(valores[:periodo]) / periodo
 
     for valor in valores[periodo:]:
@@ -244,6 +233,164 @@ def ema(valores, periodo):
         )
 
     return resultado
+
+
+def serie_ema(valores, periodo):
+    resultado = [None] * len(valores)
+
+    if len(valores) < periodo:
+        return resultado
+
+    multiplicador = 2 / (periodo + 1)
+    atual = sum(valores[:periodo]) / periodo
+    resultado[periodo - 1] = atual
+
+    for i in range(periodo, len(valores)):
+        atual = (
+            valores[i] * multiplicador
+            + atual * (1 - multiplicador)
+        )
+        resultado[i] = atual
+
+    return resultado
+
+
+def calcular_macd(
+    candles,
+    periodo_rapido=MACD_RAPIDA,
+    periodo_lento=MACD_LENTA,
+    periodo_sinal=MACD_SINAL
+):
+    """
+    MACD padrão 12/26/9.
+    Calculado somente com candles fechados.
+    Não participa da pontuação do sinal nesta versão.
+    """
+
+    fechamentos = [c["close"] for c in candles]
+
+    minimo = periodo_lento + periodo_sinal - 1
+
+    if len(fechamentos) < minimo:
+        return {
+            "status": "HISTORICO_INSUFICIENTE",
+            "parametros": {
+                "rapida": periodo_rapido,
+                "lenta": periodo_lento,
+                "sinal": periodo_sinal,
+            },
+            "linha_macd": None,
+            "linha_sinal": None,
+            "histograma": None,
+            "direcao": "INDEFINIDA",
+            "cruzamento": "INDEFINIDO",
+            "quantidade_candles": len(candles),
+            "minimo_candles": minimo,
+        }
+
+    ema_rapida = serie_ema(
+        fechamentos, periodo_rapido
+    )
+
+    ema_lenta = serie_ema(
+        fechamentos, periodo_lento
+    )
+
+    linha_macd = [None] * len(fechamentos)
+    indices_validos = []
+    valores_macd = []
+
+    for i in range(len(fechamentos)):
+        if (
+            ema_rapida[i] is not None
+            and ema_lenta[i] is not None
+        ):
+            valor = ema_rapida[i] - ema_lenta[i]
+            linha_macd[i] = valor
+            indices_validos.append(i)
+            valores_macd.append(valor)
+
+    serie_sinal_compacta = serie_ema(
+        valores_macd, periodo_sinal
+    )
+
+    linha_sinal = [None] * len(fechamentos)
+
+    for posicao, indice_original in enumerate(indices_validos):
+        linha_sinal[indice_original] = (
+            serie_sinal_compacta[posicao]
+        )
+
+    indices_completos = [
+        i for i in range(len(fechamentos))
+        if (
+            linha_macd[i] is not None
+            and linha_sinal[i] is not None
+        )
+    ]
+
+    if not indices_completos:
+        return {
+            "status": "HISTORICO_INSUFICIENTE",
+            "parametros": {
+                "rapida": periodo_rapido,
+                "lenta": periodo_lento,
+                "sinal": periodo_sinal,
+            },
+            "linha_macd": None,
+            "linha_sinal": None,
+            "histograma": None,
+            "direcao": "INDEFINIDA",
+            "cruzamento": "INDEFINIDO",
+            "quantidade_candles": len(candles),
+            "minimo_candles": minimo,
+        }
+
+    ultimo = indices_completos[-1]
+
+    valor_macd = linha_macd[ultimo]
+    valor_sinal = linha_sinal[ultimo]
+    histograma = valor_macd - valor_sinal
+
+    if valor_macd > valor_sinal:
+        direcao = "ALTA"
+    elif valor_macd < valor_sinal:
+        direcao = "BAIXA"
+    else:
+        direcao = "NEUTRA"
+
+    cruzamento = "SEM_CRUZAMENTO"
+
+    if len(indices_completos) >= 2:
+        anterior = indices_completos[-2]
+
+        diferenca_anterior = (
+            linha_macd[anterior] - linha_sinal[anterior]
+        )
+
+        diferenca_atual = valor_macd - valor_sinal
+
+        if diferenca_anterior <= 0 and diferenca_atual > 0:
+            cruzamento = "ALTA"
+
+        elif diferenca_anterior >= 0 and diferenca_atual < 0:
+            cruzamento = "BAIXA"
+
+    return {
+        "status": "CALCULADO",
+        "parametros": {
+            "rapida": periodo_rapido,
+            "lenta": periodo_lento,
+            "sinal": periodo_sinal,
+        },
+        "linha_macd": round(valor_macd, 5),
+        "linha_sinal": round(valor_sinal, 5),
+        "histograma": round(histograma, 5),
+        "direcao": direcao,
+        "cruzamento": cruzamento,
+        "quantidade_candles": len(candles),
+        "candle_utc": candles[ultimo]["tempo"].isoformat(),
+    }
 
 
 def calcular_rsi(fechamentos, periodo=RSI_PERIODO):
@@ -312,12 +459,7 @@ def calcular_atr(candles, periodo=ATR_PERIODO):
 def agregar_candles(candles, minutos):
     """
     Constrói M15 ou H1 exclusivamente com M5 fechados.
-
-    Só aceita grupos:
-    - Alinhados ao relógio UTC.
-    - Com todos os horários M5 esperados.
-    - Sem lacunas.
-    - Sem duplicatas.
+    Exige grupos completos, alinhados e sem lacunas.
     """
 
     if minutos not in (15, 60):
@@ -349,7 +491,6 @@ def agregar_candles(candles, minutos):
             for i in range(quantidade_esperada)
         ]
 
-        # Não aceita grupo parcial ou com lacunas.
         if any(
             horario not in grupo
             for horario in horarios_esperados
@@ -432,10 +573,8 @@ def analisar(candles):
 
     atual = candles[-1]
 
-    # M5: candles originais fechados.
     candles_m5 = candles
 
-    # M15 e H1: construídos a partir do M5.
     candles_m15 = agregar_candles(
         candles_m5, 15
     )
@@ -455,6 +594,12 @@ def analisar(candles):
     tendencia_h1 = avaliar_tendencia(
         candles_h1
     )
+
+    # MACD 12/26/9 calculado nos três períodos.
+    # Não altera a pontuação nem a decisão nesta etapa.
+    macd_m5 = calcular_macd(candles_m5)
+    macd_m15 = calcular_macd(candles_m15)
+    macd_h1 = calcular_macd(candles_h1)
 
     rsi = calcular_rsi(fechamentos)
     atr = calcular_atr(candles_m5)
@@ -492,7 +637,6 @@ def analisar(candles):
     motivos_compra = []
     motivos_venda = []
 
-    # Tendência M5.
     if tendencia_m5["tendencia"] == "ALTA":
         compra += 1
         motivos_compra.append(
@@ -505,7 +649,6 @@ def analisar(candles):
             "EMA9 abaixo da EMA21 no M5"
         )
 
-    # Contexto M15.
     if tendencia_m15["tendencia"] == "ALTA":
         compra += 1
         motivos_compra.append(
@@ -518,7 +661,6 @@ def analisar(candles):
             "Contexto M15 de baixa"
         )
 
-    # Contexto H1.
     if tendencia_h1["tendencia"] == "ALTA":
         compra += 1
         motivos_compra.append(
@@ -531,7 +673,6 @@ def analisar(candles):
             "Contexto H1 de baixa"
         )
 
-    # Impulso do M5.
     if impulso_alta:
         compra += 1
         motivos_compra.append(
@@ -544,7 +685,6 @@ def analisar(candles):
             "Impulso vendedor"
         )
 
-    # Rompimento recente no M5.
     if rompeu_maxima:
         compra += 1
         motivos_compra.append(
@@ -557,7 +697,6 @@ def analisar(candles):
             "Rompimento da mínima recente"
         )
 
-    # RSI M5.
     if 50 <= rsi <= 70:
         compra += 1
         motivos_compra.append(
@@ -620,6 +759,12 @@ def analisar(candles):
             "H1": tendencia_h1,
         },
 
+        "macd_12_26_9": {
+            "M5": macd_m5,
+            "M15": macd_m15,
+            "H1": macd_h1,
+        },
+
         "quantidade_m5": len(candles_m5),
         "quantidade_m15": len(candles_m15),
         "quantidade_h1": len(candles_h1),
@@ -649,6 +794,8 @@ def analisar(candles):
             "M5 é o período principal. "
             "M15 e H1 são agregados exclusivamente "
             "de candles M5 fechados. "
+            "MACD 12/26/9 é informativo e não participa "
+            "da pontuação nesta versão. "
             "Análise técnica experimental; "
             "não representa probabilidade comprovada de lucro."
         ),
@@ -657,7 +804,6 @@ def analisar(candles):
 
 def main():
     candles = carregar_candles()
-
     resultado = analisar(candles)
 
     os.makedirs(
@@ -720,6 +866,16 @@ def main():
     print(
         f"ATR: {resultado['atr_14']}"
     )
+
+    for periodo in ("M5", "M15", "H1"):
+        macd = resultado["macd_12_26_9"][periodo]
+
+        print(
+            f"MACD {periodo}: {macd['direcao']} "
+            f"| Histograma: {macd['histograma']} "
+            f"| Cruzamento: {macd['cruzamento']} "
+            f"| Status: {macd['status']}"
+        )
 
     print(
         f"Decisão: {resultado['decisao']}"
