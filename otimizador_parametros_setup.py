@@ -1,74 +1,41 @@
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 OTIMIZADOR DE PARAMETROS DO SETUP MATEMATICO
 
-Fonte exclusiva:
-    data/graficos.db.gz
+Leitura: data/graficos.db.gz
+Gravacao: data/sinais.db.gz
 
-Saida:
-    data/parametros_setups.json
-
-Nao consulta:
-    operacoes.db.gz
-    resultados_operacoes.db.gz
-    Gemini
+Nao consulta bancos de operacoes nem Gemini.
 """
 
+import bisect
 import gzip
 import json
 import math
 import os
+import shutil
 import sqlite3
-import statistics
-from datetime import datetime, timezone
+import tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-DB = "data/graficos.db.gz"
-SAIDA = "data/parametros_setups.json"
+BASE = Path(__file__).resolve().parent
+GRAFICOS = BASE / "data" / "graficos.db.gz"
+SINAIS = BASE / "data" / "sinais.db.gz"
 
 HORIZONTE = 3
-MIN_AMOSTRAS = 100
-PESOS_TESTE = [1, 2, 3, 4, 5]
-LIMITES_TESTE = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+PERCENTUAL_TREINO = 0.70
+PESOS_CANDIDATOS = (1, 2, 3, 4, 5)
+LIMITES_CANDIDATOS = (0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0)
+
+MIN_AMOSTRAS_TREINO = 100
+MIN_SINAIS_TREINO = 20
 
 
-def abrir_banco(caminho):
-    if not os.path.exists(caminho):
-        raise FileNotFoundError(caminho)
-
-    with gzip.open(caminho, "rb") as f:
-        conteudo = f.read()
-
-    con = sqlite3.connect(":memory:")
-    con.deserialize(conteudo)
-    con.row_factory = sqlite3.Row
-    return con
-
-
-def tabelas(con):
-    return {
-        r["name"]
-        for r in con.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
-    }
-
-
-def colunas(con, tabela):
-    return [
-        r["name"]
-        for r in con.execute(f'PRAGMA table_info("{tabela}")')
-    ]
-
-
-def localizar(lista, candidatos):
-    mapa = {x.lower(): x for x in lista}
-    for nome in candidatos:
-        if nome.lower() in mapa:
-            return mapa[nome.lower()]
-    return None
+def agora_utc():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def numero(valor):
@@ -79,318 +46,599 @@ def numero(valor):
         return None
 
 
-def limitar(valor, minimo=-10, maximo=10):
-    return max(minimo, min(maximo, valor))
+def tanh_score(valor, escala):
+    if valor is None:
+        return None
+    return max(-10.0, min(10.0, math.tanh(valor / escala) * 10.0))
 
 
-def descobrir_dados(con):
-    ts = tabelas(con)
-
-    tabela_ind = next(
-        (x for x in ("indicadores_tecnicos", "indicadores")
-         if x in ts), None
-    )
-    tabela_velas = next(
-        (x for x in ("candles", "velas", "candles_m5")
-         if x in ts), None
-    )
-
-    if not tabela_ind or not tabela_velas:
-        raise RuntimeError(
-            "Nao encontrei as tabelas de indicadores e candles. "
-            f"Tabelas encontradas: {sorted(ts)}"
+def abrir_sqlite_gz(caminho, exigir_existencia=True):
+    if exigir_existencia and not caminho.is_file():
+        raise FileNotFoundError(
+            f"Banco oficial nao encontrado: {caminho}"
         )
 
-    ci = colunas(con, tabela_ind)
-    cv = colunas(con, tabela_velas)
+    temporario = tempfile.TemporaryDirectory(prefix="xau_setup_")
+    db_path = Path(temporario.name) / caminho.name.replace(".gz", "")
 
-    ti = localizar(ci, [
-        "timestamp", "datetime", "time", "data_hora", "data"
-    ])
-    tv = localizar(cv, [
-        "timestamp", "datetime", "time", "data_hora", "data"
-    ])
-    fechamento = localizar(cv, ["close", "fechamento", "preco_fechamento"])
-    timeframe = localizar(ci, ["timeframe", "periodo", "intervalo"])
+    if caminho.exists():
+        with gzip.open(caminho, "rb") as origem:
+            with open(db_path, "wb") as destino:
+                shutil.copyfileobj(origem, destino)
 
-    if not ti or not tv or not fechamento:
-        raise RuntimeError(
-            "Colunas essenciais nao identificadas. "
-            f"Indicadores: {ci}; candles: {cv}"
+    conexao = sqlite3.connect(db_path)
+    conexao.row_factory = sqlite3.Row
+
+    return temporario, db_path, conexao
+
+
+def compactar_sqlite_gz(temporario, db_path, destino):
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    temporario_gz = destino.with_name(destino.name + ".tmp")
+
+    try:
+        with open(db_path, "rb") as origem:
+            with open(temporario_gz, "wb") as bruto:
+                with gzip.GzipFile(
+                    fileobj=bruto,
+                    mode="wb",
+                    mtime=0
+                ) as saida:
+                    shutil.copyfileobj(origem, saida)
+
+        os.replace(temporario_gz, destino)
+
+    finally:
+        if temporario_gz.exists():
+            temporario_gz.unlink()
+        temporario.cleanup()
+
+
+def fechar_leitura(temporario, conexao):
+    try:
+        conexao.close()
+    finally:
+        temporario.cleanup()
+
+
+def criar_tabelas_setup(con):
+    # Tabelas exclusivas do setup.
+    # Nenhuma tabela existente sera apagada ou alterada.
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS setup_parametros (
+            versao INTEGER PRIMARY KEY AUTOINCREMENT,
+            criado_utc TEXT NOT NULL,
+            status TEXT NOT NULL,
+            pesos_json TEXT NOT NULL,
+            limite_long REAL NOT NULL,
+            limite_short REAL NOT NULL,
+            horizonte_velas INTEGER NOT NULL,
+            features_json TEXT NOT NULL,
+            treino_json TEXT NOT NULL,
+            validacao_json TEXT
         )
+    """)
 
-    indicadores = [
-        dict(r)
-        for r in con.execute(f'SELECT * FROM "{tabela_ind}"')
-    ]
-    velas = [
-        dict(r)
-        for r in con.execute(f'SELECT * FROM "{tabela_velas}"')
-    ]
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS setup_decisoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            criado_utc TEXT NOT NULL,
+            timestamp_candle TEXT NOT NULL,
+            decisao TEXT NOT NULL,
+            pontuacao REAL NOT NULL,
+            limite REAL NOT NULL,
+            parametro_versao INTEGER NOT NULL,
+            indicadores_json TEXT NOT NULL
+        )
+    """)
 
-    if timeframe:
-        indicadores = [
-            r for r in indicadores
-            if str(r.get(timeframe, "")).upper() in
-            ("M5", "5MIN", "5M", "5")
+    con.execute("""
+        CREATE INDEX IF NOT EXISTS idx_setup_decisoes_data
+        ON setup_decisoes(timestamp_candle)
+    """)
+
+
+def carregar_banco_graficos():
+    temporario, db_path, con = abrir_sqlite_gz(GRAFICOS)
+
+    try:
+        tabelas = {
+            r[0] for r in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+
+        necessarias = {"candles", "indicadores_tecnicos"}
+
+        if not necessarias.issubset(tabelas):
+            raise RuntimeError(
+                "Tabelas necessarias ausentes em graficos.db.gz. "
+                f"Encontradas: {sorted(tabelas)}"
+            )
+
+        candles = [
+            dict(r)
+            for r in con.execute("""
+                SELECT timeframe, timestamp, fechamento
+                FROM candles
+                WHERE timeframe = 'M5'
+                ORDER BY timestamp
+            """)
         ]
 
-    velas.sort(key=lambda r: str(r.get(tv, "")))
-    return indicadores, velas, ti, tv, fechamento
+        indicadores = [
+            dict(r)
+            for r in con.execute("""
+                SELECT
+                    timeframe,
+                    timestamp,
+                    mme_9,
+                    mme_21,
+                    rsi_14,
+                    macd_histograma
+                FROM indicadores_tecnicos
+                WHERE timeframe IN ('M5', 'M15', 'H1')
+                ORDER BY timeframe, timestamp
+            """)
+        ]
+
+    finally:
+        fechar_leitura(temporario, con)
+
+    if not candles or not indicadores:
+        raise RuntimeError(
+            "Candles M5 ou indicadores tecnicos nao encontrados."
+        )
+
+    return candles, indicadores
 
 
-def construir_medidas(indicador, colunas_ind):
-    """
-    Cada indicador tem uma leitura independente entre -10 e +10.
-    Peso ausente sera 1, mas a leitura nunca sera apagada.
-    """
+def construir_indices_indicadores(indicadores):
+    indices = {}
+    duracoes = {
+        "M5": 5,
+        "M15": 15,
+        "H1": 60
+    }
 
-    resultado = {}
+    for tf in duracoes:
+        linhas = [
+            r for r in indicadores
+            if r["timeframe"] == tf
+        ]
 
-    # EMA 9 e EMA 21: diferenca relativa ao preco.
-    ema9 = localizar(colunas_ind, ["ema9", "mme9", "ema_9"])
-    ema21 = localizar(colunas_ind, ["ema21", "mme21", "ema_21"])
-    close = numero(indicador.get(
-        localizar(colunas_ind, ["close", "fechamento", "preco"])
-    )) if localizar(
-        colunas_ind, ["close", "fechamento", "preco"]
-    ) else None
-
-    if ema9 and ema21:
-        a = numero(indicador.get(ema9))
-        b = numero(indicador.get(ema21))
-        base = close or (abs(a) if a is not None else None)
-        if a is not None and b is not None and base:
-            resultado["EMA"] = limitar(((a - b) / base) * 1000)
-
-    # RSI: 50 e neutro; valores maiores favorecem alta.
-    rsi_col = localizar(colunas_ind, ["rsi14", "rsi_14", "rsi"])
-    if rsi_col:
-        rsi = numero(indicador.get(rsi_col))
-        if rsi is not None:
-            resultado["RSI"] = limitar((rsi - 50) / 5)
-
-    # MACD: normalizacao estatistica feita depois, no historico.
-    macd_col = localizar(colunas_ind, ["macd", "macd_line"])
-    if macd_col:
-        macd = numero(indicador.get(macd_col))
-        if macd is not None:
-            resultado["MACD_BRUTO"] = macd
-
-    # Indicadores que ja venham expressos como score -10 a +10.
-    for c in colunas_ind:
-        nome = c.lower()
-        if nome.endswith("_score") or nome.endswith("_medida"):
-            valor = numero(indicador.get(c))
-            if valor is not None:
-                resultado[c.upper()] = limitar(valor)
-
-    return resultado
-
-
-def normalizar_macd(registros):
-    valores = [
-        r["medidas"]["MACD_BRUTO"]
-        for r in registros
-        if "MACD_BRUTO" in r["medidas"]
-    ]
-    if not valores:
-        return
-
-    mediana = statistics.median(valores)
-    desvios = [abs(x - mediana) for x in valores]
-    escala = statistics.median(desvios) or 1.0
-
-    for r in registros:
-        if "MACD_BRUTO" in r["medidas"]:
-            bruto = r["medidas"].pop("MACD_BRUTO")
-            r["medidas"]["MACD"] = limitar(
-                (bruto - mediana) / (escala * 1.4826)
+        tempos = [
+            datetime.strptime(
+                r["timestamp"],
+                "%Y-%m-%d %H:%M:%S"
             )
+            for r in linhas
+        ]
+
+        indices[tf] = (
+            tempos,
+            linhas,
+            duracoes[tf]
+        )
+
+    return indices
+
+
+def obter_indicador_fechado(
+    indices,
+    timeframe,
+    instante_fechamento
+):
+    tempos, linhas, minutos = indices[timeframe]
+
+    limite = instante_fechamento - timedelta(
+        minutes=minutos
+    )
+
+    pos = bisect.bisect_right(tempos, limite) - 1
+
+    return linhas[pos] if pos >= 0 else None
+
+
+def extrair_features(indicadores_por_tf, fechamento):
+    features = {}
+
+    for tf in ("M5", "M15", "H1"):
+        linha = indicadores_por_tf.get(tf)
+
+        if not linha:
+            continue
+
+        mme9 = numero(linha.get("mme_9"))
+        mme21 = numero(linha.get("mme_21"))
+        rsi = numero(linha.get("rsi_14"))
+        hist = numero(linha.get("macd_histograma"))
+
+        # MME 9 x MME 21
+        if (
+            mme9 is not None
+            and mme21 is not None
+            and fechamento > 0
+        ):
+            spread_bps = (
+                (mme9 - mme21) / fechamento
+            ) * 10000.0
+
+            features[f"{tf}_EMA"] = tanh_score(
+                spread_bps, 2.0
+            )
+
+        # RSI 14
+        if rsi is not None:
+            features[f"{tf}_RSI"] = max(
+                -10.0,
+                min(10.0, (rsi - 50.0) / 5.0)
+            )
+
+        # Histograma MACD
+        if hist is not None and fechamento > 0:
+            hist_bps = (
+                hist / fechamento
+            ) * 10000.0
+
+            features[f"{tf}_MACD"] = tanh_score(
+                hist_bps, 0.5
+            )
+
+    return {
+        k: round(v, 8)
+        for k, v in features.items()
+        if v is not None
+    }
+
+
+def carregar_amostras():
+    candles, indicadores = carregar_banco_graficos()
+    indices = construir_indices_indicadores(indicadores)
+
+    amostras = []
+
+    for i, candle in enumerate(candles):
+        futuro = i + HORIZONTE
+
+        if futuro >= len(candles):
+            break
+
+        atual = numero(candle.get("fechamento"))
+        depois = numero(
+            candles[futuro].get("fechamento")
+        )
+
+        if atual is None or depois is None or atual <= 0:
+            continue
+
+        inicio = datetime.strptime(
+            candle["timestamp"],
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        fechamento_candle = inicio + timedelta(minutes=5)
+
+        linhas = {
+            tf: obter_indicador_fechado(
+                indices,
+                tf,
+                fechamento_candle
+            )
+            for tf in ("M5", "M15", "H1")
+        }
+
+        features = extrair_features(linhas, atual)
+
+        if not features:
+            continue
+
+        amostras.append({
+            "timestamp": candle["timestamp"],
+            "features": features,
+            "retorno": (depois - atual) / atual
+        })
+
+    if len(amostras) < MIN_AMOSTRAS_TREINO:
+        raise RuntimeError(
+            f"Amostras historicas insuficientes: "
+            f"{len(amostras)}; minimo: {MIN_AMOSTRAS_TREINO}."
+        )
+
+    return amostras
 
 
 def percentil(valores, p):
-    v = sorted(valores)
-    if not v:
-        return 0
-    pos = (len(v) - 1) * p
+    ordenados = sorted(valores)
+
+    if not ordenados:
+        return 0.0
+
+    pos = (len(ordenados) - 1) * p
     baixo = int(pos)
-    alto = min(baixo + 1, len(v) - 1)
-    return v[baixo] + (v[alto] - v[baixo]) * (pos - baixo)
+    alto = min(baixo + 1, len(ordenados) - 1)
+
+    return (
+        ordenados[baixo]
+        + (ordenados[alto] - ordenados[baixo])
+        * (pos - baixo)
+    )
 
 
-def criar_amostras(indicadores, velas, ti, tv, fechamento, ci):
-    mapa_velas = {
-        str(v.get(tv)): numero(v.get(fechamento))
-        for v in velas
-    }
-    precos = [
-        (str(v.get(tv)), numero(v.get(fechamento)))
-        for v in velas
-    ]
-    precos = [(t, p) for t, p in precos if p is not None]
-
-    indice = {t: i for i, (t, _) in enumerate(precos)}
-    registros = []
-
-    for ind in indicadores:
-        tempo = str(ind.get(ti))
-        if tempo not in indice:
-            continue
-
-        i = indice[tempo]
-        futuro = i + HORIZONTE
-        if futuro >= len(precos):
-            continue
-
-        atual = precos[i][1]
-        depois = precos[futuro][1]
-        if not atual:
-            continue
-
-        medidas = construir_medidas(ind, ci)
-        if medidas:
-            registros.append({
-                "tempo": tempo,
-                "medidas": medidas,
-                "retorno": (depois - atual) / atual * 100
-            })
-
-    normalizar_macd(registros)
-    return registros
-
-
-def pontuar(medidas, pesos):
+def pontuar(features, pesos):
     numerador = 0.0
     denominador = 0.0
+    usados = {}
 
-    for nome, leitura in medidas.items():
-        peso = numero(pesos.get(nome, 1)) or 1
-        if peso <= 0:
-            peso = 1
+    for nome, leitura in features.items():
+        peso = numero(pesos.get(nome))
+
+        # Peso ausente recebe 1.
+        # A leitura do indicador continua participando.
+        if peso is None or peso <= 0:
+            peso = 1.0
+
         numerador += leitura * peso
         denominador += peso
 
-    return numerador / denominador if denominador else 0.0
+        usados[nome] = {
+            "leitura": leitura,
+            "peso": peso
+        }
+
+    if denominador <= 0:
+        return None, usados
+
+    return numerador / denominador, usados
 
 
-def avaliar(registros, pesos, limite):
+def avaliar(amostras, pesos, limite, piso_movimento):
+    sinais = 0
     acertos = 0
-    decididos = 0
+    long_count = 0
+    short_count = 0
+    laterais = 0
 
-    for r in registros:
-        score = pontuar(r["medidas"], pesos)
-        retorno = r["retorno"]
+    for amostra in amostras:
+        score, _ = pontuar(
+            amostra["features"],
+            pesos
+        )
 
-        if score >= limite:
-            decisao = "LONG"
-            resultado = retorno > 0
-        elif score <= -limite:
-            decisao = "SHORT"
-            resultado = retorno < 0
-        else:
-            decisao = "LATERAL"
+        if score is None:
             continue
 
-        decididos += 1
-        if resultado:
-            acertos += 1
+        retorno = amostra["retorno"]
 
-    taxa = acertos / decididos if decididos else 0
-    cobertura = decididos / len(registros) if registros else 0
+        if score >= limite:
+            long_count += 1
+            sinais += 1
+
+            if retorno > piso_movimento:
+                acertos += 1
+
+        elif score <= -limite:
+            short_count += 1
+            sinais += 1
+
+            if retorno < -piso_movimento:
+                acertos += 1
+
+        else:
+            laterais += 1
+
+    taxa = acertos / sinais if sinais else 0.0
+    cobertura = sinais / len(amostras) if amostras else 0.0
+
+    objetivo = taxa * math.sqrt(cobertura)
 
     return {
-        "taxa_direcao": taxa,
-        "cobertura": cobertura,
-        "decididos": decididos,
-        "amostras": len(registros)
+        "amostras": len(amostras),
+        "sinais": sinais,
+        "long": long_count,
+        "short": short_count,
+        "lateral": laterais,
+        "acertos": acertos,
+        "taxa_direcional": round(taxa, 6),
+        "cobertura": round(cobertura, 6),
+        "objetivo": round(objetivo, 6)
     }
+
+
+def salvar_parametros(parametros):
+    temporario, db_path, con = abrir_sqlite_gz(SINAIS)
+
+    try:
+        criar_tabelas_setup(con)
+
+        cur = con.execute("""
+            INSERT INTO setup_parametros (
+                criado_utc,
+                status,
+                pesos_json,
+                limite_long,
+                limite_short,
+                horizonte_velas,
+                features_json,
+                treino_json,
+                validacao_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        """, (
+            agora_utc(),
+            "PENDENTE_VALIDACAO",
+            json.dumps(
+                parametros["pesos"],
+                ensure_ascii=False,
+                sort_keys=True
+            ),
+            parametros["limite_long"],
+            parametros["limite_short"],
+            HORIZONTE,
+            json.dumps(
+                parametros["features"],
+                ensure_ascii=False
+            ),
+            json.dumps(
+                parametros["treino"],
+                ensure_ascii=False
+            )
+        ))
+
+        versao = cur.lastrowid
+
+        con.commit()
+        con.close()
+
+        compactar_sqlite_gz(
+            temporario,
+            db_path,
+            SINAIS
+        )
+
+        return versao
+
+    except Exception:
+        try:
+            con.rollback()
+            con.close()
+        except Exception:
+            pass
+
+        temporario.cleanup()
+        raise
 
 
 def otimizar():
-    con = abrir_banco(DB)
-    indicadores, velas, ti, tv, fechamento = descobrir_dados(con)
-    ci = colunas(con, "indicadores_tecnicos")
+    amostras = carregar_amostras()
 
-    registros = criar_amostras(
-        indicadores, velas, ti, tv, fechamento, ci
+    corte = int(
+        len(amostras) * PERCENTUAL_TREINO
     )
-    con.close()
 
-    if len(registros) < MIN_AMOSTRAS:
+    # Purga o horizonte para nao cruzar treino e validacao.
+    treino = amostras[
+        :max(0, corte - HORIZONTE)
+    ]
+
+    if len(treino) < MIN_AMOSTRAS_TREINO:
         raise RuntimeError(
-            f"Amostras insuficientes: {len(registros)}. "
-            f"Minimo exigido: {MIN_AMOSTRAS}."
+            "A parte de treinamento nao possui "
+            "amostras suficientes."
         )
 
-    nomes = sorted({
+    movimentos = [
+        abs(a["retorno"])
+        for a in treino
+    ]
+
+    piso = percentil(movimentos, 0.20)
+
+    features = sorted({
         nome
-        for r in registros
-        for nome in r["medidas"]
+        for amostra in treino
+        for nome in amostra["features"]
     })
 
-    # Separacao cronologica: ajuste nos 70% iniciais.
-    corte = int(len(registros) * 0.70)
-    treino = registros[:corte]
+    # Todos os indicadores comecam com peso 1.
+    pesos = {
+        nome: 1
+        for nome in features
+    }
 
-    melhor = None
+    # Busca coordenada de pesos.
+    for _ in range(2):
+        for nome in features:
+            melhor = None
 
-    # Busca individual dos pesos para evitar explosao combinatoria.
-    pesos = {nome: 1 for nome in nomes}
+            for peso in PESOS_CANDIDATOS:
+                tentativa = dict(pesos)
+                tentativa[nome] = peso
 
-    for nome in nomes:
-        melhor_local = None
-        for peso in PESOS_TESTE:
-            teste = dict(pesos)
-            teste[nome] = peso
+                for limite in LIMITES_CANDIDATOS:
+                    resultado = avaliar(
+                        treino,
+                        tentativa,
+                        limite,
+                        piso
+                    )
 
-            for limite in LIMITES_TESTE:
-                resultado = avaliar(treino, teste, limite)
-                if resultado["decididos"] < 20:
-                    continue
+                    if resultado["sinais"] < MIN_SINAIS_TREINO:
+                        continue
 
-                # Prioriza taxa direcional, mas penaliza baixa cobertura.
-                objetivo = (
-                    resultado["taxa_direcao"] *
-                    math.sqrt(resultado["cobertura"])
-                )
+                    chave = (
+                        resultado["objetivo"],
+                        resultado["taxa_direcional"],
+                        resultado["cobertura"]
+                    )
 
-                if melhor_local is None or objetivo > melhor_local[0]:
-                    melhor_local = (objetivo, peso, limite)
+                    if melhor is None or chave > melhor[0]:
+                        melhor = (
+                            chave,
+                            peso,
+                            limite
+                        )
 
-        if melhor_local:
-            pesos[nome] = melhor_local[1]
-            limite_escolhido = melhor_local[2]
+            if melhor:
+                pesos[nome] = melhor[1]
 
-    if not nomes:
-        raise RuntimeError("Nenhum indicador valido foi encontrado.")
+    # Escolha final do limite.
+    melhor_final = None
 
-    if "limite_escolhido" not in locals():
-        limite_escolhido = 2.0
+    for limite in LIMITES_CANDIDATOS:
+        resultado = avaliar(
+            treino,
+            pesos,
+            limite,
+            piso
+        )
 
-    # Teste final de treino com os pesos encontrados.
-    melhor_limite = limite_escolhido
-    melhor_resultado = avaliar(treino, pesos, melhor_limite)
+        if resultado["sinais"] < MIN_SINAIS_TREINO:
+            continue
+
+        chave = (
+            resultado["objetivo"],
+            resultado["taxa_direcional"],
+            resultado["cobertura"]
+        )
+
+        if melhor_final is None or chave > melhor_final[0]:
+            melhor_final = (
+                chave,
+                limite,
+                resultado
+            )
+
+    if melhor_final is None:
+        raise RuntimeError(
+            "Nenhuma combinacao produziu sinais suficientes."
+        )
+
+    melhor_limite = melhor_final[1]
+    resultado_treino = melhor_final[2]
 
     parametros = {
-        "versao": 1,
-        "origem": "graficos.db.gz",
-        "criado_utc": datetime.now(timezone.utc).isoformat(),
-        "indicadores": nomes,
         "pesos": pesos,
         "limite_long": melhor_limite,
         "limite_short": -melhor_limite,
-        "horizonte_velas": HORIZONTE,
-        "amostras_treino": len(treino),
-        "status": "PENDENTE_VALIDACAO",
-        "resultado_treino": melhor_resultado
+        "features": features,
+        "treino": {
+            **resultado_treino,
+            "piso_movimento": piso,
+            "amostras_treino": len(treino),
+            "amostras_total": len(amostras),
+            "percentual_treino": PERCENTUAL_TREINO
+        }
     }
 
-    os.makedirs("data", exist_ok=True)
-    with open(SAIDA, "w", encoding="utf-8") as f:
-        json.dump(parametros, f, ensure_ascii=False, indent=2)
+    versao = salvar_parametros(parametros)
 
-    print(json.dumps(parametros, ensure_ascii=False, indent=2))
+    print(json.dumps({
+        "versao": versao,
+        "status": "PENDENTE_VALIDACAO",
+        **parametros
+    }, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
