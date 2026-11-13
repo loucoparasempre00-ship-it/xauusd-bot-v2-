@@ -1,0 +1,171 @@
+
+name: Limpeza em Lote XAU V3
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: "Digite CONFIRMAR XAU V3 para apagar. Qualquer outro texto gera apenas prévia."
+        required: true
+        type: string
+        default: "PREVIA"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: limpeza-lote-xau-v3
+  cancel-in-progress: false
+
+jobs:
+  limpeza:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Conferir proteção e executar limpeza
+        env:
+          CONFIRMAR: ${{ inputs.confirmar }}
+          BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          bancos = {
+              "data/graficos.db.gz",
+              "data/estatisticas_m5.db.gz",
+              "data/sinais.db.gz",
+              "data/memoria.db.gz",
+              "data/operacoes.db.gz",
+              "data/resultados_operacoes.db.gz",
+          }
+
+          modulos = {
+              "analisador_setup_xau.py",
+              "coletar_candles.py",
+              "motor_contexto_xau.py",
+              "coletor_tabuleiro_m5.py",
+              "banco_dados_tabuleiro.py",
+              "detector_bordas_m5.py",
+              "processador_estatistico_m5.py",
+              "sequenciador_tabuleiro_m5.py",
+              "avaliador_resultados_m5.py",
+              "relatorio_tabuleiro_m5.py",
+              "tabuleiro_estavel_m5.py",
+              "preparar_contexto_acompanhador.py",
+              "memoria_persistente_gemini.py",
+          }
+
+          outros = {
+              "README.md",
+              ".github/workflows/testador-gemini.yml",
+          }
+
+          protegidos = bancos | modulos | outros
+
+          saida = subprocess.check_output(
+              ["git", "ls-files", "-z"]
+          ).decode("utf-8").split("\0")
+
+          arquivos = sorted(p for p in saida if p)
+
+          obrigatorios = bancos | modulos | {
+              ".github/workflows/testador-gemini.yml"
+          }
+
+          ausentes = obrigatorios - set(arquivos)
+
+          if ausentes:
+              print("ERRO: arquivos protegidos não encontrados:")
+              for p in sorted(ausentes):
+                  print(p)
+              sys.exit(1)
+
+          executar = (
+              os.environ.get("CONFIRMAR", "")
+              == "CONFIRMAR XAU V3"
+          )
+
+          manter = set(protegidos)
+
+          if not executar:
+              manter.add(
+                  ".github/workflows/limpeza-lote-xau.yml"
+              )
+
+          apagar = [
+              p for p in arquivos
+              if p not in manter
+          ]
+
+          print("===== PRÉVIA DA LIMPEZA =====")
+          print("Protegidos:", len(protegidos))
+          print("Para apagar:", len(apagar))
+
+          for p in apagar:
+              print("APAGAR:", p)
+
+          if not executar:
+              print("PRÉVIA: nenhum arquivo foi apagado.")
+              print("Para confirmar, digite: CONFIRMAR XAU V3")
+
+              with open(
+                  os.environ["GITHUB_STEP_SUMMARY"],
+                  "a",
+                  encoding="utf-8"
+              ) as f:
+                  f.write("## Prévia da limpeza XAU V3\n\n")
+                  f.write(f"Protegidos: {len(protegidos)}\n\n")
+                  f.write(f"Para apagar: {len(apagar)}\n\n")
+                  for p in apagar:
+                      f.write(f"- `{p}`\n")
+
+              sys.exit(0)
+
+          print("CONFIRMAÇÃO RECEBIDA.")
+
+          for p in apagar:
+              subprocess.run(
+                  ["git", "rm", "-f", "--", p],
+                  check=True
+              )
+
+          subprocess.run(
+              ["git", "config", "user.name",
+               "github-actions[bot]"],
+              check=True
+          )
+
+          subprocess.run(
+              ["git", "config", "user.email",
+               "41898282+github-actions[bot]@users.noreply.github.com"],
+              check=True
+          )
+
+          subprocess.run(
+              ["git", "commit", "-m",
+               "Limpeza em lote para XAU V3"],
+              check=True
+          )
+
+          branch = os.environ["BRANCH"]
+
+          subprocess.run(
+              ["git", "push", "origin",
+               f"HEAD:refs/heads/{branch}"],
+              check=True
+          )
+
+          print("LIMPEZA CONCLUÍDA.")
+          print("Arquivos removidos:", len(apagar))
+          print("Arquivos protegidos:", len(protegidos))
+          print("Workflow temporário removido.")
+          PY
