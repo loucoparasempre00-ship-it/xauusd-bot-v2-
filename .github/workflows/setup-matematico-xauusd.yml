@@ -1,0 +1,73 @@
+
+name: Setup Matematico XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: setup-matematico-xauusd
+  cancel-in-progress: false
+
+jobs:
+  setup-matematico:
+    name: Otimizacao, validacao e decisao
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preparar ambiente
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Verificar bancos oficiais
+        run: |
+          test -f data/graficos.db.gz
+          echo "Banco de graficos encontrado."
+          echo "Bancos de operacoes nao serao consultados."
+
+      - name: Otimizar parametros matematicos
+        run: |
+          python otimizador_parametros_setup.py
+
+      - name: Validar parametros
+        run: |
+          python validador_setup.py
+
+      - name: Executar motor matematico
+        run: |
+          python motor_setup_matematico.py
+
+      - name: Verificar resultados
+        run: |
+          test -f data/parametros_setups.json
+          test -f data/decisao_setup.json
+
+          echo "===== PARAMETROS ====="
+          cat data/parametros_setups.json
+
+          echo "===== DECISAO ====="
+          cat data/decisao_setup.json
+
+      - name: Salvar resultados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/parametros_setups.json data/decisao_setup.json
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteracao para salvar."
+          else
+            git commit -m "Atualiza parametros e decisao do setup matematico"
+            git push
+          fi
