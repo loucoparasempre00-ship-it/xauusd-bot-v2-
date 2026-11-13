@@ -3,17 +3,16 @@
 # -*- coding: utf-8 -*-
 
 """
-MOTOR MATEMATICO DE SETUP
+MOTOR MATEMATICO XAUUSD
 
-Leitura: graficos.db.gz e sinais.db.gz
-Gravacao: sinais.db.gz
+Fonte: data/graficos.db.gz
+Parametros: data/sinais.db.gz
+Gravacao: data/sinais.db.gz
 
-Decisoes:
-LONG
-SHORT
-LATERAL
+Decisoes: LONG, SHORT ou LATERAL.
 
-Nao utiliza Gemini nem bancos de operacoes.
+A seta e tratada como evento matematico.
+O motor nao envia ordens e nao chama o Gemini.
 """
 
 import json
@@ -21,76 +20,47 @@ from datetime import datetime, timedelta, timezone
 
 from otimizador_parametros_setup import (
     SINAIS,
+    JANELA,
+    TIMEFRAMES,
     abrir_sqlite_gz,
     compactar_sqlite_gz,
-    carregar_banco_graficos,
-    construir_indices_indicadores,
-    obter_indicador_fechado,
-    extrair_features,
+    carregar_leituras,
     pontuar,
-    criar_tabelas_setup
+    parse_data,
+    criar_tabelas_setup,
 )
 
 
-def ultima_leitura():
-    candles, indicadores = carregar_banco_graficos()
+def obter_ultima_leitura_fechada():
+    leituras = carregar_leituras()
+    agora = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    candle = candles[-1]
-    fechamento = float(candle["fechamento"])
+    fechadas = []
 
-    inicio = datetime.strptime(
-        candle["timestamp"],
-        "%Y-%m-%d %H:%M:%S"
-    )
+    for leitura in leituras:
+        inicio = parse_data(leitura["timestamp"])
+        fim = inicio + timedelta(minutes=TIMEFRAMES["M5"])
 
-    instante_fechamento = inicio + timedelta(minutes=5)
+        if fim <= agora:
+            fechadas.append(leitura)
 
-    indices = construir_indices_indicadores(
-        indicadores
-    )
+    if not fechadas:
+        raise RuntimeError("Nao existe vela M5 fechada disponivel.")
 
-    linhas = {
-        tf: obter_indicador_fechado(
-            indices,
-            tf,
-            instante_fechamento
-        )
-        for tf in ("M5", "M15", "H1")
-    }
+    ultima = fechadas[-1]
 
-    features = extrair_features(
-        linhas,
-        fechamento
-    )
-
-    if not features:
-        raise RuntimeError(
-            "Nenhum indicador valido para a ultima vela M5."
-        )
-
-    return candle["timestamp"], features
+    return ultima["timestamp"], ultima["features"]
 
 
 def decidir():
-    timestamp, features = ultima_leitura()
+    timestamp, features = obter_ultima_leitura_fechada()
 
     temporario, db_path, con = abrir_sqlite_gz(SINAIS)
 
     try:
-        existe = con.execute("""
-            SELECT 1
-            FROM sqlite_master
-            WHERE type='table'
-            AND name='setup_parametros'
-        """).fetchone()
+        criar_tabelas_setup(con)
 
-        if not existe:
-            raise RuntimeError(
-                "Parametros nao encontrados. "
-                "Execute otimizador e validador."
-            )
-
-        p = con.execute("""
+        parametros = con.execute("""
             SELECT *
             FROM setup_parametros
             WHERE status='APROVADO'
@@ -98,44 +68,81 @@ def decidir():
             LIMIT 1
         """).fetchone()
 
-        if p is None:
+        if parametros is None:
             raise RuntimeError(
                 "Nao existem parametros aprovados. "
-                "Motor nao emitira decisao."
+                "O motor nao emitira evento."
             )
 
-        pesos = json.loads(p["pesos_json"])
+        pesos = json.loads(parametros["pesos_json"])
 
-        features_aprovadas = set(
-            json.loads(p["features_json"])
-        )
+        configuracao = json.loads(parametros["features_json"])
+        features_aprovadas = set(configuracao.get("indicadores", []))
 
         disponiveis = {
-            k: v
-            for k, v in features.items()
-            if k in features_aprovadas
+            nome: valor
+            for nome, valor in features.items()
+            if nome in features_aprovadas
         }
 
-        score, usados = pontuar(
-            disponiveis,
-            pesos
-        )
-
-        if score is None:
+        if len(disponiveis) < 3:
             raise RuntimeError(
-                "Nao ha indicadores validos para calcular."
+                "Indicadores validos insuficientes para a decisao."
             )
 
-        limite = float(p["limite_long"])
+        resultado = pontuar(disponiveis, pesos)
 
-        if score >= limite:
+        nota_long = resultado["nota_long"]
+        nota_short = resultado["nota_short"]
+        score_final = resultado["score_final"]
+
+        gatilho_long = float(parametros["limite_long"])
+        gatilho_short = abs(float(parametros["limite_short"]))
+
+        if score_final >= gatilho_long:
             decisao = "LONG"
-        elif score <= -limite:
+        elif score_final <= -gatilho_short:
             decisao = "SHORT"
         else:
             decisao = "LATERAL"
 
-        criar_tabelas_setup(con)
+        # Evita duplicar o mesmo evento se o workflow for executado
+        # novamente para a mesma vela e versao de parametros.
+        existente = con.execute("""
+            SELECT id
+            FROM setup_decisoes
+            WHERE timestamp_candle=?
+              AND parametro_versao=?
+            LIMIT 1
+        """, (timestamp, parametros["versao"])).fetchone()
+
+        if existente:
+            print(json.dumps({
+                "status": "JA_PROCESSADO",
+                "timestamp_candle": timestamp,
+                "decisao": decisao,
+                "id_existente": existente["id"],
+            }, ensure_ascii=False, indent=2))
+
+            con.close()
+            temporario.cleanup()
+            return
+
+        indicadores_json = {
+            "janela_m5": JANELA,
+            "nota_long": nota_long,
+            "nota_short": nota_short,
+            "score_final": score_final,
+            "gatilho_long": gatilho_long,
+            "gatilho_short": -gatilho_short,
+            "indicadores": resultado["indicadores"],
+            "indicadores_utilizados": sorted(disponiveis),
+            "parametro_versao": parametros["versao"],
+            "descricao_evento": (
+                "Evento matematico detectado pela soma das notas "
+                "independentes de compra e venda."
+            ),
+        }
 
         con.execute("""
             INSERT INTO setup_decisoes (
@@ -145,52 +152,47 @@ def decidir():
                 pontuacao,
                 limite,
                 parametro_versao,
-                indicadores_json
+                indicadores_json,
+                nota_long,
+                nota_short,
+                gatilho_long,
+                gatilho_short
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            datetime.now(timezone.utc).isoformat(
-                timespec="seconds"
-            ),
+            datetime.now(timezone.utc).isoformat(timespec="seconds"),
             timestamp,
             decisao,
-            round(score, 6),
-            limite,
-            p["versao"],
-            json.dumps({
-                "utilizados": usados,
-                "sem_leitura": sorted(
-                    features_aprovadas - set(disponiveis)
-                ),
-                "indicadores_lidos": sorted(disponiveis)
-            }, ensure_ascii=False)
+            score_final,
+            gatilho_long if decisao != "SHORT" else -gatilho_short,
+            parametros["versao"],
+            json.dumps(indicadores_json, ensure_ascii=False),
+            nota_long,
+            nota_short,
+            gatilho_long,
+            -gatilho_short,
         ))
 
         con.commit()
 
-        resultado = {
+        saida = {
+            "status": "EVENTO_REGISTRADO",
             "timestamp_candle": timestamp,
             "decisao": decisao,
-            "pontuacao": round(score, 6),
-            "limite_long": limite,
-            "limite_short": -limite,
-            "versao_parametros": p["versao"],
-            "indicadores": usados
+            "nota_long": nota_long,
+            "nota_short": nota_short,
+            "score_final": score_final,
+            "gatilho_long": gatilho_long,
+            "gatilho_short": -gatilho_short,
+            "janela_m5": JANELA,
+            "versao_parametros": parametros["versao"],
+            "indicadores": resultado["indicadores"],
         }
 
+        print(json.dumps(saida, ensure_ascii=False, indent=2))
+
         con.close()
-
-        compactar_sqlite_gz(
-            temporario,
-            db_path,
-            SINAIS
-        )
-
-        print(json.dumps(
-            resultado,
-            ensure_ascii=False,
-            indent=2
-        ))
+        compactar_sqlite_gz(temporario, db_path, SINAIS)
 
     except Exception:
         try:
@@ -198,7 +200,6 @@ def decidir():
             con.close()
         except Exception:
             pass
-
         temporario.cleanup()
         raise
 
