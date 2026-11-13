@@ -1,0 +1,91 @@
+
+name: Grafico XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: grafico-xauusd
+  cancel-in-progress: false
+
+jobs:
+  construir-contexto:
+    name: Coletar velas e construir contexto
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verificar banco oficial de gráficos
+        run: |
+          if [ -f data/graficos.db.gz ]; then
+            echo "Banco oficial graficos.db.gz encontrado."
+          elif [ -f data/graficos.db ]; then
+            echo "Banco oficial graficos.db encontrado."
+          else
+            echo "AVISO: banco oficial não está no checkout."
+            echo "A coleta seguirá com os candles novos da API."
+          fi
+
+      - name: Coletar e integrar candles M5
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: python coletar_candles.py
+
+      - name: Construir contexto M5, M15 e H1
+        run: python motor_contexto_xau.py
+
+      - name: Conferir resultado gerado
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          caminho = Path("data/analise_tecnica_contexto.json")
+          if not caminho.exists():
+              raise SystemExit("ERRO: contexto não foi gerado.")
+
+          with caminho.open(encoding="utf-8") as arquivo:
+              dados = json.load(arquivo)
+
+          campos = [
+              "quantidade_m5",
+              "quantidade_m15",
+              "quantidade_h1",
+              "macd_12_26_9",
+              "rsi_14",
+              "atr_14",
+              "decisao",
+          ]
+
+          ausentes = [c for c in campos if c not in dados]
+          if ausentes:
+              raise SystemExit(
+                  "Campos ausentes: " + ", ".join(ausentes)
+              )
+
+          print("Contexto técnico validado.")
+          print("M5:", dados["quantidade_m5"])
+          print("M15:", dados["quantidade_m15"])
+          print("H1:", dados["quantidade_h1"])
+          print("Decisão:", dados["decisao"])
+          PY
+
+      - name: Publicar contexto técnico
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-tecnica-contexto
+          path: data/analise_tecnica_contexto.json
+          if-no-files-found: error
+          retention-days: 7
