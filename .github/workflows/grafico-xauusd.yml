@@ -1,0 +1,129 @@
+
+name: Grafico XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: grafico-xauusd
+  cancel-in-progress: false
+
+jobs:
+  construir-graficos:
+    name: Coleta, gráficos e indicadores
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Verificar arquivos
+        run: |
+          test -f coletor_validador_velas.py
+          test -f construtor_graficos.py
+          test -f indicadores_tecnicos.py
+
+      - name: Coletar e validar velas M5 M15 H1
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: python coletor_validador_velas.py
+
+      - name: Construir gráficos
+        run: python construtor_graficos.py
+
+      - name: Calcular indicadores técnicos
+        run: python indicadores_tecnicos.py
+
+      - name: Conferir banco de dados
+        run: |
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import tempfile
+          import os
+
+          banco = "data/graficos.db.gz"
+
+          if not os.path.exists(banco):
+              raise SystemExit("Banco graficos.db.gz não encontrado.")
+
+          with tempfile.NamedTemporaryFile(suffix=".db") as arquivo:
+              with gzip.open(banco, "rb") as origem:
+                  arquivo.write(origem.read())
+                  arquivo.flush()
+
+              conexao = sqlite3.connect(arquivo.name)
+
+              for tabela in (
+                  "candles",
+                  "estrutura_grafica",
+                  "indicadores_tecnicos"
+              ):
+                  existe = conexao.execute(
+                      "SELECT 1 FROM sqlite_master "
+                      "WHERE type='table' AND name=?",
+                      (tabela,)
+                  ).fetchone()
+
+                  if not existe:
+                      raise SystemExit(
+                          f"Tabela ausente: {tabela}"
+                      )
+
+              for tf in ("M5", "M15", "H1"):
+                  candles = conexao.execute(
+                      "SELECT COUNT(*) FROM candles WHERE timeframe=?",
+                      (tf,)
+                  ).fetchone()[0]
+
+                  graficos = conexao.execute(
+                      "SELECT COUNT(*) FROM estrutura_grafica "
+                      "WHERE timeframe=?",
+                      (tf,)
+                  ).fetchone()[0]
+
+                  indicadores = conexao.execute(
+                      "SELECT COUNT(*) FROM indicadores_tecnicos "
+                      "WHERE timeframe=?",
+                      (tf,)
+                  ).fetchone()[0]
+
+                  print(
+                      f"{tf}: candles={candles}, "
+                      f"gráficos={graficos}, "
+                      f"indicadores={indicadores}"
+                  )
+
+                  if not candles or not graficos or not indicadores:
+                      raise SystemExit(
+                          f"Dados incompletos em {tf}"
+                      )
+
+              conexao.close()
+          PY
+
+      - name: Salvar banco atualizado no GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/graficos.db.gz
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração no banco."
+          else
+            git commit -m "Atualiza gráficos e indicadores XAUUSD"
+            git push origin HEAD:main
+          fi
