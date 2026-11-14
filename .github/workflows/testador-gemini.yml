@@ -4,7 +4,8 @@ name: Testador e Seletor Gemini
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 10 * * 0"
+    # Uma vez por dia, às 07:17 no horário de Brasília
+    - cron: "17 10 * * *"
 
 permissions:
   contents: write
@@ -19,7 +20,7 @@ jobs:
     timeout-minutes: 8
 
     steps:
-      - name: Baixar repositorio e historico
+      - name: Baixar repositorio
         uses: actions/checkout@v4
         with:
           ref: main
@@ -29,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Testar conexoes e calcular ranking
+      - name: Testar modelos e gravar ranking no banco oficial
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -40,29 +41,41 @@ jobs:
           import sys
           import json
           import time
+          import sqlite3
           import urllib.request
           import urllib.error
           from datetime import datetime, timezone
 
+          from otimizador_parametros_setup import (
+              SINAIS,
+              abrir_sqlite_gz,
+              compactar_sqlite_gz,
+          )
+
           BASE = "https://generativelanguage.googleapis.com/v1beta"
           KEY = os.getenv("GEMINI_API_KEY", "").strip()
+
           OUTPUT = "data/modelo_gemini.json"
           HISTORICO = "data/historico_conexoes_gemini.json"
 
-          agora = datetime.now(timezone.utc).isoformat()
+          TABELA = "SELECAO_MODELO_GEMINI"
+
+          agora = datetime.now(timezone.utc).isoformat(
+              timespec="seconds"
+          )
 
           resultado = {
               "status": "iniciado",
               "modelo_escolhido": None,
+              "modelos_rankeados": [],
               "modelos_testados": [],
-              "ranking": [],
-              "criterio": "Confiabilidade historica (90%) e velocidade media (10%).",
+              "criterio": "Menor numero de falhas; empate decidido pelo menor tempo medio.",
               "motivo": "",
               "atualizado_utc": agora
           }
 
           historico = {
-              "versao": 1,
+              "versao": 2,
               "atualizado_utc": agora,
               "modelos": {},
               "eventos_api": []
@@ -80,14 +93,16 @@ jobs:
               except Exception as e:
                   print("Historico anterior invalido:", str(e))
 
-          historico.setdefault("versao", 1)
+          historico.setdefault("versao", 2)
           historico.setdefault("modelos", {})
           historico.setdefault("eventos_api", [])
 
-          def salvar_arquivos():
-              agora_local = datetime.now(timezone.utc).isoformat()
-              resultado["atualizado_utc"] = agora_local
-              historico["atualizado_utc"] = agora_local
+          def salvar_json():
+              momento = datetime.now(timezone.utc).isoformat(
+                  timespec="seconds"
+              )
+              resultado["atualizado_utc"] = momento
+              historico["atualizado_utc"] = momento
 
               with open(OUTPUT, "w", encoding="utf-8") as f:
                   json.dump(resultado, f, ensure_ascii=False, indent=2)
@@ -97,7 +112,6 @@ jobs:
 
           def registrar_evento_api(modelo, codigo, detalhe):
               historico.setdefault("eventos_api", [])
-
               historico["eventos_api"].append({
                   "modelo": modelo,
                   "http": codigo,
@@ -107,10 +121,7 @@ jobs:
                       timezone.utc
                   ).isoformat()
               })
-
-              historico["eventos_api"] = (
-                  historico["eventos_api"][-100:]
-              )
+              historico["eventos_api"] = historico["eventos_api"][-100:]
 
           def requisicao(url, body=None):
               headers = {"x-goog-api-key": KEY}
@@ -156,12 +167,133 @@ jobs:
                       "detail": {"message": str(e)[:300]}
                   }
 
+          def calcular_ranking():
+              ranking = []
+
+              for nome, reg in historico["modelos"].items():
+                  tentativas = int(reg.get("tentativas", 0))
+                  sucessos = int(reg.get("sucessos", 0))
+                  falhas = int(reg.get("falhas", 0))
+
+                  tempo_total = float(
+                      reg.get("tempo_total_segundos", 0.0)
+                  )
+
+                  media = (
+                      tempo_total / sucessos
+                      if sucessos > 0 else None
+                  )
+
+                  ranking.append({
+                      "modelo": nome,
+                      "tempo_medio_segundos": (
+                          round(media, 3) if media is not None else None
+                      ),
+                      "falhas": falhas,
+                      "tentativas": tentativas,
+                      "sucessos": sucessos
+                  })
+
+              ranking.sort(
+                  key=lambda x: (
+                      x["falhas"],
+                      x["tempo_medio_segundos"]
+                      if x["tempo_medio_segundos"] is not None
+                      else 999999,
+                      -x["sucessos"],
+                      x["modelo"]
+                  )
+              )
+
+              for posicao, item in enumerate(ranking, start=1):
+                  item["posicao"] = posicao
+
+              return ranking
+
+          def gravar_ranking_banco(ranking):
+              temporario, db_path, con = abrir_sqlite_gz(SINAIS)
+
+              try:
+                  con.execute("""
+                      CREATE TABLE IF NOT EXISTS SELECAO_MODELO_GEMINI (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                          atualizado_utc TEXT NOT NULL,
+                          modelo TEXT NOT NULL,
+                          tempo_medio_segundos REAL,
+                          falhas INTEGER NOT NULL,
+                          tentativas INTEGER NOT NULL,
+                          sucessos INTEGER NOT NULL,
+                          posicao INTEGER NOT NULL,
+                          status_teste TEXT NOT NULL
+                      )
+                  """)
+
+                  momento = datetime.now(timezone.utc).isoformat(
+                      timespec="seconds"
+                  )
+
+                  testes_por_modelo = {
+                      item["modelo"]: item
+                      for item in resultado["modelos_testados"]
+                  }
+
+                  for item in ranking:
+                      teste = testes_por_modelo.get(
+                          item["modelo"], {}
+                      )
+
+                      status_teste = teste.get(
+                          "resultado", "historico"
+                      )
+
+                      con.execute("""
+                          INSERT INTO SELECAO_MODELO_GEMINI (
+                              atualizado_utc,
+                              modelo,
+                              tempo_medio_segundos,
+                              falhas,
+                              tentativas,
+                              sucessos,
+                              posicao,
+                              status_teste
+                          )
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                      """, (
+                          momento,
+                          item["modelo"],
+                          item["tempo_medio_segundos"],
+                          item["falhas"],
+                          item["tentativas"],
+                          item["sucessos"],
+                          item["posicao"],
+                          status_teste
+                      ))
+
+                  con.commit()
+                  con.close()
+
+                  compactar_sqlite_gz(
+                      temporario,
+                      db_path,
+                      SINAIS
+                  )
+
+                  print("Ranking gravado no banco oficial:", SINAIS)
+
+              except Exception:
+                  try:
+                      con.rollback()
+                      con.close()
+                  except Exception:
+                      pass
+
+                  temporario.cleanup()
+                  raise
+
           if not KEY:
               resultado["status"] = "erro"
-              resultado["motivo"] = (
-                  "Secret GEMINI_API_KEY ausente ou vazio."
-              )
-              salvar_arquivos()
+              resultado["motivo"] = "Secret GEMINI_API_KEY ausente."
+              salvar_json()
               sys.exit(1)
 
           print("1/4 - Consultando modelos Gemini...")
@@ -173,15 +305,17 @@ jobs:
           if erro:
               codigo = erro["code"]
 
-              if codigo in (400, 401, 403, 429):
-                  registrar_evento_api(
-                      "__listagem_modelos__",
-                      codigo,
-                      erro["detail"]
-                  )
-                  resultado["status"] = "erro_api_ou_cota"
-              else:
-                  resultado["status"] = "erro_api"
+              registrar_evento_api(
+                  "__listagem_modelos__",
+                  codigo,
+                  erro["detail"]
+              )
+
+              resultado["status"] = (
+                  "erro_api_ou_cota"
+                  if codigo in (400, 401, 403, 429)
+                  else "erro_api"
+              )
 
               resultado["motivo"] = (
                   "Consulta de modelos falhou. HTTP "
@@ -193,7 +327,7 @@ jobs:
                   )[:700]
               )
 
-              salvar_arquivos()
+              salvar_json()
               print(resultado["motivo"])
               sys.exit(1)
 
@@ -233,22 +367,18 @@ jobs:
               resultado["motivo"] = (
                   "Nenhum modelo com generateContent foi encontrado."
               )
-              salvar_arquivos()
+              salvar_json()
               sys.exit(1)
 
           print("2/4 - Testando", len(elegiveis), "modelos...")
 
-          testes_atuais = []
-
           for nome in elegiveis:
               corpo = {
-                  "contents": [
-                      {
-                          "parts": [
-                              {"text": "Responda somente: OK"}
-                          ]
-                      }
-                  ],
+                  "contents": [{
+                      "parts": [{
+                          "text": "Responda somente: OK"
+                      }]
+                  }],
                   "generationConfig": {
                       "temperature": 0,
                       "maxOutputTokens": 5
@@ -261,7 +391,7 @@ jobs:
               )
 
               codigo = falha["code"] if falha else 200
-              partes = []
+              texto = ""
 
               if not falha:
                   partes = (
@@ -270,9 +400,9 @@ jobs:
                       .get("parts", [])
                   )
 
-              texto = "".join(
-                  p.get("text", "") for p in partes
-              ).strip()
+                  texto = "".join(
+                      p.get("text", "") for p in partes
+                  ).strip()
 
               sucesso = bool(texto)
 
@@ -290,11 +420,13 @@ jobs:
                       falha["detail"],
                       ensure_ascii=False
                   )[:400]
-
               elif not texto:
                   item["resultado"] = "resposta_vazia"
 
-              # Erros globais nao penalizam o modelo.
+              resultado["modelos_testados"].append(item)
+
+              # Erros de autenticacao, cota ou requisicao global
+              # nao devem ser contabilizados como falha do modelo.
               if codigo in (400, 401, 403, 429):
                   registrar_evento_api(
                       nome,
@@ -302,24 +434,13 @@ jobs:
                       item.get("detalhe", "")
                   )
 
-                  testes_atuais.append(item)
-
                   resultado["status"] = "erro_api_ou_cota"
                   resultado["motivo"] = (
-                      "Testes interrompidos por HTTP "
-                      + str(codigo)
-                      + ". Ocorrencia registrada separadamente, "
-                      "sem penalizar a confiabilidade do modelo."
+                      "Teste interrompido por erro de API ou cota. "
+                      "O evento foi registrado sem penalizar o modelo."
                   )
-
-                  print(
-                      "Teste interrompido por erro global:",
-                      codigo
-                  )
+                  print("Teste interrompido. HTTP:", codigo)
                   break
-
-              # Somente respostas individuais entram nas estatisticas.
-              testes_atuais.append(item)
 
               registro = historico["modelos"].setdefault(
                   nome,
@@ -327,9 +448,7 @@ jobs:
                       "tentativas": 0,
                       "sucessos": 0,
                       "falhas": 0,
-                      "tempo_total_segundos": 0.0,
-                      "ultimo_http": None,
-                      "ultima_tentativa_utc": None
+                      "tempo_total_segundos": 0.0
                   }
               )
 
@@ -341,7 +460,6 @@ jobs:
                   registro["sucessos"] = (
                       int(registro.get("sucessos", 0)) + 1
                   )
-
                   registro["tempo_total_segundos"] = (
                       float(
                           registro.get(
@@ -349,14 +467,12 @@ jobs:
                           )
                       ) + segundos
                   )
-
               else:
                   registro["falhas"] = (
                       int(registro.get("falhas", 0)) + 1
                   )
 
               registro["ultimo_http"] = codigo
-
               registro["ultima_tentativa_utc"] = (
                   datetime.now(timezone.utc).isoformat()
               )
@@ -364,176 +480,66 @@ jobs:
               print(
                   nome,
                   "=>",
-                  "SUCESSO" if sucesso else "FALHA",
-                  codigo,
+                  item["resultado"],
+                  "=>",
                   round(segundos, 2),
                   "segundos"
               )
 
-          print("3/4 - Calculando ranking historico...")
+          print("3/4 - Calculando ranking...")
 
-          medias = {}
-
-          for nome, reg in historico["modelos"].items():
-              sucessos = int(reg.get("sucessos", 0))
-
-              media = (
-                  float(
-                      reg.get("tempo_total_segundos", 0.0)
-                  ) / sucessos
-                  if sucessos else None
-              )
-
-              medias[nome] = media
-
-          tempos_validos = [
-              v for v in medias.values()
-              if v is not None
-          ]
-
-          menor_tempo = (
-              min(tempos_validos)
-              if tempos_validos else 1.0
-          )
-
-          maior_tempo = (
-              max(tempos_validos)
-              if tempos_validos else 1.0
-          )
-
-          ranking = []
-
-          for nome, reg in historico["modelos"].items():
-              tentativas = int(reg.get("tentativas", 0))
-              sucessos = int(reg.get("sucessos", 0))
-              falhas = int(reg.get("falhas", 0))
-              media = medias[nome]
-
-              if media is None:
-                  nota_velocidade = 0.0
-
-              elif maior_tempo == menor_tempo:
-                  nota_velocidade = 100.0
-
-              else:
-                  nota_velocidade = 100.0 * (
-                      (maior_tempo - media)
-                      / (maior_tempo - menor_tempo)
-                  )
-
-              confiabilidade = (
-                  (sucessos + 1)
-                  / (tentativas + 2)
-                  * 100
-              )
-
-              nota = (
-                  0.90 * confiabilidade
-                  + 0.10 * nota_velocidade
-              )
-
-              ranking.append({
-                  "modelo": nome,
-                  "nota": round(nota, 2),
-                  "confiabilidade_pct": round(
-                      confiabilidade, 2
-                  ),
-                  "tentativas": tentativas,
-                  "sucessos": sucessos,
-                  "falhas": falhas,
-                  "tempo_medio_segundos": (
-                      round(media, 3)
-                      if media is not None else None
-                  ),
-                  "amostra_suficiente": tentativas >= 5
-              })
-
-          ranking.sort(
-              key=lambda x: (
-                  x["nota"],
-                  x["confiabilidade_pct"],
-                  x["sucessos"],
-                  -(x["tempo_medio_segundos"] or 999999)
-              ),
-              reverse=True
-          )
+          ranking = calcular_ranking()
 
           resultado["ranking"] = ranking
+          resultado["modelos_rankeados"] = ranking
 
-          posicao = {
-              item["modelo"]: i
-              for i, item in enumerate(ranking)
-          }
+          if ranking:
+              resultado["modelo_escolhido"] = ranking[0]["modelo"]
 
-          testes_atuais.sort(
-              key=lambda x: posicao.get(
-                  x["modelo"], 9999
-              )
-          )
-
-          resultado["modelos_testados"] = testes_atuais
-
-          sucessos_atuais = [
-              item for item in testes_atuais
-              if item["resultado"] == "sucesso"
-          ]
-
-          if sucessos_atuais:
-              escolhido = sucessos_atuais[0]["modelo"]
-
-              resultado["modelo_escolhido"] = escolhido
-
-              if resultado["status"] == "erro_api_ou_cota":
-                  resultado["status"] = "pronto_com_aviso_api"
-              else:
+              if resultado["status"] == "iniciado":
                   resultado["status"] = "pronto"
 
               resultado["motivo"] = (
-                  "Selecionado o modelo mais bem classificado "
-                  "entre os que responderam nesta execucao. "
-                  "Ranking baseado em confiabilidade historica "
-                  "(90%) e velocidade (10%). "
-                  "Amostra minima indicativa: 5 testes por modelo."
+                  "Ranking por menor numero de falhas; "
+                  "desempate pelo menor tempo medio de resposta."
               )
-
-          elif resultado["status"] == "iniciado":
-              resultado["status"] = (
-                  "nenhum_modelo_testado_com_sucesso"
-              )
-
+          else:
+              resultado["status"] = "sem_historico"
               resultado["motivo"] = (
-                  "Nenhum modelo respondeu corretamente."
+                  "Ainda nao existem resultados individuais suficientes."
               )
 
-          salvar_arquivos()
+          salvar_json()
 
-          print("4/4 - Resultado e historico gravados.")
+          print("4/4 - Gravando ranking no banco oficial...")
+          gravar_ranking_banco(ranking)
 
-          print(
-              json.dumps(
-                  resultado,
-                  ensure_ascii=False,
-                  indent=2
-              )
-          )
+          salvar_json()
 
-          if not resultado["modelo_escolhido"]:
+          print(json.dumps(
+              resultado,
+              ensure_ascii=False,
+              indent=2
+          ))
+
+          if not ranking:
               sys.exit(1)
           PY
 
-      - name: Salvar historico no repositorio
+      - name: Salvar banco e historico no repositorio
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          git add data/sinais.db.gz
           git add data/historico_conexoes_gemini.json
 
           if ! git diff --cached --quiet; then
-            git commit -m "Atualiza historico de conexoes Gemini"
+            git commit -m "Atualiza ranking e historico Gemini"
             git push
           else
-            echo "Sem alteracoes no historico."
+            echo "Sem alteracoes para salvar."
           fi
 
       - name: Publicar resultado do testador
