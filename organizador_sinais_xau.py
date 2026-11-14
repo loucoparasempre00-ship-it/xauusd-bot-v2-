@@ -11,9 +11,9 @@ setup_decisoes -> SINAIS_RECEBIDOS
 - Transfere todos os campos da origem.
 - Acrescenta codigo sequencial permanente.
 - Preserva o ID original como origem_id.
-- Cria automaticamente no destino colunas novas.
+- Cria automaticamente colunas novas no destino.
 - Apaga a origem somente apos confirmar a transferencia.
-- Executa tudo em uma transacao SQLite.
+- Executa tudo em uma unica transacao SQLite.
 - Mantem o banco oficial sinais.db.gz.
 - Nunca reutiliza codigos OP ja utilizados.
 """
@@ -143,8 +143,8 @@ def criar_tabela_destino(con, colunas_origem):
 
 def maior_codigo_utilizado(con):
     """
-    Procura o maior OP existente em todas as tabelas
-    do banco atual que possuam uma coluna chamada codigo.
+    Procura o maior codigo OP existente em todas
+    as tabelas do banco atual que possuam coluna codigo.
     """
 
     maior = 0
@@ -181,7 +181,9 @@ def maior_codigo_utilizado(con):
         ).fetchall()
 
         for registro in registros:
-            codigo = str(registro["codigo"] or "").strip()
+            codigo = str(
+                registro["codigo"] or ""
+            ).strip()
 
             correspondencia = re.fullmatch(
                 r"OP-(\d+)",
@@ -202,7 +204,7 @@ def proximo_codigo(con):
     Combina o maior codigo historico encontrado
     com o contador permanente.
 
-    Assim, a sequencia nao reinicia quando
+    A sequencia nao reinicia quando
     SINAIS_RECEBIDOS fica vazia.
     """
 
@@ -244,144 +246,173 @@ def atualizar_contador(con, numero):
 def transferir(con):
     """
     Transfere os registros da origem para o destino.
+
+    IMPORTANTE:
+    BEGIN IMMEDIATE acontece antes de qualquer
+    criacao ou alteracao de tabela.
+
     INSERT e DELETE acontecem na mesma transacao.
+    Se ocorrer erro, tudo sera revertido.
     """
-
-    tabelas = {
-        linha["name"]
-        for linha in con.execute("""
-            SELECT name
-            FROM sqlite_master
-            WHERE type='table'
-        """).fetchall()
-    }
-
-    if ORIGEM not in tabelas:
-        raise RuntimeError(
-            f"Tabela de origem {ORIGEM} nao encontrada."
-        )
-
-    colunas_origem = con.execute(
-        f'PRAGMA table_info({identificador(ORIGEM)})'
-    ).fetchall()
-
-    nomes_colunas = [
-        coluna["name"]
-        for coluna in colunas_origem
-    ]
-
-    if "id" not in nomes_colunas:
-        raise RuntimeError(
-            "A tabela de origem nao possui coluna id."
-        )
-
-    criar_tabela_destino(con, colunas_origem)
-    criar_controle(con)
 
     con.execute("BEGIN IMMEDIATE")
 
-    registros = con.execute(
-        f"""
-        SELECT *
-        FROM {identificador(ORIGEM)}
-        ORDER BY id ASC
-        """
-    ).fetchall()
+    try:
+        tabelas = {
+            linha["name"]
+            for linha in con.execute("""
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+            """).fetchall()
+        }
 
-    total = len(registros)
-    transferidos = 0
-    sequencia = proximo_codigo(con)
-
-    for registro in registros:
-        dados = dict(registro)
-        codigo = f"OP-{sequencia:06d}"
-
-        nomes_destino = [
-            "codigo",
-            "origem_id",
-            "transferido_utc",
-        ]
-
-        valores = [
-            codigo,
-            dados["id"],
-            agora(),
-        ]
-
-        for coluna in nomes_colunas:
-            if coluna == "id":
-                continue
-
-            nomes_destino.append(coluna)
-            valores.append(dados[coluna])
-
-        colunas_sql = ", ".join(
-            identificador(nome)
-            for nome in nomes_destino
-        )
-
-        marcadores = ", ".join(
-            "?" for _ in valores
-        )
-
-        con.execute(
-            f"""
-            INSERT INTO {identificador(DESTINO)}
-            ({colunas_sql})
-            VALUES ({marcadores})
-            """,
-            valores,
-        )
-
-        confirmado = con.execute(
-            f"""
-            SELECT codigo
-            FROM {identificador(DESTINO)}
-            WHERE origem_id = ?
-            """,
-            (dados["id"],),
-        ).fetchone()
-
-        if confirmado is None or confirmado["codigo"] != codigo:
+        if ORIGEM not in tabelas:
             raise RuntimeError(
-                f"Falha ao confirmar transferencia do ID {dados['id']}."
+                f"Tabela de origem {ORIGEM} nao encontrada."
             )
 
-        cursor = con.execute(
-            f"""
-            DELETE FROM {identificador(ORIGEM)}
-            WHERE id = ?
-            """,
-            (dados["id"],),
-        )
+        colunas_origem = con.execute(
+            f'PRAGMA table_info({identificador(ORIGEM)})'
+        ).fetchall()
 
-        if cursor.rowcount != 1:
+        nomes_colunas = [
+            coluna["name"]
+            for coluna in colunas_origem
+        ]
+
+        if "id" not in nomes_colunas:
             raise RuntimeError(
-                f"Falha ao remover registro original ID {dados['id']}."
+                "A tabela de origem nao possui coluna id."
             )
 
-        atualizar_contador(con, sequencia)
+        # Preparacao agora acontece dentro da transacao.
+        criar_tabela_destino(con, colunas_origem)
+        criar_controle(con)
 
-        transferidos += 1
+        registros = con.execute(
+            f"""
+            SELECT *
+            FROM {identificador(ORIGEM)}
+            ORDER BY id ASC
+            """
+        ).fetchall()
 
-        print(
-            f"Transferido: ID {dados['id']} -> {codigo}"
-        )
+        total = len(registros)
+        transferidos = 0
 
-        sequencia += 1
+        sequencia = proximo_codigo(con)
 
-    restantes = con.execute(
-        f'SELECT COUNT(*) FROM {identificador(ORIGEM)}'
-    ).fetchone()[0]
+        for registro in registros:
+            dados = dict(registro)
 
-    if restantes != 0:
-        raise RuntimeError(
-            f"Ainda existem {restantes} registros na origem."
-        )
+            codigo = f"OP-{sequencia:06d}"
 
-    con.commit()
+            nomes_destino = [
+                "codigo",
+                "origem_id",
+                "transferido_utc",
+            ]
 
-    return total, transferidos, restantes
+            valores = [
+                codigo,
+                dados["id"],
+                agora(),
+            ]
+
+            for coluna in nomes_colunas:
+                if coluna == "id":
+                    continue
+
+                nomes_destino.append(coluna)
+                valores.append(dados[coluna])
+
+            colunas_sql = ", ".join(
+                identificador(nome)
+                for nome in nomes_destino
+            )
+
+            marcadores = ", ".join(
+                "?" for _ in valores
+            )
+
+            # Primeiro grava no destino.
+            con.execute(
+                f"""
+                INSERT INTO {identificador(DESTINO)}
+                ({colunas_sql})
+                VALUES ({marcadores})
+                """,
+                valores,
+            )
+
+            # Confirma que a gravacao foi realizada.
+            confirmado = con.execute(
+                f"""
+                SELECT codigo
+                FROM {identificador(DESTINO)}
+                WHERE origem_id = ?
+                """,
+                (dados["id"],),
+            ).fetchone()
+
+            if (
+                confirmado is None
+                or confirmado["codigo"] != codigo
+            ):
+                raise RuntimeError(
+                    f"Falha ao confirmar transferencia "
+                    f"do ID {dados['id']}."
+                )
+
+            # Somente depois da confirmacao apaga a origem.
+            cursor = con.execute(
+                f"""
+                DELETE FROM {identificador(ORIGEM)}
+                WHERE id = ?
+                """,
+                (dados["id"],),
+            )
+
+            if cursor.rowcount != 1:
+                raise RuntimeError(
+                    f"Falha ao remover registro original "
+                    f"ID {dados['id']}."
+                )
+
+            atualizar_contador(con, sequencia)
+
+            transferidos += 1
+
+            print(
+                f"Transferido: ID {dados['id']} -> {codigo}"
+            )
+
+            sequencia += 1
+
+        restantes = con.execute(
+            f"""
+            SELECT COUNT(*)
+            FROM {identificador(ORIGEM)}
+            """
+        ).fetchone()[0]
+
+        if restantes != 0:
+            raise RuntimeError(
+                f"Ainda existem {restantes} "
+                "registros na origem."
+            )
+
+        # Confirma todas as operacoes de uma vez.
+        con.commit()
+
+        return total, transferidos, restantes
+
+    except Exception:
+        # Reverte criacoes, gravacoes e exclusoes
+        # realizadas nesta transacao.
+        con.rollback()
+        raise
 
 
 def executar():
@@ -418,7 +449,9 @@ def executar():
             SINAIS,
         )
 
-        print("Banco sinais.db.gz atualizado com sucesso.")
+        print(
+            "Banco sinais.db.gz atualizado com sucesso."
+        )
 
     except Exception:
         try:
