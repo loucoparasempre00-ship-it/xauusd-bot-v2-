@@ -1,0 +1,153 @@
+
+name: Limpeza Controlada Setup Decisoes
+
+on:
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: "VERIFICAR apenas lê | EXECUTAR apaga os registros"
+        required: true
+        type: choice
+        options:
+          - VERIFICAR
+          - EXECUTAR
+        default: VERIFICAR
+
+permissions:
+  contents: write
+
+jobs:
+  controlar-banco:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Verificar e limpar tabela
+        env:
+          ACAO: ${{ inputs.acao }}
+        run: |
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import shutil
+          import os
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          banco = Path("data/sinais.db.gz")
+          temporario = Path("data/sinais_temp.db")
+          novo = Path("data/sinais_novo.gz")
+
+          if not banco.exists():
+              raise SystemExit("ERRO: data/sinais.db.gz não encontrado.")
+
+          try:
+              with gzip.open(banco, "rb") as origem:
+                  with open(temporario, "wb") as destino:
+                      shutil.copyfileobj(origem, destino)
+
+              con = sqlite3.connect(temporario)
+              cur = con.cursor()
+
+              existe = cur.execute("""
+                  SELECT name FROM sqlite_master
+                  WHERE type='table' AND name='setup_decisoes'
+              """).fetchone()
+
+              if not existe:
+                  raise SystemExit("ERRO: tabela setup_decisoes não existe.")
+
+              registros = cur.execute("""
+                  SELECT * FROM setup_decisoes
+              """).fetchall()
+
+              colunas = [
+                  item[1] for item in cur.execute(
+                      "PRAGMA table_info(setup_decisoes)"
+                  ).fetchall()
+              ]
+
+              print("\n========== RELATORIO ==========")
+              print("Tabela: setup_decisoes")
+              print(f"Total de registros: {len(registros)}")
+              print(f"Colunas: {colunas}")
+
+              for numero, registro in enumerate(registros, 1):
+                  print(f"\nREGISTRO {numero}:")
+                  for coluna, valor in zip(colunas, registro):
+                      print(f"  {coluna}: {valor}")
+
+              acao = os.environ.get("ACAO", "VERIFICAR")
+
+              if acao == "VERIFICAR":
+                  print("\nVERIFICACAO CONCLUIDA.")
+                  print("Nenhum dado foi alterado.")
+                  con.close()
+                  raise SystemExit(0)
+
+              if acao != "EXECUTAR":
+                  raise SystemExit("ERRO: ação inválida.")
+
+              con.execute("BEGIN IMMEDIATE")
+              con.execute("DELETE FROM setup_decisoes")
+
+              restantes = con.execute(
+                  "SELECT COUNT(*) FROM setup_decisoes"
+              ).fetchone()[0]
+
+              if restantes != 0:
+                  raise RuntimeError("A tabela não ficou vazia.")
+
+              integridade = con.execute(
+                  "PRAGMA integrity_check"
+              ).fetchone()[0]
+
+              if integridade != "ok":
+                  raise RuntimeError(f"Falha de integridade: {integridade}")
+
+              con.commit()
+              con.close()
+
+              backup = Path(
+                  "data/sinais_backup_"
+                  + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                  + ".db.gz"
+              )
+
+              shutil.copy2(banco, backup)
+              print(f"\nBackup criado: {backup}")
+
+              with open(temporario, "rb") as origem:
+                  with gzip.open(novo, "wb") as destino:
+                      shutil.copyfileobj(origem, destino)
+
+              with gzip.open(novo, "rb") as teste:
+                  teste.read(16)
+
+              os.replace(novo, banco)
+
+              print("\nLIMPEZA CONCLUIDA.")
+              print(f"Registros anteriores: {len(registros)}")
+              print("Registros restantes: 0")
+              print("Outras tabelas preservadas.")
+
+          finally:
+              if 'con' in locals():
+                  try:
+                      con.close()
+                  except Exception:
+                      pass
+              temporario.unlink(missing_ok=True)
+              novo.unlink(missing_ok=True)
+          PY
+
+      - name: Salvar banco limpo no repositorio
+        if: ${{ inputs.acao == 'EXECUTAR' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sinais.db.gz data/sinais_backup_*.db.gz
+          git commit -m "Limpeza controlada da tabela setup_decisoes"
+          git push
