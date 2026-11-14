@@ -11,15 +11,16 @@ setup_decisoes -> SINAIS_RECEBIDOS
 - Transfere todos os campos da origem.
 - Acrescenta codigo sequencial permanente.
 - Preserva o ID original como origem_id.
-- Cria automaticamente no destino colunas novas
-  que existam na origem.
-- Apaga o registro da origem somente após confirmar
-  a insercao no destino.
+- Cria automaticamente no destino colunas novas.
+- Apaga a origem somente apos confirmar a transferencia.
 - Executa tudo em uma transacao SQLite.
 - Mantem o banco oficial sinais.db.gz.
+- Nunca reutiliza codigos OP ja utilizados.
 """
 
 import sqlite3
+import re
+
 from datetime import datetime, timezone
 
 from otimizador_parametros_setup import (
@@ -31,6 +32,7 @@ from otimizador_parametros_setup import (
 
 ORIGEM = "setup_decisoes"
 DESTINO = "SINAIS_RECEBIDOS"
+CONTROLE = "CONTROLE_SEQUENCIA_OP"
 
 
 def agora():
@@ -43,12 +45,22 @@ def identificador(nome):
     return '"' + str(nome).replace('"', '""') + '"'
 
 
-def criar_tabela_destino(con, colunas_origem):
-    """
-    Cria o destino e acrescenta colunas novas,
-    sem apagar ou recriar registros existentes.
-    """
+def criar_controle(con):
+    con.execute(f"""
+        CREATE TABLE IF NOT EXISTS {identificador(CONTROLE)} (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            ultimo_numero INTEGER NOT NULL DEFAULT 0
+        )
+    """)
 
+    con.execute(f"""
+        INSERT OR IGNORE INTO {identificador(CONTROLE)}
+        (id, ultimo_numero)
+        VALUES (1, 0)
+    """)
+
+
+def criar_tabela_destino(con, colunas_origem):
     definicoes = [
         '"codigo" TEXT PRIMARY KEY',
         '"origem_id" INTEGER NOT NULL UNIQUE',
@@ -81,12 +93,15 @@ def criar_tabela_destino(con, colunas_origem):
         ).fetchall()
     }
 
-    # Acrescenta as colunas que surgiram na origem.
-    # Os registros antigos permanecem intactos.
     for coluna in colunas_origem:
         nome = coluna["name"]
 
-        if nome in ("id", "codigo", "origem_id", "transferido_utc"):
+        if nome in (
+            "id",
+            "codigo",
+            "origem_id",
+            "transferido_utc",
+        ):
             continue
 
         if nome not in existentes:
@@ -121,40 +136,114 @@ def criar_tabela_destino(con, colunas_origem):
 
     if faltando:
         raise RuntimeError(
-            "Nao foi possivel preparar o destino. "
-            "Colunas ausentes: "
+            "Colunas ausentes no destino: "
             + ", ".join(sorted(faltando))
         )
 
 
-def proximo_codigo(con):
+def maior_codigo_utilizado(con):
     """
-    Busca o maior codigo utilizado.
-    Nunca reutiliza codigos existentes.
+    Procura o maior OP existente em todas as tabelas
+    do banco atual que possuam uma coluna chamada codigo.
     """
-
-    registros = con.execute("""
-        SELECT codigo
-        FROM SINAIS_RECEBIDOS
-        WHERE codigo LIKE 'OP-%'
-    """).fetchall()
 
     maior = 0
 
-    for registro in registros:
-        codigo = str(registro["codigo"])
+    tabelas = con.execute("""
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+    """).fetchall()
 
-        try:
-            maior = max(maior, int(codigo[3:]))
-        except (ValueError, TypeError):
+    for linha in tabelas:
+        tabela = linha["name"]
+
+        if tabela == CONTROLE:
             continue
+
+        colunas = {
+            coluna["name"]
+            for coluna in con.execute(
+                f"PRAGMA table_info({identificador(tabela)})"
+            ).fetchall()
+        }
+
+        if "codigo" not in colunas:
+            continue
+
+        registros = con.execute(
+            f"""
+            SELECT codigo
+            FROM {identificador(tabela)}
+            WHERE codigo LIKE 'OP-%'
+            """
+        ).fetchall()
+
+        for registro in registros:
+            codigo = str(registro["codigo"] or "").strip()
+
+            correspondencia = re.fullmatch(
+                r"OP-(\d+)",
+                codigo
+            )
+
+            if correspondencia:
+                maior = max(
+                    maior,
+                    int(correspondencia.group(1))
+                )
+
+    return maior
+
+
+def proximo_codigo(con):
+    """
+    Combina o maior codigo historico encontrado
+    com o contador permanente.
+
+    Assim, a sequencia nao reinicia quando
+    SINAIS_RECEBIDOS fica vazia.
+    """
+
+    criar_controle(con)
+
+    controle = con.execute(
+        f"""
+        SELECT ultimo_numero
+        FROM {identificador(CONTROLE)}
+        WHERE id = 1
+        """
+    ).fetchone()
+
+    ultimo_contador = int(
+        controle["ultimo_numero"]
+    )
+
+    maior_historico = maior_codigo_utilizado(con)
+
+    maior = max(
+        ultimo_contador,
+        maior_historico
+    )
 
     return maior + 1
 
 
+def atualizar_contador(con, numero):
+    con.execute(
+        f"""
+        UPDATE {identificador(CONTROLE)}
+        SET ultimo_numero = MAX(ultimo_numero, ?)
+        WHERE id = 1
+        """,
+        (numero,)
+    )
+
+
 def transferir(con):
     """
-    Move os registros da origem para o destino.
+    Transfere os registros da origem para o destino.
     INSERT e DELETE acontecem na mesma transacao.
     """
 
@@ -187,6 +276,7 @@ def transferir(con):
         )
 
     criar_tabela_destino(con, colunas_origem)
+    criar_controle(con)
 
     con.execute("BEGIN IMMEDIATE")
 
@@ -270,12 +360,15 @@ def transferir(con):
                 f"Falha ao remover registro original ID {dados['id']}."
             )
 
+        atualizar_contador(con, sequencia)
+
         transferidos += 1
-        sequencia += 1
 
         print(
             f"Transferido: ID {dados['id']} -> {codigo}"
         )
+
+        sequencia += 1
 
     restantes = con.execute(
         f'SELECT COUNT(*) FROM {identificador(ORIGEM)}'
@@ -303,6 +396,19 @@ def executar():
         print("Registros encontrados:", total)
         print("Registros transferidos:", transferidos)
         print("Registros restantes na origem:", restantes)
+
+        controle = con.execute(
+            f"""
+            SELECT ultimo_numero
+            FROM {identificador(CONTROLE)}
+            WHERE id = 1
+            """
+        ).fetchone()
+
+        print(
+            "Ultimo codigo numerico utilizado:",
+            controle["ultimo_numero"]
+        )
 
         con.close()
 
