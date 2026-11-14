@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -7,12 +8,14 @@ ORGANIZADOR DE SINAIS XAUUSD
 TRANSFERENCIA:
 setup_decisoes -> SINAIS_RECEBIDOS
 
-- Gera um codigo sequencial permanente.
-- Transfere todos os campos originais.
+- Transfere todos os campos da origem.
+- Acrescenta codigo sequencial permanente.
 - Preserva o ID original como origem_id.
-- Apaga o registro da origem somente após inserir no destino.
+- Cria automaticamente no destino colunas novas
+  que existam na origem.
+- Apaga o registro da origem somente após confirmar
+  a insercao no destino.
 - Executa tudo em uma transacao SQLite.
-- Se ocorrer erro, reverte toda a operacao.
 - Mantem o banco oficial sinais.db.gz.
 """
 
@@ -37,14 +40,13 @@ def agora():
 
 
 def identificador(nome):
-    """Protege nomes de tabelas e colunas no SQL."""
     return '"' + str(nome).replace('"', '""') + '"'
 
 
 def criar_tabela_destino(con, colunas_origem):
     """
-    Cria o destino preservando os campos existentes na origem.
-    Não altera nem recria a tabela original.
+    Cria o destino e acrescenta colunas novas,
+    sem apagar ou recriar registros existentes.
     """
 
     definicoes = [
@@ -65,17 +67,13 @@ def criar_tabela_destino(con, colunas_origem):
             f'{identificador(nome)} {tipo}'
         )
 
-    sql = (
-        f'CREATE TABLE IF NOT EXISTS '
-        f'{identificador(DESTINO)} ('
-        + ", ".join(definicoes)
-        + ")"
+    con.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {identificador(DESTINO)}
+        ({", ".join(definicoes)})
+        """
     )
 
-    con.execute(sql)
-
-    # Se uma tabela antiga tiver estrutura incompatível,
-    # interrompe sem apagar dados.
     existentes = {
         linha["name"]
         for linha in con.execute(
@@ -83,24 +81,47 @@ def criar_tabela_destino(con, colunas_origem):
         ).fetchall()
     }
 
-    necessarias = {
+    # Acrescenta as colunas que surgiram na origem.
+    # Os registros antigos permanecem intactos.
+    for coluna in colunas_origem:
+        nome = coluna["name"]
+
+        if nome in ("id", "codigo", "origem_id", "transferido_utc"):
+            continue
+
+        if nome not in existentes:
+            tipo = coluna["type"] or "TEXT"
+
+            con.execute(
+                f"""
+                ALTER TABLE {identificador(DESTINO)}
+                ADD COLUMN {identificador(nome)} {tipo}
+                """
+            )
+
+            existentes.add(nome)
+
+            print(
+                f"Nova coluna criada em {DESTINO}: {nome}"
+            )
+
+    obrigatorias = {
         "codigo",
         "origem_id",
         "transferido_utc",
     }
 
-    necessarias.update(
+    obrigatorias.update(
         coluna["name"]
         for coluna in colunas_origem
         if coluna["name"] != "id"
     )
 
-    faltando = necessarias - existentes
+    faltando = obrigatorias - existentes
 
     if faltando:
         raise RuntimeError(
-            "Estrutura existente de SINAIS_RECEBIDOS "
-            "incompativel. Nenhum registro foi transferido. "
+            "Nao foi possivel preparar o destino. "
             "Colunas ausentes: "
             + ", ".join(sorted(faltando))
         )
@@ -108,7 +129,7 @@ def criar_tabela_destino(con, colunas_origem):
 
 def proximo_codigo(con):
     """
-    Busca o maior codigo ja utilizado.
+    Busca o maior codigo utilizado.
     Nunca reutiliza codigos existentes.
     """
 
@@ -124,8 +145,7 @@ def proximo_codigo(con):
         codigo = str(registro["codigo"])
 
         try:
-            numero = int(codigo[3:])
-            maior = max(maior, numero)
+            maior = max(maior, int(codigo[3:]))
         except (ValueError, TypeError):
             continue
 
@@ -134,8 +154,7 @@ def proximo_codigo(con):
 
 def transferir(con):
     """
-    Move cada registro da origem para o destino.
-
+    Move os registros da origem para o destino.
     INSERT e DELETE acontecem na mesma transacao.
     """
 
@@ -169,11 +188,14 @@ def transferir(con):
 
     criar_tabela_destino(con, colunas_origem)
 
-    # Bloqueia outras escritas durante a transferencia.
     con.execute("BEGIN IMMEDIATE")
 
     registros = con.execute(
-        f'SELECT * FROM {identificador(ORIGEM)} ORDER BY id ASC'
+        f"""
+        SELECT *
+        FROM {identificador(ORIGEM)}
+        ORDER BY id ASC
+        """
     ).fetchall()
 
     total = len(registros)
@@ -212,7 +234,6 @@ def transferir(con):
             "?" for _ in valores
         )
 
-        # 1. Insere o registro no destino com seu codigo.
         con.execute(
             f"""
             INSERT INTO {identificador(DESTINO)}
@@ -222,7 +243,6 @@ def transferir(con):
             valores,
         )
 
-        # 2. Confirma que o destino recebeu o registro.
         confirmado = con.execute(
             f"""
             SELECT codigo
@@ -237,7 +257,6 @@ def transferir(con):
                 f"Falha ao confirmar transferencia do ID {dados['id']}."
             )
 
-        # 3. Somente agora remove o registro da origem.
         cursor = con.execute(
             f"""
             DELETE FROM {identificador(ORIGEM)}
@@ -258,7 +277,6 @@ def transferir(con):
             f"Transferido: ID {dados['id']} -> {codigo}"
         )
 
-    # Verifica se a origem ficou vazia.
     restantes = con.execute(
         f'SELECT COUNT(*) FROM {identificador(ORIGEM)}'
     ).fetchone()[0]
@@ -268,7 +286,6 @@ def transferir(con):
             f"Ainda existem {restantes} registros na origem."
         )
 
-    # Confirma todas as transferencias de uma vez.
     con.commit()
 
     return total, transferidos, restantes
@@ -289,7 +306,6 @@ def executar():
 
         con.close()
 
-        # Atualiza o banco oficial compactado.
         compactar_sqlite_gz(
             temporario,
             db_path,
