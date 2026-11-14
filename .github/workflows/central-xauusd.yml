@@ -1,0 +1,589 @@
+
+name: Central Inteligente XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: central-inteligente-xauusd
+  cancel-in-progress: false
+
+jobs:
+  central:
+    name: Central - 9 modulos em sequencia
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 00 - Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ==================================================
+      # MODULO 01 - COLETA DE VELAS
+      # ==================================================
+
+      - name: "01 - Coletar velas M5 M15 H1"
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: |
+          set -e
+          test -n "$TWELVE_DATA_API_KEY"
+          python coletor_validador_velas.py
+
+      # ==================================================
+      # MODULO 02 - VALIDACAO DAS VELAS
+      # ==================================================
+
+      - name: "02 - Validar banco de velas"
+        run: |
+          set -e
+
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import tempfile
+          import os
+
+          banco = "data/graficos.db.gz"
+
+          if not os.path.isfile(banco):
+              raise SystemExit("Banco de graficos ausente.")
+
+          with tempfile.NamedTemporaryFile(suffix=".db") as arquivo:
+              with gzip.open(banco, "rb") as origem:
+                  arquivo.write(origem.read())
+                  arquivo.flush()
+
+              con = sqlite3.connect(arquivo.name)
+
+              tabelas = {
+                  r[0] for r in con.execute(
+                      "SELECT name FROM sqlite_master WHERE type='table'"
+                  )
+              }
+
+              if "candles" not in tabelas:
+                  raise SystemExit("Tabela candles ausente.")
+
+              for tf in ("M5", "M15", "H1"):
+                  total = con.execute(
+                      "SELECT COUNT(*) FROM candles WHERE timeframe=?",
+                      (tf,)
+                  ).fetchone()[0]
+
+                  print(f"{tf}: {total} velas")
+
+                  if total == 0:
+                      raise SystemExit(
+                          f"Sem velas validadas em {tf}."
+                      )
+
+              con.close()
+
+          print("Validacao das velas concluida.")
+          PY
+
+      # ==================================================
+      # MODULO 03 - GRAFICOS E INDICADORES
+      # ==================================================
+
+      - name: "03 - Construir graficos"
+        run: |
+          set -e
+          python construtor_graficos.py
+
+      - name: "03 - Calcular indicadores tecnicos"
+        run: |
+          set -e
+          python indicadores_tecnicos.py
+
+      # ==================================================
+      # MODULO 04 - TABULEIRO E ESTATISTICAS
+      # ==================================================
+
+      - name: "04 - Atualizar tabuleiro"
+        run: |
+          set -e
+          python tabuleiro.py
+
+      - name: "04 - Detectar bordas M5"
+        run: |
+          set -e
+          python detector_bordas_m5.py
+
+      - name: "04 - Processar estatisticas M5"
+        run: |
+          set -e
+          python processador_estatistico_m5.py
+
+      # ==================================================
+      # MODULO 05 - MOTOR MATEMATICO
+      # ==================================================
+
+      - name: "05 - Verificar modulos matematicos"
+        run: |
+          set -e
+
+          test -f otimizador_parametros_setup.py
+          test -f validador_setup.py
+          test -f motor_setup_matematico.py
+
+      - name: "05 - Calibrar parametros matematicos"
+        run: |
+          set -e
+          python otimizador_parametros_setup.py
+
+      - name: "05 - Validar parametros"
+        id: validacao
+        run: |
+          set -e
+          python validador_setup.py
+
+      - name: "05 - Executar motor matematico"
+        if: steps.validacao.outputs.motor == 'sim'
+        run: |
+          set -e
+          python motor_setup_matematico.py
+
+      - name: "05 - Informar ausencia de parametros aprovados"
+        if: steps.validacao.outputs.motor != 'sim'
+        run: |
+          echo "Nenhuma versao aprovada."
+          echo "Motor matematico nao emitiu decisao."
+
+      # ==================================================
+      # MODULO 06 - ORGANIZADOR DE SINAIS
+      # ==================================================
+
+      - name: "06 - Organizar sinais recebidos"
+        run: |
+          set -e
+          python organizador_sinais_xau.py
+
+      # ==================================================
+      # MODULO 07 - CLASSIFICADOR GEMINI
+      # ==================================================
+
+      - name: "07 - Recuperar modelo selecionado pelo Testador"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          RUN_ID=$(gh run list \
+            --workflow testador-gemini.yml \
+            --status success \
+            --json databaseId \
+            --limit 1 \
+            --jq '.[0].databaseId // empty')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Nenhuma execucao bem-sucedida do Testador Gemini encontrada."
+            exit 1
+          fi
+
+          mkdir -p data
+
+          gh run download "$RUN_ID" \
+            --name selecao-modelo-gemini \
+            --dir data
+
+          test -s data/modelo_gemini.json
+
+          echo "Modelo selecionado recuperado."
+
+      - name: "07 - Classificar sinais com Gemini"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -e
+          test -n "$GEMINI_API_KEY"
+          python gemini_classificador_sinais.py
+
+      # ==================================================
+      # MODULO 08 - PROCESSADOR FINAL
+      # ==================================================
+
+      - name: "08 - Processar ranking e Telegram"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -e
+          python processador_final_sinais_xau.py
+
+      # ==================================================
+      # MODULO 09 - MEMORIA PERSISTENTE
+      # Criada e executada dentro deste workflow.
+      # Nao utiliza arquivo Python separado.
+      # ==================================================
+
+      - name: "09 - Criar e atualizar memoria persistente"
+        run: |
+          set -e
+
+          python - <<'PY'
+          import os
+          import gzip
+          import sqlite3
+          import tempfile
+          import hashlib
+          import json
+          import shutil
+          import uuid
+
+          from datetime import datetime, timezone
+
+          MEMORIA = "data/memoria.db.gz"
+
+          BANCOS = {
+              "graficos": "data/graficos.db.gz",
+              "estatisticas_m5": "data/estatisticas_m5.db.gz",
+              "sinais": "data/sinais.db.gz",
+              "operacoes": "data/operacoes.db.gz",
+              "resultados_operacoes": "data/resultados_operacoes.db.gz",
+          }
+
+          for caminho in [MEMORIA, *BANCOS.values()]:
+              if not os.path.isfile(caminho):
+                  raise RuntimeError(
+                      f"Banco oficial ausente: {caminho}"
+                  )
+
+          agora = datetime.now(timezone.utc).isoformat(
+              timespec="seconds"
+          )
+
+          ciclo_id = (
+              datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+              + "_"
+              + uuid.uuid4().hex[:8]
+          )
+
+          temporario = tempfile.TemporaryDirectory()
+
+          try:
+              memoria_db = os.path.join(
+                  temporario.name,
+                  "memoria.db"
+              )
+
+              with gzip.open(MEMORIA, "rb") as origem:
+                  with open(memoria_db, "wb") as destino:
+                      shutil.copyfileobj(origem, destino)
+
+              memoria = sqlite3.connect(memoria_db)
+              memoria.row_factory = sqlite3.Row
+
+              # Estrutura aditiva: nao apaga tabelas antigas.
+
+              memoria.execute("""
+                  CREATE TABLE IF NOT EXISTS memoria_ciclos_central (
+                      ciclo_id TEXT PRIMARY KEY,
+                      criado_utc TEXT NOT NULL,
+                      status TEXT NOT NULL,
+                      bancos_analisados INTEGER NOT NULL,
+                      tabelas_analisadas INTEGER NOT NULL,
+                      registros_novos INTEGER NOT NULL,
+                      registros_acumulados INTEGER NOT NULL
+                  )
+              """)
+
+              memoria.execute("""
+                  CREATE TABLE IF NOT EXISTS memoria_bancos_central (
+                      ciclo_id TEXT NOT NULL,
+                      banco TEXT NOT NULL,
+                      caminho TEXT NOT NULL,
+                      sha256 TEXT NOT NULL,
+                      tamanho_bytes INTEGER NOT NULL,
+                      tabelas_json TEXT NOT NULL,
+                      registros_json TEXT NOT NULL,
+                      PRIMARY KEY (ciclo_id, banco)
+                  )
+              """)
+
+              memoria.execute("""
+                  CREATE TABLE IF NOT EXISTS memoria_registros_central (
+                      hash_registro TEXT PRIMARY KEY,
+                      banco_origem TEXT NOT NULL,
+                      tabela_origem TEXT NOT NULL,
+                      capturado_utc TEXT NOT NULL,
+                      dados_json TEXT NOT NULL
+                  )
+              """)
+
+              tabelas_analisadas = 0
+              registros_novos = 0
+              bancos_analisados = 0
+
+              # Faz memoria historica dos registros de sinais
+              # e operacoes. Cada registro e deduplicado por hash.
+              bancos_com_historico = {
+                  "sinais",
+                  "operacoes",
+                  "resultados_operacoes",
+              }
+
+              for nome, caminho in BANCOS.items():
+                  with open(caminho, "rb") as arquivo:
+                      conteudo = arquivo.read()
+
+                  sha_banco = hashlib.sha256(
+                      conteudo
+                  ).hexdigest()
+
+                  db_temp = os.path.join(
+                      temporario.name,
+                      nome + ".db"
+                  )
+
+                  with gzip.open(caminho, "rb") as origem:
+                      with open(db_temp, "wb") as destino:
+                          shutil.copyfileobj(origem, destino)
+
+                  con = sqlite3.connect(
+                      f"file:{db_temp}?mode=ro",
+                      uri=True
+                  )
+                  con.row_factory = sqlite3.Row
+
+                  tabelas = [
+                      r["name"]
+                      for r in con.execute("""
+                          SELECT name
+                          FROM sqlite_master
+                          WHERE type='table'
+                          AND name NOT LIKE 'sqlite_%'
+                          ORDER BY name
+                      """)
+                  ]
+
+                  contagens = {}
+                  bancos_analisados += 1
+
+                  for tabela in tabelas:
+                      identificador = (
+                          '"' + tabela.replace('"', '""') + '"'
+                      )
+
+                      total = con.execute(
+                          f"SELECT COUNT(*) FROM {identificador}"
+                      ).fetchone()[0]
+
+                      contagens[tabela] = total
+                      tabelas_analisadas += 1
+
+                      if nome not in bancos_com_historico:
+                          continue
+
+                      registros = con.execute(
+                          f"SELECT * FROM {identificador}"
+                      ).fetchall()
+
+                      for linha in registros:
+                          dados = dict(linha)
+
+                          dados_json = json.dumps(
+                              dados,
+                              ensure_ascii=False,
+                              sort_keys=True,
+                              default=str
+                          )
+
+                          assinatura = hashlib.sha256(
+                              (
+                                  nome + "|" +
+                                  tabela + "|" +
+                                  dados_json
+                              ).encode("utf-8")
+                          ).hexdigest()
+
+                          cursor = memoria.execute("""
+                              INSERT OR IGNORE INTO
+                              memoria_registros_central (
+                                  hash_registro,
+                                  banco_origem,
+                                  tabela_origem,
+                                  capturado_utc,
+                                  dados_json
+                              )
+                              VALUES (?, ?, ?, ?, ?)
+                          """, (
+                              assinatura,
+                              nome,
+                              tabela,
+                              agora,
+                              dados_json
+                          ))
+
+                          registros_novos += cursor.rowcount
+
+                  memoria.execute("""
+                      INSERT INTO memoria_bancos_central (
+                          ciclo_id,
+                          banco,
+                          caminho,
+                          sha256,
+                          tamanho_bytes,
+                          tabelas_json,
+                          registros_json
+                      )
+                      VALUES (?, ?, ?, ?, ?, ?, ?)
+                  """, (
+                      ciclo_id,
+                      nome,
+                      caminho,
+                      sha_banco,
+                      len(conteudo),
+                      json.dumps(
+                          tabelas,
+                          ensure_ascii=False
+                      ),
+                      json.dumps(
+                          contagens,
+                          ensure_ascii=False,
+                          sort_keys=True
+                      )
+                  ))
+
+                  con.close()
+
+                  print(
+                      f"{nome}: {len(tabelas)} tabelas analisadas."
+                  )
+
+              acumulados = memoria.execute("""
+                  SELECT COUNT(*)
+                  FROM memoria_registros_central
+              """).fetchone()[0]
+
+              memoria.execute("""
+                  INSERT INTO memoria_ciclos_central (
+                      ciclo_id,
+                      criado_utc,
+                      status,
+                      bancos_analisados,
+                      tabelas_analisadas,
+                      registros_novos,
+                      registros_acumulados
+                  )
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
+              """, (
+                  ciclo_id,
+                  agora,
+                  "CONCLUIDO",
+                  bancos_analisados,
+                  tabelas_analisadas,
+                  registros_novos,
+                  acumulados
+              ))
+
+              memoria.commit()
+
+              integridade = memoria.execute(
+                  "PRAGMA integrity_check"
+              ).fetchone()[0]
+
+              if integridade != "ok":
+                  raise RuntimeError(
+                      "Falha na integridade da memoria: "
+                      + str(integridade)
+                  )
+
+              memoria.close()
+
+              # Compactacao atomica: preserva o banco anterior
+              # ate que o novo arquivo esteja pronto.
+
+              novo_gz = MEMORIA + ".tmp"
+
+              with open(memoria_db, "rb") as origem:
+                  with open(novo_gz, "wb") as bruto:
+                      with gzip.GzipFile(
+                          fileobj=bruto,
+                          mode="wb",
+                          mtime=0
+                      ) as destino:
+                          shutil.copyfileobj(origem, destino)
+
+              os.replace(novo_gz, MEMORIA)
+
+              print("MEMORIA PERSISTENTE CONCLUIDA")
+              print("Ciclo:", ciclo_id)
+              print("Bancos analisados:", bancos_analisados)
+              print("Tabelas analisadas:", tabelas_analisadas)
+              print("Registros novos:", registros_novos)
+              print("Registros historicos:", acumulados)
+
+              if registros_novos == 0:
+                  print(
+                      "Nenhum registro novo. "
+                      "Ciclo registrado sem inventar sinais."
+                  )
+
+          finally:
+              temporario.cleanup()
+          PY
+
+      # ==================================================
+      # SALVAR OS SEIS BANCOS OFICIAIS
+      # ==================================================
+
+      - name: Salvar bancos oficiais atualizados
+        if: success()
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/graficos.db.gz
+          git add data/estatisticas_m5.db.gz
+          git add data/memoria.db.gz
+          git add data/operacoes.db.gz
+          git add data/resultados_operacoes.db.gz
+          git add data/sinais.db.gz
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteracao nos bancos oficiais."
+            exit 0
+          fi
+
+          git commit -m "Central XAUUSD: atualiza bancos e memoria persistente"
+
+          git pull --rebase origin main
+
+          git push origin HEAD:main
+
+      # ==================================================
+      # RESULTADO
+      # ==================================================
+
+      - name: Resumo da Central
+        if: always()
+        run: |
+          echo "===================================="
+          echo "CENTRAL INTELIGENTE XAUUSD"
+          echo "===================================="
+          echo "01 - Coleta de velas"
+          echo "02 - Validacao de velas"
+          echo "03 - Graficos e indicadores"
+          echo "04 - Tabuleiro e estatisticas"
+          echo "05 - Motor matematico"
+          echo "06 - Organizador de sinais"
+          echo "07 - Classificador Gemini"
+          echo "08 - Processador Final"
+          echo "09 - Memoria Persistente"
+          echo "===================================="
