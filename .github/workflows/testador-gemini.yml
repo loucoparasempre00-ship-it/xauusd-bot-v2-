@@ -41,7 +41,6 @@ jobs:
           import sys
           import json
           import time
-          import sqlite3
           import urllib.request
           import urllib.error
           from datetime import datetime, timezone
@@ -339,10 +338,13 @@ jobs:
                   "supportedGenerationMethods", []
               )
 
+              nome_lower = nome.lower()
+
               if (
                   nome.startswith("models/gemini-")
                   and "generateContent" in metodos
-                  and "embedding" not in nome.lower()
+                  and "embedding" not in nome_lower
+                  and "image" not in nome_lower
               ):
                   elegiveis.append(nome)
 
@@ -365,7 +367,8 @@ jobs:
           if not elegiveis:
               resultado["status"] = "sem_modelos_compativeis"
               resultado["motivo"] = (
-                  "Nenhum modelo com generateContent foi encontrado."
+                  "Nenhum modelo compativel com generateContent "
+                  "foi encontrado depois dos filtros."
               )
               salvar_json()
               sys.exit(1)
@@ -425,8 +428,12 @@ jobs:
 
               resultado["modelos_testados"].append(item)
 
-              # Erros de autenticacao, cota ou requisicao global
-              # nao devem ser contabilizados como falha do modelo.
+              # Erros de autenticacao ou requisicao global
+              # continuam bloqueando a selecao.
+              #
+              # HTTP 429 recebe tratamento especial:
+              # se ja houve um modelo aprovado nesta execucao,
+              # a selecao pode continuar com aviso de API/cota.
               if codigo in (400, 401, 403, 429):
                   registrar_evento_api(
                       nome,
@@ -434,12 +441,32 @@ jobs:
                       item.get("detalhe", "")
                   )
 
-                  resultado["status"] = "erro_api_ou_cota"
-                  resultado["motivo"] = (
-                      "Teste interrompido por erro de API ou cota. "
-                      "O evento foi registrado sem penalizar o modelo."
+                  sucesso_anterior = any(
+                      teste.get("resultado") == "sucesso"
+                      for teste in resultado["modelos_testados"]
                   )
-                  print("Teste interrompido. HTTP:", codigo)
+
+                  if codigo == 429 and sucesso_anterior:
+                      resultado["status"] = "pronto_com_aviso_api"
+                      resultado["motivo"] = (
+                          "Pelo menos um modelo passou no teste. "
+                          "Outro candidato retornou HTTP 429; "
+                          "o evento foi registrado e o modelo "
+                          "aprovado permanece disponivel."
+                      )
+                  else:
+                      resultado["status"] = "erro_api_ou_cota"
+                      resultado["motivo"] = (
+                          "Teste interrompido por erro de API ou cota. "
+                          "O evento foi registrado sem penalizar o modelo."
+                      )
+
+                  print(
+                      "Teste interrompido. HTTP:",
+                      codigo,
+                      "| Status:",
+                      resultado["status"]
+                  )
                   break
 
               registro = historico["modelos"].setdefault(
@@ -498,11 +525,10 @@ jobs:
 
               if resultado["status"] == "iniciado":
                   resultado["status"] = "pronto"
-
-              resultado["motivo"] = (
-                  "Ranking por menor numero de falhas; "
-                  "desempate pelo menor tempo medio de resposta."
-              )
+                  resultado["motivo"] = (
+                      "Ranking por menor numero de falhas; "
+                      "desempate pelo menor tempo medio de resposta."
+                  )
           else:
               resultado["status"] = "sem_historico"
               resultado["motivo"] = (
@@ -523,6 +549,12 @@ jobs:
           ))
 
           if not ranking:
+              sys.exit(1)
+
+          if resultado["status"] not in (
+              "pronto",
+              "pronto_com_aviso_api"
+          ):
               sys.exit(1)
           PY
 
