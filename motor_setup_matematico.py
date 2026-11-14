@@ -9,10 +9,12 @@ Fonte: data/graficos.db.gz
 Parametros: data/sinais.db.gz
 Gravacao: data/sinais.db.gz
 
-Decisoes: LONG, SHORT ou LATERAL.
+Decisoes: LONG, SHORT, LATERAL.
 
-A seta e tratada como evento matematico.
-O motor nao envia ordens e nao chama o Gemini.
+Grava o sinal organizado em colunas individuais,
+como uma planilha Excel.
+
+Nao envia ordens e nao chama o Gemini.
 """
 
 import json
@@ -31,6 +33,53 @@ from otimizador_parametros_setup import (
 )
 
 
+INDICADORES = [
+    "M5_EMA",
+    "M5_RSI",
+    "M5_MACD",
+    "M15_EMA",
+    "M15_RSI",
+    "M15_MACD",
+    "H1_EMA",
+    "H1_RSI",
+    "H1_MACD",
+]
+
+
+def identificador(nome):
+    return '"' + str(nome).replace('"', '""') + '"'
+
+
+def garantir_colunas_indicadores(con):
+    """
+    Acrescenta colunas individuais para cada indicador.
+    Nao apaga nem altera dados existentes.
+    """
+
+    existentes = {
+        linha["name"]
+        for linha in con.execute(
+            "PRAGMA table_info(setup_decisoes)"
+        )
+    }
+
+    novas = []
+
+    for indicador in INDICADORES:
+        novas.extend([
+            f"{indicador}_nota",
+            f"{indicador}_peso",
+            f"{indicador}_contribuicao",
+        ])
+
+    for coluna in novas:
+        if coluna not in existentes:
+            con.execute(
+                f"ALTER TABLE setup_decisoes "
+                f"ADD COLUMN {identificador(coluna)} REAL"
+            )
+
+
 def obter_ultima_leitura_fechada():
     leituras = carregar_leituras()
     agora = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -45,7 +94,9 @@ def obter_ultima_leitura_fechada():
             fechadas.append(leitura)
 
     if not fechadas:
-        raise RuntimeError("Nao existe vela M5 fechada disponivel.")
+        raise RuntimeError(
+            "Nao existe vela M5 fechada disponivel."
+        )
 
     ultima = fechadas[-1]
 
@@ -59,6 +110,7 @@ def decidir():
 
     try:
         criar_tabelas_setup(con)
+        garantir_colunas_indicadores(con)
 
         parametros = con.execute("""
             SELECT *
@@ -77,7 +129,9 @@ def decidir():
         pesos = json.loads(parametros["pesos_json"])
 
         configuracao = json.loads(parametros["features_json"])
-        features_aprovadas = set(configuracao.get("indicadores", []))
+        features_aprovadas = set(
+            configuracao.get("indicadores", [])
+        )
 
         disponiveis = {
             nome: valor
@@ -106,8 +160,6 @@ def decidir():
         else:
             decisao = "LATERAL"
 
-        # Evita duplicar o mesmo evento se o workflow for executado
-        # novamente para a mesma vela e versao de parametros.
         existente = con.execute("""
             SELECT id
             FROM setup_decisoes
@@ -144,22 +196,21 @@ def decidir():
             ),
         }
 
-        con.execute("""
-            INSERT INTO setup_decisoes (
-                criado_utc,
-                timestamp_candle,
-                decisao,
-                pontuacao,
-                limite,
-                parametro_versao,
-                indicadores_json,
-                nota_long,
-                nota_short,
-                gatilho_long,
-                gatilho_short
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
+        colunas = [
+            "criado_utc",
+            "timestamp_candle",
+            "decisao",
+            "pontuacao",
+            "limite",
+            "parametro_versao",
+            "indicadores_json",
+            "nota_long",
+            "nota_short",
+            "gatilho_long",
+            "gatilho_short",
+        ]
+
+        valores = [
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             timestamp,
             decisao,
@@ -171,7 +222,49 @@ def decidir():
             nota_short,
             gatilho_long,
             -gatilho_short,
-        ))
+        ]
+
+        # Cada indicador ocupa tres colunas:
+        # nota, peso e contribuicao.
+        for indicador in INDICADORES:
+            dados = resultado["indicadores"].get(indicador)
+
+            if dados:
+                nota = dados["nota_assinada"]
+                peso = dados["peso"]
+                contribuicao = dados["contribuicao"]
+            else:
+                nota = None
+                peso = None
+                contribuicao = None
+
+            colunas.extend([
+                f"{indicador}_nota",
+                f"{indicador}_peso",
+                f"{indicador}_contribuicao",
+            ])
+
+            valores.extend([
+                nota,
+                peso,
+                contribuicao,
+            ])
+
+        nomes_sql = ", ".join(
+            identificador(nome) for nome in colunas
+        )
+
+        marcadores = ", ".join(
+            "?" for _ in valores
+        )
+
+        con.execute(
+            f"""
+            INSERT INTO setup_decisoes ({nomes_sql})
+            VALUES ({marcadores})
+            """,
+            valores,
+        )
 
         con.commit()
 
@@ -187,12 +280,22 @@ def decidir():
             "janela_m5": JANELA,
             "versao_parametros": parametros["versao"],
             "indicadores": resultado["indicadores"],
+            "formato_gravacao": "COLUNAS_INDIVIDUAIS",
         }
 
-        print(json.dumps(saida, ensure_ascii=False, indent=2))
+        print(json.dumps(
+            saida,
+            ensure_ascii=False,
+            indent=2
+        ))
 
         con.close()
-        compactar_sqlite_gz(temporario, db_path, SINAIS)
+
+        compactar_sqlite_gz(
+            temporario,
+            db_path,
+            SINAIS
+        )
 
     except Exception:
         try:
@@ -200,6 +303,7 @@ def decidir():
             con.close()
         except Exception:
             pass
+
         temporario.cleanup()
         raise
 
