@@ -1,0 +1,73 @@
+
+name: Pacote de Sinais XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pacote-sinais-xau
+  cancel-in-progress: false
+
+jobs:
+  processar-sinais:
+    name: Organizar, classificar e distribuir
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Verificar arquivos e dependencias
+        run: |
+          set -e
+
+          test -f organizador_sinais_xau.py
+          test -f gemini_classificador_sinais.py
+          test -f processador_final_sinais_xau.py
+          test -f otimizador_parametros_setup.py
+
+          test -f data/sinais.db.gz
+          test -f data/modelo_gemini.json
+
+          echo "Arquivos obrigatorios encontrados."
+
+      - name: Verificar sintaxe dos Python
+        run: |
+          python -m py_compile \
+            organizador_sinais_xau.py \
+            gemini_classificador_sinais.py \
+            processador_final_sinais_xau.py \
+            otimizador_parametros_setup.py
+
+      - name: Etapa 1 - Transferir sinais recebidos
+        run: |
+          python organizador_sinais_xau.py
+
+      - name: Etapa 2 - Classificar com Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python gemini_classificador_sinais.py
+
+      - name: Etapa 3 - Ranking e Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python processador_final_sinais_xau.py
+
+      - name: Resultado do pacote
+        if: always()
+        run: |
+          echo "Processamento do pacote finalizado."
+          echo "Consulte as etapas acima para verificar o resultado."
