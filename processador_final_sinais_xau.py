@@ -17,9 +17,13 @@ RANKING_MELHORES:
 Telegram:
     Envia somente APPROVED.
     Nao executa ordens.
+    Inclui botao nativo para copiar o comando ENTREI.
+    Informa fechamento do candle, horario de envio
+    e atraso de processamento.
 """
 
 import os
+import re
 import json
 import sqlite3
 import urllib.parse
@@ -120,6 +124,18 @@ def criar_estrutura(con):
         con, CLASSIFICACAO,
         "telegram_erro", "TEXT"
     )
+    garantir_coluna(
+        con, CLASSIFICACAO,
+        "telegram_candle_fechamento_utc", "TEXT"
+    )
+    garantir_coluna(
+        con, CLASSIFICACAO,
+        "telegram_atraso_segundos", "REAL"
+    )
+    garantir_coluna(
+        con, CLASSIFICACAO,
+        "telegram_comando_copia", "TEXT"
+    )
 
     con.execute(f"""
         CREATE TABLE IF NOT EXISTS {ident(RANKING)} (
@@ -192,86 +208,235 @@ def mensagem_original(sinal):
     return None
 
 
-def montar_mensagem(sinal):
+# --------------------------------------------------
+# HORARIO DE FECHAMENTO E ATRASO
+# --------------------------------------------------
+
+def converter_utc(valor):
+    if not valor:
+        return None
+
+    try:
+        texto = str(valor).strip().replace("Z", "+00:00")
+        data = datetime.fromisoformat(texto)
+
+        if data.tzinfo is None:
+            data = data.replace(tzinfo=timezone.utc)
+
+        return data.astimezone(timezone.utc)
+
+    except (TypeError, ValueError):
+        return None
+
+
+def fechamento_candle(sinal):
+    campos = (
+        "candle_fechamento_utc",
+        "fechamento_candle_utc",
+        "timestamp_fechamento_candle",
+        "timestamp_candle_utc",
+        "timestamp_candle",
+        "candle_utc",
+        "data_candle_utc",
+    )
+
+    valor = primeiro(sinal, campos)
+    data = converter_utc(valor)
+
+    if data:
+        return data
+
+    original = mensagem_original(sinal) or ""
+
+    padrao = (
+        r"(?:Candle UTC|Fechamento do candle UTC)"
+        r"\s*:\s*"
+        r"(\d{4}-\d{2}-\d{2}T"
+        r"\d{2}:\d{2}:\d{2}"
+        r"(?:\.\d+)?(?:Z|\+00:00)?)"
+    )
+
+    encontrado = re.search(
+        padrao, original, re.IGNORECASE
+    )
+
+    if encontrado:
+        return converter_utc(encontrado.group(1))
+
+    return None
+
+
+def formatar_horario(data):
+    if not data:
+        return "NAO INFORMADO"
+
+    return data.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def calcular_atraso(fechamento, envio):
+    if not fechamento:
+        return None
+
+    return (envio - fechamento).total_seconds()
+
+
+def formatar_atraso(segundos):
+    if segundos is None:
+        return "NAO DISPONIVEL"
+
+    minutos = segundos / 60
+
+    if segundos < 0:
+        return (
+            f"RELOGIO ANTERIOR AO FECHAMENTO "
+            f"({segundos:.1f} segundos)"
+        )
+
+    return (
+        f"{segundos:.1f} segundos "
+        f"({minutos:.2f} minutos)"
+    )
+
+
+# --------------------------------------------------
+# COMANDO DE COPIA
+# --------------------------------------------------
+
+def montar_comando_copia(sinal):
+    codigo = str(sinal["codigo"]).strip()
+
+    entrada = primeiro(
+        sinal,
+        (
+            "entrada",
+            "preco_entrada",
+            "entry",
+            "entry_price",
+        )
+    )
+
+    if entrada is None:
+        original = mensagem_original(sinal) or ""
+
+        encontrado = re.search(
+            r"Entrada\s*:\s*([0-9]+(?:[.,][0-9]+)?)",
+            original,
+            re.IGNORECASE,
+        )
+
+        if encontrado:
+            entrada = encontrado.group(1)
+
+    if entrada is None:
+        raise RuntimeError(
+            f"{codigo}: preco de entrada ausente. "
+            "Botao de acompanhamento nao pode ser criado."
+        )
+
+    return f"ENTREI {str(entrada).strip()} {codigo}"
+
+
+# --------------------------------------------------
+# MONTAGEM DA MENSAGEM
+# --------------------------------------------------
+
+def montar_mensagem(sinal, envio_utc):
     codigo = str(sinal["codigo"])
     original = mensagem_original(sinal)
 
-    # Preserva integralmente a mensagem produzida na origem.
+    fechamento = fechamento_candle(sinal)
+
+    atraso = calcular_atraso(
+        fechamento,
+        envio_utc,
+    )
+
     if original:
+        texto = original
+
         if codigo not in original:
-            return f"🆔 Código: {codigo}\n\n{original}"
-        return original
+            texto = f"🆔 Código: {codigo}\n\n{original}"
 
-    # Alternativa caso a origem ainda nao tenha campo de mensagem.
-    direcao = primeiro(
-        sinal, ("direcao", "decisao", "sinal", "lado")
-    )
-    entrada = primeiro(
-        sinal, ("entrada", "preco_entrada", "entry", "entry_price")
-    )
-    stop = primeiro(
-        sinal, ("stop_loss", "stop", "sl")
-    )
-    alvo = primeiro(
-        sinal, ("take_profit", "alvo", "tp", "target")
-    )
-    pontuacao = primeiro(
-        sinal, ("pontuacao", "score", "score_final")
-    )
-    timestamp = primeiro(
-        sinal, ("timestamp_candle", "candle_utc", "criado_utc")
-    )
-
-    if not any(
-        v is not None
-        for v in (direcao, entrada, stop, alvo, pontuacao)
-    ):
-        raise RuntimeError(
-            f"{codigo}: mensagem completa e dados operacionais "
-            "ainda nao estao disponiveis. Envio mantido pendente."
+    else:
+        direcao = primeiro(
+            sinal, ("direcao", "decisao", "sinal", "lado")
+        )
+        entrada = primeiro(
+            sinal, ("entrada", "preco_entrada", "entry", "entry_price")
+        )
+        stop = primeiro(
+            sinal, ("stop_loss", "stop", "sl")
+        )
+        alvo = primeiro(
+            sinal, ("take_profit", "alvo", "tp", "target")
+        )
+        pontuacao = primeiro(
+            sinal, ("pontuacao", "score", "score_final")
         )
 
-    linhas = [
-        "🥇 XAUUSD · OURO",
-        "⏱ Timeframe: M5",
+        if not any(
+            v is not None
+            for v in (direcao, entrada, stop, alvo, pontuacao)
+        ):
+            raise RuntimeError(
+                f"{codigo}: mensagem completa e dados operacionais "
+                "ainda nao estao disponiveis. Envio mantido pendente."
+            )
+
+        linhas = [
+            "🥇 XAUUSD · OURO",
+            "⏱ Timeframe: M5",
+            "",
+            f"🆔 Código: {codigo}",
+            "",
+            str(direcao or "DIRECAO NAO INFORMADA"),
+        ]
+
+        if entrada is not None:
+            linhas.append(f"💰 Entrada: {entrada}")
+        if stop is not None:
+            linhas.append(f"🛑 Stop: {stop}")
+        if alvo is not None:
+            linhas.append(f"🎯 Alvo: {alvo}")
+        if pontuacao is not None:
+            linhas.append(f"📊 Pontuacao: {pontuacao}")
+
+        linhas.append(
+            f"🧠 Gemini: {sinal.get('classificacao', 'APPROVED')}"
+        )
+
+        if sinal.get("justificativa"):
+            linhas.extend([
+                "",
+                "📝 " + str(sinal["justificativa"])
+            ])
+
+        texto = "\n".join(linhas)
+
+    comando = montar_comando_copia(sinal)
+
+    linhas_temporais = [
         "",
-        f"🆔 Código: {codigo}",
+        "━━━━━━━━━━━━━━━━━━",
+        f"🕯️ Fechamento do candle UTC: "
+        f"{formatar_horario(fechamento)}",
+        f"📨 Envio UTC: {formatar_horario(envio_utc)}",
+        f"⏳ Atraso: {formatar_atraso(atraso)}",
         "",
-        str(direcao or "DIRECAO NAO INFORMADA"),
+        "📲 Comando para acompanhamento:",
+        comando,
+        "",
+        "⚠️ Sinal informativo. Nenhuma ordem foi executada.",
     ]
 
-    if entrada is not None:
-        linhas.append(f"💰 Entrada: {entrada}")
-    if stop is not None:
-        linhas.append(f"🛑 Stop: {stop}")
-    if alvo is not None:
-        linhas.append(f"🎯 Alvo: {alvo}")
-    if pontuacao is not None:
-        linhas.append(f"📊 Pontuacao: {pontuacao}")
+    texto += "\n" + "\n".join(linhas_temporais)
 
-    linhas.append(
-        f"🧠 Gemini: {sinal.get('classificacao', 'APPROVED')}"
-    )
+    return texto, fechamento, atraso, comando
 
-    if sinal.get("justificativa"):
-        linhas.extend([
-            "",
-            "📝 " + str(sinal["justificativa"])
-        ])
 
-    if timestamp:
-        linhas.extend([
-            "",
-            f"🕯️ Candle UTC: {timestamp}"
-        ])
-
-    linhas.extend([
-        "",
-        "⚠️ Sinal informativo. Nenhuma ordem foi executada."
-    ])
-
-    return "\n".join(linhas)
-
+# --------------------------------------------------
+# RANKING
+# --------------------------------------------------
 
 def sincronizar_ranking(con, sinal):
     codigo = str(sinal["codigo"])
@@ -341,20 +506,37 @@ def sincronizar_ranking(con, sinal):
     ))
 
 
-def enviar_telegram(texto):
+# --------------------------------------------------
+# ENVIO TELEGRAM
+# --------------------------------------------------
+
+def enviar_telegram(texto, comando):
     if not TOKEN or not CHAT_ID:
         raise RuntimeError(
             "Secrets TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID ausentes."
         )
 
-    url = (
-        f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    )
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+    teclado = {
+        "inline_keyboard": [[
+            {
+                "text": "📋 Copiar comando",
+                "copy_text": {
+                    "text": comando
+                }
+            }
+        ]]
+    }
 
     dados = urllib.parse.urlencode({
         "chat_id": CHAT_ID,
         "text": texto,
         "disable_web_page_preview": "true",
+        "reply_markup": json.dumps(
+            teclado,
+            ensure_ascii=False,
+        ),
     }).encode("utf-8")
 
     requisicao = urllib.request.Request(
@@ -374,10 +556,12 @@ def enviar_telegram(texto):
             retorno = json.loads(
                 resposta.read().decode("utf-8")
             )
+
     except urllib.error.HTTPError as erro:
         detalhe = erro.read().decode(
             "utf-8", "replace"
         )[:1000]
+
         raise RuntimeError(
             f"Telegram HTTP {erro.code}: {detalhe}"
         )
@@ -388,8 +572,14 @@ def enviar_telegram(texto):
             + json.dumps(retorno, ensure_ascii=False)[:1000]
         )
 
-    return retorno.get("result", {}).get("message_id")
+    resultado = retorno.get("result", {})
 
+    return resultado.get("message_id")
+
+
+# --------------------------------------------------
+# PROCESSAMENTO
+# --------------------------------------------------
 
 def processar(con):
     sinais = con.execute(f"""
@@ -406,7 +596,11 @@ def processar(con):
 
     for linha in sinais:
         sinal = dict(linha)
-        codigo = str(sinal.get("codigo", "")).strip()
+
+        codigo = str(
+            sinal.get("codigo", "")
+        ).strip()
+
         classificacao = str(
             sinal.get("classificacao", "")
         ).upper().strip()
@@ -436,28 +630,46 @@ def processar(con):
             continue
 
         try:
-            texto = montar_mensagem(sinal)
+            envio_utc = datetime.now(timezone.utc)
+
+            texto, fechamento, atraso, comando = (
+                montar_mensagem(sinal, envio_utc)
+            )
 
             if len(texto) > 4090:
                 texto = texto[:4080] + "\n…"
 
-            message_id = enviar_telegram(texto)
+            message_id = enviar_telegram(
+                texto,
+                comando,
+            )
 
             con.execute(f"""
                 UPDATE {ident(CLASSIFICACAO)}
                 SET telegram_status='ENVIADO',
                     telegram_message_id=?,
                     telegram_enviado_utc=?,
-                    telegram_erro=NULL
+                    telegram_erro=NULL,
+                    telegram_candle_fechamento_utc=?,
+                    telegram_atraso_segundos=?,
+                    telegram_comando_copia=?
                 WHERE codigo=?
             """, (
                 str(message_id) if message_id is not None else None,
-                agora(),
+                envio_utc.isoformat(timespec="milliseconds"),
+                fechamento.isoformat(timespec="milliseconds")
+                if fechamento else None,
+                atraso,
+                comando,
                 codigo,
             ))
 
             enviados += 1
-            print(f"{codigo}: enviado ao Telegram.")
+
+            print(
+                f"{codigo}: enviado ao Telegram. "
+                f"Atraso: {formatar_atraso(atraso)}"
+            )
 
         except Exception as erro:
             detalhe = str(erro)[:2000]
@@ -471,7 +683,10 @@ def processar(con):
 
             pendentes += 1
             erros.append(f"{codigo}: {detalhe}")
-            print(f"{codigo}: envio pendente - {detalhe}")
+
+            print(
+                f"{codigo}: envio pendente - {detalhe}"
+            )
 
     con.commit()
 
@@ -484,6 +699,10 @@ def processar(con):
         "erros": erros,
     }
 
+
+# --------------------------------------------------
+# EXECUCAO
+# --------------------------------------------------
 
 def executar():
     temporario, db_path, con = abrir_sqlite_gz(SINAIS)
@@ -503,6 +722,7 @@ def executar():
         )
 
         print("\nPROCESSAMENTO FINAL CONCLUIDO")
+
         print(json.dumps(
             resultado,
             ensure_ascii=False,
