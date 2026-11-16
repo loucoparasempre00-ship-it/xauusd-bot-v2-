@@ -9,8 +9,6 @@ import base64
 import urllib.request
 import urllib.error
 
-from datetime import datetime, timezone
-
 import fila_progressiva_gestor as fila
 
 
@@ -153,8 +151,7 @@ def montar_bloco(lote):
             raise RuntimeError(
                 "Um registro individual excede o limite HTTP. "
                 "Ele foi mantido na fila, sem exclusão. "
-                "É necessário suporte a fragmentação no Worker "
-                "para transmitir esse registro."
+                "É necessário suporte a fragmentação no Worker."
             )
 
         break
@@ -180,6 +177,7 @@ def main():
     print("TRANSMISSÃO PROGRESSIVA CENTRAL -> GESTOR")
     print("Modo: somente leitura")
     print("Máximo: um bloco por execução")
+    print("Meta: até 3 novos + 3 antigos")
 
     url = os.environ.get(
         "GESTOR_XAUUSD_URL",
@@ -205,7 +203,8 @@ def main():
     print(
         f"Bloco selecionado: {lote['banco']}."
         f"{lote['tabela']} | "
-        f"{lote['quantidade']} registros",
+        f"{lote['novos_quantidade']} novos + "
+        f"{lote['antigos_quantidade']} antigos",
         flush=True,
     )
 
@@ -217,7 +216,7 @@ def main():
 
     pacote, ids_confirmaveis = resultado
 
-    # A fila só é consumida depois da confirmação HTTP 2xx.
+    # Só remove os registros depois da confirmação HTTP 2xx.
     enviar(url, token, pacote)
 
     removidos = fila.confirmar_lote(ids_confirmaveis)
@@ -226,7 +225,7 @@ def main():
         raise RuntimeError(
             "O Gestor confirmou, mas a quantidade removida da fila "
             f"foi diferente: {removidos}/{len(ids_confirmaveis)}. "
-            "O bloco poderá ser reenviado na próxima execução."
+            "Os registros restantes poderão ser reenviados."
         )
 
     print(
