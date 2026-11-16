@@ -1,61 +1,472 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-name: Transmitir Bancos para Gestor XAUUSD
+"""
+CENTRAL -> GESTOR XAUUSD
 
-on:
-  workflow_run:
-    workflows:
-      - Central Inteligente XAUUSD
-    types:
-      - completed
+Espelhamento somente de leitura dos bancos oficiais.
+Os lotes são dimensionados pelo tamanho real em bytes.
+Os bancos originais nunca são alterados.
+"""
 
-permissions:
-  contents: read
+import gzip
+import json
+import os
+import sqlite3
+import sys
+import tempfile
+import urllib.request
+import urllib.error
+from datetime import datetime, timezone
 
-concurrency:
-  group: transmitir-bancos-gestor
-  cancel-in-progress: false
+BANCOS = {
+    "graficos": "data/graficos.db.gz",
+    "estatisticas_m5": "data/estatisticas_m5.db.gz",
+}
 
-jobs:
-  transmitir:
-    name: Transmitir bancos oficiais
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+TAMANHO_LOTE = 200
+LIMITE_CANDLES_POR_TF = 500
+LIMITE_REQUISICAO = 500_000
 
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
 
-    steps:
-      - name: Baixar repositorio Central atualizado
-        uses: actions/checkout@v4
-        with:
-          ref: main
+def serializar(objeto):
+    return json.dumps(
+        objeto,
+        ensure_ascii=False,
+        default=str,
+        separators=(",", ":")
+    ).encode("utf-8")
 
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
 
-      - name: Verificar arquivos e bancos
-        run: |
-          set -e
-          test -s integracao_gestor_bancos.py
-          test -s data/graficos.db.gz
-          test -s data/estatisticas_m5.db.gz
-          python -m py_compile integracao_gestor_bancos.py
+def abrir_leitura(caminho):
+    temporario = tempfile.NamedTemporaryFile(
+        suffix=".db",
+        delete=False
+    )
+    nome_temp = temporario.name
+    temporario.close()
 
-      - name: Transmitir bancos para o Gestor
-        env:
-          GESTOR_XAUUSD_URL: ${{ secrets.GESTOR_XAUUSD_BANCOS_URL }}
-          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
-        run: |
-          set -e
-          test -n "$GESTOR_XAUUSD_URL"
-          test -n "$GESTOR_XAUUSD_TOKEN"
-          python integracao_gestor_bancos.py
+    try:
+        with gzip.open(caminho, "rb") as origem:
+            with open(nome_temp, "wb") as destino:
+                while True:
+                    bloco = origem.read(1024 * 1024)
+                    if not bloco:
+                        break
+                    destino.write(bloco)
 
-      - name: Resultado da transmissao
-        if: always()
-        run: |
-          echo "TRANSMISSAO CENTRAL -> GESTOR"
-          echo "Modo: somente leitura"
+        conexao = sqlite3.connect(
+            "file:" + nome_temp + "?mode=ro",
+            uri=True
+        )
+        conexao.row_factory = sqlite3.Row
+        return conexao, nome_temp
+
+    except Exception:
+        if os.path.exists(nome_temp):
+            os.remove(nome_temp)
+        raise
+
+
+def enviar(url, token, pacote):
+    corpo = serializar(pacote)
+
+    if len(corpo) > LIMITE_REQUISICAO:
+        raise RuntimeError(
+            "Pacote excedeu o limite: "
+            + str(len(corpo))
+            + " bytes."
+        )
+
+    requisicao = urllib.request.Request(
+        url,
+        data=corpo,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-Central-Secret": token,
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=45
+        ) as resposta:
+            retorno = resposta.read().decode(
+                "utf-8",
+                errors="replace"
+            )
+
+            if not 200 <= resposta.status < 300:
+                raise RuntimeError(
+                    f"HTTP {resposta.status}: {retorno}"
+                )
+
+            dados = pacote["dados"]
+
+            print(
+                "Recebido pelo Gestor:",
+                dados["banco"],
+                dados["tabela"],
+                "lote",
+                dados["lote"],
+                "|",
+                len(corpo),
+                "bytes",
+                "| HTTP",
+                resposta.status
+            )
+
+    except urllib.error.HTTPError as erro:
+        detalhe = erro.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+        raise RuntimeError(
+            f"Erro HTTP {erro.code}: {detalhe}"
+        )
+
+    except urllib.error.URLError as erro:
+        raise RuntimeError(
+            f"Falha de conexão: {erro}"
+        )
+
+
+def nome_seguro(nome):
+    return '"' + nome.replace('"', '""') + '"'
+
+
+def normalizar_registro(linha):
+    return {
+        chave: (
+            valor.hex()
+            if isinstance(valor, (bytes, bytearray))
+            else valor
+        )
+        for chave, valor in dict(linha).items()
+    }
+
+
+def montar_pacote(ciclo_id, dados_base, registros, lote, ultimo):
+    dados = dict(dados_base)
+    dados.update({
+        "lote": lote,
+        "registros": registros,
+        "ultimo_lote": ultimo
+    })
+
+    return {
+        "tipo": "espelho_bancos_leitura",
+        "versao": 1,
+        "ciclo_id": ciclo_id,
+        "somente_leitura": True,
+        "dados": dados
+    }
+
+
+def transmitir_registros(
+    url,
+    token,
+    ciclo_id,
+    dados_base,
+    iterador,
+    identificacao
+):
+    lote = 0
+    atual = []
+    total_enviado = 0
+
+    for registro in iterador:
+        candidato = atual + [registro]
+
+        pacote_teste = montar_pacote(
+            ciclo_id,
+            dados_base,
+            candidato,
+            lote,
+            False
+        )
+
+        tamanho = len(serializar(pacote_teste))
+
+        if tamanho <= LIMITE_REQUISICAO:
+            atual = candidato
+            continue
+
+        if not atual:
+            raise RuntimeError(
+                f"Um único registro de {identificacao} "
+                f"excede o limite de {LIMITE_REQUISICAO} bytes. "
+                f"Tamanho: {tamanho} bytes."
+            )
+
+        pacote = montar_pacote(
+            ciclo_id,
+            dados_base,
+            atual,
+            lote,
+            False
+        )
+
+        enviar(url, token, pacote)
+
+        total_enviado += len(atual)
+        lote += 1
+        atual = [registro]
+
+        pacote_unico = montar_pacote(
+            ciclo_id,
+            dados_base,
+            atual,
+            lote,
+            True
+        )
+
+        tamanho_unico = len(serializar(pacote_unico))
+
+        if tamanho_unico > LIMITE_REQUISICAO:
+            raise RuntimeError(
+                f"Um único registro de {identificacao} "
+                f"excede o limite de {LIMITE_REQUISICAO} bytes. "
+                f"Tamanho: {tamanho_unico} bytes."
+            )
+
+    if atual:
+        pacote = montar_pacote(
+            ciclo_id,
+            dados_base,
+            atual,
+            lote,
+            True
+        )
+        enviar(url, token, pacote)
+        total_enviado += len(atual)
+
+    elif lote == 0:
+        pacote = montar_pacote(
+            ciclo_id,
+            dados_base,
+            [],
+            0,
+            True
+        )
+        enviar(url, token, pacote)
+
+    print(
+        f"{identificacao}: "
+        f"{total_enviado} registros enviados "
+        f"em {lote + 1} lote(s)."
+    )
+
+
+def transmitir_tabela(
+    conexao,
+    url,
+    token,
+    ciclo_id,
+    banco,
+    tabela
+):
+    identificador = nome_seguro(tabela)
+
+    colunas = [
+        linha["name"]
+        for linha in conexao.execute(
+            f"PRAGMA table_info({identificador})"
+        ).fetchall()
+    ]
+
+    total = conexao.execute(
+        f"SELECT COUNT(*) FROM {identificador}"
+    ).fetchone()[0]
+
+    if tabela == "candles" and "timeframe" in colunas:
+        for numero_lote, timeframe in enumerate(
+            ("M5", "M15", "H1")
+        ):
+            enviar_candles(
+                conexao,
+                url,
+                token,
+                ciclo_id,
+                banco,
+                identificador,
+                tabela,
+                colunas,
+                total,
+                timeframe,
+                numero_lote
+            )
+        return
+
+    cursor = conexao.execute(
+        f"SELECT * FROM {identificador}"
+    )
+
+    def registros():
+        while True:
+            linhas = cursor.fetchmany(TAMANHO_LOTE)
+
+            if not linhas:
+                break
+
+            for linha in linhas:
+                yield normalizar_registro(linha)
+
+    dados_base = {
+        "banco": banco,
+        "tabela": tabela,
+        "colunas": colunas,
+        "total_registros_origem": total
+    }
+
+    transmitir_registros(
+        url,
+        token,
+        ciclo_id,
+        dados_base,
+        registros(),
+        f"{banco}.{tabela}"
+    )
+
+
+def enviar_candles(
+    conexao,
+    url,
+    token,
+    ciclo_id,
+    banco,
+    identificador,
+    tabela,
+    colunas,
+    total,
+    timeframe,
+    numero_lote
+):
+    cursor = conexao.execute(
+        f"""
+        SELECT * FROM {identificador}
+        WHERE timeframe = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+        """,
+        (timeframe, LIMITE_CANDLES_POR_TF)
+    )
+
+    linhas = cursor.fetchall()
+    registros = [
+        normalizar_registro(linha)
+        for linha in reversed(linhas)
+    ]
+
+    dados_base = {
+        "banco": banco,
+        "tabela": tabela,
+        "timeframe": timeframe,
+        "colunas": colunas,
+        "total_registros_origem": total,
+        "registros_enviados": len(registros)
+    }
+
+    transmitir_registros(
+        url,
+        token,
+        ciclo_id,
+        dados_base,
+        iter(registros),
+        f"{banco}.{tabela}.{timeframe}"
+    )
+
+
+def transmitir_banco(nome, caminho, url, token, ciclo_id):
+    if not os.path.isfile(caminho):
+        raise RuntimeError(f"Banco ausente: {caminho}")
+
+    conexao, temporario = abrir_leitura(caminho)
+
+    try:
+        tabelas = [
+            linha["name"]
+            for linha in conexao.execute("""
+                SELECT name
+                FROM sqlite_master
+                WHERE type='table'
+                AND name NOT LIKE 'sqlite_%'
+                ORDER BY name
+            """).fetchall()
+        ]
+
+        if not tabelas:
+            raise RuntimeError(
+                f"Nenhuma tabela encontrada em {caminho}."
+            )
+
+        print(f"\nBanco: {nome}")
+        print("Tabelas:", ", ".join(tabelas))
+
+        for tabela in tabelas:
+            transmitir_tabela(
+                conexao,
+                url,
+                token,
+                ciclo_id,
+                nome,
+                tabela
+            )
+
+    finally:
+        conexao.close()
+
+        if os.path.exists(temporario):
+            os.remove(temporario)
+
+
+def main():
+    url = os.environ.get(
+        "GESTOR_XAUUSD_URL",
+        ""
+    ).strip()
+
+    token = os.environ.get(
+        "GESTOR_XAUUSD_TOKEN",
+        ""
+    ).strip()
+
+    if not url or not token:
+        raise RuntimeError(
+            "GESTOR_XAUUSD_URL ou GESTOR_XAUUSD_TOKEN ausente."
+        )
+
+    ciclo_id = datetime.now(
+        timezone.utc
+    ).strftime("%Y%m%dT%H%M%SZ")
+
+    print("====================================")
+    print("ESPELHAMENTO CENTRAL -> GESTOR")
+    print("MODO: SOMENTE LEITURA")
+    print("CICLO:", ciclo_id)
+    print("====================================")
+
+    for nome, caminho in BANCOS.items():
+        transmitir_banco(
+            nome,
+            caminho,
+            url,
+            token,
+            ciclo_id
+        )
+
+    print("====================================")
+    print("ESPELHAMENTO CONCLUIDO")
+    print("BANCOS ORIGINAIS: INALTERADOS")
+    print("====================================")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as erro:
+        print("ERRO NO ESPELHAMENTO:", erro)
+        sys.exit(1)
