@@ -154,7 +154,9 @@ def transmitir_tabela(
     ).fetchone()[0]
 
     if tabela == "candles" and "timeframe" in colunas:
-        for timeframe in ("M5", "M15", "H1"):
+        for numero_lote, timeframe in enumerate(
+            ("M5", "M15", "H1")
+        ):
             enviar_candles(
                 conexao,
                 url,
@@ -165,7 +167,8 @@ def transmitir_tabela(
                 tabela,
                 colunas,
                 total,
-                timeframe
+                timeframe,
+                numero_lote
             )
         return
 
@@ -242,7 +245,8 @@ def enviar_candles(
     tabela,
     colunas,
     total,
-    timeframe
+    timeframe,
+    numero_lote
 ):
     cursor = conexao.execute(
         f"""
@@ -269,7 +273,7 @@ def enviar_candles(
             "colunas": colunas,
             "total_registros_origem": total,
             "registros_enviados": len(registros),
-            "lote": 0,
+            "lote": numero_lote,
             "registros": registros,
             "ultimo_lote": True
         }
@@ -279,7 +283,8 @@ def enviar_candles(
 
     print(
         f"{banco}.{tabela}.{timeframe}: "
-        f"{len(registros)} velas enviadas."
+        f"{len(registros)} velas enviadas. "
+        f"Lote: {numero_lote}"
     )
 
 
