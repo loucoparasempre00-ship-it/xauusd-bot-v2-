@@ -19,7 +19,8 @@ BANCOS = {
 
 ARQUIVO_FILA = "data/fila_progressiva_gestor.db"
 LEITURA_POR_LOTE = 200
-ENVIO_POR_LOTE = 50
+NOVOS_POR_EXECUCAO = 3
+ANTIGOS_POR_EXECUCAO = 3
 
 
 def agora():
@@ -74,26 +75,34 @@ def conectar_fila():
             criado_em TEXT NOT NULL,
             confirmado_em TEXT,
             colunas_json TEXT,
-            total_origem INTEGER
+            total_origem INTEGER,
+            novidade INTEGER NOT NULL DEFAULT 0
         )
     """)
 
-    colunas_existentes = {
+    colunas = {
         linha["name"]
         for linha in conexao.execute(
             "PRAGMA table_info(fila_gestor)"
         ).fetchall()
     }
 
-    if "colunas_json" not in colunas_existentes:
+    if "colunas_json" not in colunas:
         conexao.execute(
             "ALTER TABLE fila_gestor ADD COLUMN colunas_json TEXT"
         )
 
-    if "total_origem" not in colunas_existentes:
+    if "total_origem" not in colunas:
         conexao.execute(
             "ALTER TABLE fila_gestor ADD COLUMN total_origem INTEGER"
         )
+
+    if "novidade" not in colunas:
+        # Registros que já estavam na fila são tratados como antigos.
+        conexao.execute("""
+            ALTER TABLE fila_gestor
+            ADD COLUMN novidade INTEGER NOT NULL DEFAULT 0
+        """)
 
     conexao.execute("""
         CREATE INDEX IF NOT EXISTS idx_fila_gestor_status
@@ -103,6 +112,11 @@ def conectar_fila():
     conexao.execute("""
         CREATE INDEX IF NOT EXISTS idx_fila_gestor_origem
         ON fila_gestor(banco, tabela_origem, status, id)
+    """)
+
+    conexao.execute("""
+        CREATE INDEX IF NOT EXISTS idx_fila_gestor_novidade
+        ON fila_gestor(status, novidade, id)
     """)
 
     conexao.commit()
@@ -148,15 +162,11 @@ def listar_tabelas(conexao):
           AND name NOT LIKE 'sqlite_%'
         ORDER BY name
     """).fetchall()
+
     return [linha["name"] for linha in linhas]
 
 
-def copiar_tabela(
-    origem,
-    fila,
-    banco,
-    tabela,
-):
+def copiar_tabela(origem, fila, banco, tabela):
     identificador = nome_seguro(tabela)
 
     colunas = [
@@ -179,7 +189,7 @@ def copiar_tabela(
         separators=(",", ":"),
     )
 
-    cursor = origem.execute(
+    cursor_origem = origem.execute(
         f"SELECT * FROM {identificador}"
     )
 
@@ -187,7 +197,7 @@ def copiar_tabela(
     total_novos = 0
 
     while True:
-        registros = cursor.fetchmany(LEITURA_POR_LOTE)
+        registros = cursor_origem.fetchmany(LEITURA_POR_LOTE)
         if not registros:
             break
 
@@ -211,31 +221,21 @@ def copiar_tabela(
                 total_origem,
             ))
 
-        antes = fila.total_changes
-
-        fila.executemany("""
-            INSERT INTO fila_gestor (
+        cursor = fila.executemany("""
+            INSERT OR IGNORE INTO fila_gestor (
                 banco,
                 tabela_origem,
                 hash_registro,
                 dados_json,
                 criado_em,
                 colunas_json,
-                total_origem
+                total_origem,
+                novidade
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(hash_registro) DO UPDATE SET
-                colunas_json = COALESCE(
-                    fila_gestor.colunas_json,
-                    excluded.colunas_json
-                ),
-                total_origem = COALESCE(
-                    excluded.total_origem,
-                    fila_gestor.total_origem
-                )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         """, insercoes)
 
-        total_novos += fila.total_changes - antes
+        total_novos += max(cursor.rowcount, 0)
         total_lidos += len(registros)
         fila.commit()
 
@@ -249,7 +249,7 @@ def preparar_fila():
 
     try:
         for banco, caminho in BANCOS.items():
-            print(f"\nBANCO: {banco}")
+            print(f"\nBANCO: {banco}", flush=True)
 
             origem = None
             caminho_temp = None
@@ -286,45 +286,83 @@ def preparar_fila():
 
     print("\nPREPARAÇÃO CONCLUÍDA")
     print(f"Registros examinados: {total_lidos}")
-    print(f"Novos registros: {total_novos}")
+    print(f"Novos registros adicionados: {total_novos}")
 
 
-def obter_lote(limite=ENVIO_POR_LOTE):
+def obter_lote():
     fila = conectar_fila()
 
     try:
-        primeiro = fila.execute("""
+        # Prioriza uma tabela que tenha informações novas.
+        primeira = fila.execute("""
             SELECT banco, tabela_origem
             FROM fila_gestor
             WHERE status = 'pendente'
+              AND novidade = 1
             ORDER BY id
             LIMIT 1
         """).fetchone()
 
-        if not primeiro:
+        # Se não houver novidades, continua o histórico antigo.
+        if not primeira:
+            primeira = fila.execute("""
+                SELECT banco, tabela_origem
+                FROM fila_gestor
+                WHERE status = 'pendente'
+                ORDER BY id
+                LIMIT 1
+            """).fetchone()
+
+        if not primeira:
             return {
                 "quantidade": 0,
                 "registros": [],
+                "ids": [],
             }
 
-        banco = primeiro["banco"]
-        tabela = primeiro["tabela_origem"]
+        banco = primeira["banco"]
+        tabela = primeira["tabela_origem"]
 
-        registros = fila.execute("""
-            SELECT
-                id,
-                banco,
-                tabela_origem,
-                dados_json,
-                colunas_json,
-                total_origem
+        novos = fila.execute("""
+            SELECT id, dados_json, colunas_json, total_origem
             FROM fila_gestor
             WHERE status = 'pendente'
               AND banco = ?
               AND tabela_origem = ?
+              AND novidade = 1
             ORDER BY id
             LIMIT ?
-        """, (banco, tabela, limite)).fetchall()
+        """, (
+            banco,
+            tabela,
+            NOVOS_POR_EXECUCAO,
+        )).fetchall()
+
+        antigos = fila.execute("""
+            SELECT id, dados_json, colunas_json, total_origem
+            FROM fila_gestor
+            WHERE status = 'pendente'
+              AND banco = ?
+              AND tabela_origem = ?
+              AND novidade = 0
+            ORDER BY id
+            LIMIT ?
+        """, (
+            banco,
+            tabela,
+            ANTIGOS_POR_EXECUCAO,
+        )).fetchall()
+
+        selecionados = list(novos) + list(antigos)
+
+        if not selecionados:
+            return {
+                "quantidade": 0,
+                "registros": [],
+                "ids": [],
+            }
+
+        primeiro_registro = selecionados[0]
 
         total_pendente = fila.execute("""
             SELECT COUNT(*)
@@ -334,8 +372,6 @@ def obter_lote(limite=ENVIO_POR_LOTE):
               AND tabela_origem = ?
         """, (banco, tabela)).fetchone()[0]
 
-        primeiro_registro = registros[0]
-
         return {
             "banco": banco,
             "tabela": tabela,
@@ -343,12 +379,14 @@ def obter_lote(limite=ENVIO_POR_LOTE):
                 primeiro_registro["colunas_json"] or "[]"
             ),
             "total_origem": primeiro_registro["total_origem"] or 0,
-            "ultimo_lote": total_pendente <= len(registros),
-            "quantidade": len(registros),
-            "ids": [r["id"] for r in registros],
+            "ultimo_lote": total_pendente <= len(selecionados),
+            "quantidade": len(selecionados),
+            "novos_quantidade": len(novos),
+            "antigos_quantidade": len(antigos),
+            "ids": [r["id"] for r in selecionados],
             "registros": [
                 json.loads(r["dados_json"])
-                for r in registros
+                for r in selecionados
             ],
         }
 
@@ -388,6 +426,7 @@ def confirmar_lote(ids):
                 """,
                 parte,
             )
+
             removidos += cursor.rowcount
 
         fila.commit()
@@ -411,10 +450,30 @@ def resumo_fila():
             WHERE status = 'pendente'
         """).fetchone()[0]
 
+        novos = fila.execute("""
+            SELECT COUNT(*)
+            FROM fila_gestor
+            WHERE status = 'pendente'
+              AND novidade = 1
+        """).fetchone()[0]
+
+        antigos = fila.execute("""
+            SELECT COUNT(*)
+            FROM fila_gestor
+            WHERE status = 'pendente'
+              AND novidade = 0
+        """).fetchone()[0]
+
         print("\nRESUMO DA FILA PROGRESSIVA")
         print(f"Total armazenado: {total}")
         print(f"Pendentes: {pendentes}")
-        print(f"Bloco máximo: {ENVIO_POR_LOTE}")
+        print(f"Novos pendentes: {novos}")
+        print(f"Antigos pendentes: {antigos}")
+        print(
+            "Por execução: até "
+            f"{NOVOS_POR_EXECUCAO} novos + "
+            f"{ANTIGOS_POR_EXECUCAO} antigos"
+        )
 
         por_banco = fila.execute("""
             SELECT banco, COUNT(*) AS quantidade
@@ -425,7 +484,10 @@ def resumo_fila():
         """).fetchall()
 
         for linha in por_banco:
-            print(f"{linha['banco']}: {linha['quantidade']} pendentes")
+            print(
+                f"{linha['banco']}: "
+                f"{linha['quantidade']} pendentes"
+            )
 
     finally:
         fila.close()
