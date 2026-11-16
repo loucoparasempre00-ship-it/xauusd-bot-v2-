@@ -16,7 +16,7 @@ jobs:
       - name: Baixar Central
         uses: actions/checkout@v4
 
-      - name: Consultar bancos em modo somente leitura
+      - name: Diagnóstico compacto dos bancos
         run: |
           python - <<'PY'
           import gzip
@@ -24,179 +24,79 @@ jobs:
           import tempfile
           import os
 
-          BANCOS = [
+          bancos = [
               ("graficos", "data/graficos.db.gz"),
-              ("estatisticas_m5", "data/estatisticas_m5.db.gz"),
+              ("estatisticas_m5", "data/estatisticas_m5.db.gz")
           ]
 
-          def abrir_banco(origem):
-              if not os.path.isfile(origem):
-                  raise RuntimeError("Banco não encontrado: " + origem)
+          for nome, arquivo in bancos:
+              print("\n========== BANCO:", nome, "==========")
 
-              temporario = tempfile.NamedTemporaryFile(
-                  suffix=".db",
-                  delete=False
+              if not os.path.isfile(arquivo):
+                  raise RuntimeError("Banco não encontrado: " + arquivo)
+
+              temp = tempfile.NamedTemporaryFile(
+                  suffix=".db", delete=False
               )
-              caminho = temporario.name
-              temporario.close()
-
-              with gzip.open(origem, "rb") as entrada:
-                  with open(caminho, "wb") as saida:
-                      while True:
-                          bloco = entrada.read(1024 * 1024)
-                          if not bloco:
-                              break
-                          saida.write(bloco)
-
-              db = sqlite3.connect(
-                  "file:" + caminho + "?mode=ro",
-                  uri=True
-              )
-              db.row_factory = sqlite3.Row
-
-              return db, caminho
-
-          def consultar(nome_banco, origem):
-              print("\n" + "=" * 70)
-              print("BANCO:", nome_banco)
-              print("ARQUIVO:", origem)
-              print("=" * 70)
-
-              db = None
-              caminho = None
+              caminho = temp.name
+              temp.close()
 
               try:
-                  db, caminho = abrir_banco(origem)
+                  with gzip.open(arquivo, "rb") as entrada:
+                      with open(caminho, "wb") as saida:
+                          while True:
+                              bloco = entrada.read(1024 * 1024)
+                              if not bloco:
+                                  break
+                              saida.write(bloco)
+
+                  db = sqlite3.connect(
+                      "file:" + caminho + "?mode=ro",
+                      uri=True
+                  )
 
                   tabelas = db.execute("""
-                      SELECT name
-                      FROM sqlite_master
-                      WHERE type = 'table'
+                      SELECT name FROM sqlite_master
+                      WHERE type='table'
                       AND name NOT LIKE 'sqlite_%'
                       ORDER BY name
                   """).fetchall()
 
-                  print("\nTOTAL DE TABELAS:", len(tabelas))
-
-                  for item in tabelas:
-                      tabela = item["name"]
+                  for (tabela,) in tabelas:
                       seguro = '"' + tabela.replace('"', '""') + '"'
-
-                      print("\n" + "-" * 70)
-                      print("TABELA:", tabela)
-
                       colunas = db.execute(
                           "PRAGMA table_info(" + seguro + ")"
                       ).fetchall()
-
-                      print("ESTRUTURA:")
-
-                      for c in colunas:
-                          print(
-                              "  Coluna:", c["name"],
-                              "| Tipo:", c["type"],
-                              "| Obrigatória:", bool(c["notnull"]),
-                              "| PK:", c["pk"]
-                          )
-
-                      chaves = [
-                          c["name"]
-                          for c in sorted(
-                              colunas,
-                              key=lambda x: x["pk"]
-                          )
-                          if c["pk"]
-                      ]
-
-                      print("CHAVE PRIMÁRIA:", chaves or "NÃO DEFINIDA")
 
                       total = db.execute(
                           "SELECT COUNT(*) FROM " + seguro
                       ).fetchone()[0]
 
-                      print("TOTAL DE REGISTROS:", total)
-
-                      candidatas = [
-                          c["name"] for c in colunas
-                          if any(
-                              termo in c["name"].lower()
-                              for termo in (
-                                  "data", "date", "time",
-                                  "timestamp", "criado",
-                                  "atualizado", "horario",
-                                  "candle", "tempo"
-                              )
+                      pk = [
+                          c[1] for c in sorted(
+                              [c for c in colunas if c[5] > 0],
+                              key=lambda x: x[5]
                           )
                       ]
 
-                      print(
-                          "COLUNAS DE DATA/TEMPO:",
-                          candidatas or "NÃO IDENTIFICADAS"
-                      )
+                      print("\nTABELA:", tabela)
+                      print("REGISTROS:", total)
+                      print("CHAVE PRIMARIA:", pk or "SEM PK")
 
-                      if tabela == "arquivos_origem":
-                          print("\nREGISTROS DE arquivos_origem")
-                          print("(CONTEÚDO BINÁRIO NÃO SERÁ EXIBIDO)")
+                      for c in colunas:
+                          print(
+                              "COLUNA:", c[1],
+                              "| TIPO:", c[2],
+                              "| PK:", c[5]
+                          )
 
-                          campos = [
-                              c["name"] for c in colunas
-                              if c["name"] != "conteudo"
-                          ]
-
-                          if campos:
-                              selecao = ", ".join(
-                                  '"' + x.replace('"', '""') + '"'
-                                  for x in campos
-                              )
-
-                              registros = db.execute(
-                                  "SELECT " + selecao +
-                                  " FROM " + seguro
-                              ).fetchall()
-
-                              for i, registro in enumerate(registros, 1):
-                                  print("\nREGISTRO:", i)
-
-                                  for campo in campos:
-                                      valor = registro[campo]
-
-                                      if isinstance(valor, str) and len(valor) > 300:
-                                          valor = valor[:300] + "... [TRUNCADO]"
-
-                                      print(" ", campo, "=", repr(valor))
-
-                          if "conteudo" in [c["name"] for c in colunas]:
-                              print("\nTAMANHOS DOS CONTEÚDOS BINÁRIOS:")
-
-                              tamanhos = db.execute(
-                                  "SELECT nome, tamanho_bytes, "
-                                  "length(conteudo) AS bytes_reais "
-                                  "FROM " + seguro +
-                                  " ORDER BY length(conteudo) DESC"
-                              ).fetchall()
-
-                              for r in tamanhos:
-                                  print(
-                                      "  Nome:", repr(r["nome"]),
-                                      "| tamanho_bytes:", r["tamanho_bytes"],
-                                      "| bytes_reais:", r["bytes_reais"]
-                                  )
-
-                  print("\nFIM DO BANCO:", nome_banco)
+                  print("\nTOTAL DE TABELAS:", len(tabelas))
+                  db.close()
 
               finally:
-                  if db is not None:
-                      db.close()
-
-                  if caminho and os.path.exists(caminho):
+                  if os.path.exists(caminho):
                       os.remove(caminho)
 
-          for nome, arquivo in BANCOS:
-              consultar(nome, arquivo)
-
-          print("\n" + "=" * 70)
-          print("CONSULTA CONCLUÍDA")
-          print("MODO: SOMENTE LEITURA")
-          print("NENHUM BANCO ORIGINAL FOI ALTERADO")
-          print("=" * 70)
+          print("\nDIAGNOSTICO CONCLUIDO")
+          print("MODO SOMENTE LEITURA")
           PY
