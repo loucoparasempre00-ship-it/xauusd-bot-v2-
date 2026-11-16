@@ -91,6 +91,7 @@ def enviar(url, token, pacote):
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "CentralXAUUSD-BancoSync/1.0",
             "X-Central-Secret": token,
         },
         method="POST"
