@@ -1,5 +1,5 @@
 
-name: Consultar estrutura arquivos_origem
+name: Consultar estruturas dos bancos da Central
 
 on:
   workflow_dispatch:
@@ -10,34 +10,36 @@ permissions:
 jobs:
   consultar:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Baixar Central
         uses: actions/checkout@v4
 
-      - name: Consultar banco em modo somente leitura
+      - name: Consultar bancos em modo somente leitura
         run: |
           python - <<'PY'
           import gzip
           import sqlite3
           import tempfile
           import os
-          import hashlib
 
-          origem = "data/graficos.db.gz"
+          BANCOS = [
+              ("graficos", "data/graficos.db.gz"),
+              ("estatisticas_m5", "data/estatisticas_m5.db.gz"),
+          ]
 
-          if not os.path.isfile(origem):
-              raise SystemExit("Banco não encontrado: " + origem)
+          def abrir_banco(origem):
+              if not os.path.isfile(origem):
+                  raise RuntimeError("Banco não encontrado: " + origem)
 
-          temporario = tempfile.NamedTemporaryFile(
-              suffix=".db",
-              delete=False
-          )
-          caminho = temporario.name
-          temporario.close()
+              temporario = tempfile.NamedTemporaryFile(
+                  suffix=".db",
+                  delete=False
+              )
+              caminho = temporario.name
+              temporario.close()
 
-          try:
               with gzip.open(origem, "rb") as entrada:
                   with open(caminho, "wb") as saida:
                       while True:
@@ -52,63 +54,149 @@ jobs:
               )
               db.row_factory = sqlite3.Row
 
-              print("=== ESTRUTURA: arquivos_origem ===")
+              return db, caminho
 
-              colunas = db.execute(
-                  'PRAGMA table_info("arquivos_origem")'
-              ).fetchall()
+          def consultar(nome_banco, origem):
+              print("\n" + "=" * 70)
+              print("BANCO:", nome_banco)
+              print("ARQUIVO:", origem)
+              print("=" * 70)
 
-              if not colunas:
-                  raise RuntimeError("Tabela arquivos_origem não encontrada.")
+              db = None
+              caminho = None
 
-              for c in colunas:
-                  print(
-                      "Coluna:", c["name"],
-                      "| Tipo:", c["type"],
-                      "| Obrigatória:", bool(c["notnull"])
-                  )
+              try:
+                  db, caminho = abrir_banco(origem)
 
-              print("\n=== QUANTIDADE DE REGISTROS ===")
+                  tabelas = db.execute("""
+                      SELECT name
+                      FROM sqlite_master
+                      WHERE type = 'table'
+                      AND name NOT LIKE 'sqlite_%'
+                      ORDER BY name
+                  """).fetchall()
 
-              total = db.execute(
-                  'SELECT COUNT(*) FROM "arquivos_origem"'
-              ).fetchone()[0]
+                  print("\nTOTAL DE TABELAS:", len(tabelas))
 
-              print("Total:", total)
+                  for item in tabelas:
+                      tabela = item["name"]
+                      seguro = '"' + tabela.replace('"', '""') + '"'
 
-              print("\n=== EXEMPLO SEM CONTEÚDO BINÁRIO ===")
+                      print("\n" + "-" * 70)
+                      print("TABELA:", tabela)
 
-              registro = db.execute(
-                  'SELECT * FROM "arquivos_origem" LIMIT 1'
-              ).fetchone()
+                      colunas = db.execute(
+                          "PRAGMA table_info(" + seguro + ")"
+                      ).fetchall()
 
-              if registro is None:
-                  print("Tabela sem registros.")
-              else:
-                  for nome in registro.keys():
-                      valor = registro[nome]
+                      print("ESTRUTURA:")
 
-                      if isinstance(valor, (bytes, bytearray)):
+                      for c in colunas:
                           print(
-                              nome,
-                              "=[BINÁRIO OMITIDO]",
-                              "| bytes:", len(valor),
-                              "| SHA256:", hashlib.sha256(valor).hexdigest()
+                              "  Coluna:", c["name"],
+                              "| Tipo:", c["type"],
+                              "| Obrigatória:", bool(c["notnull"]),
+                              "| PK:", c["pk"]
                           )
-                      elif isinstance(valor, str) and len(valor) > 300:
-                          resumo = valor.encode("utf-8")
-                          print(
-                              nome,
-                              "=[CONTEÚDO EXTENSO OMITIDO]",
-                              "| caracteres:", len(valor),
-                              "| SHA256:", hashlib.sha256(resumo).hexdigest()
+
+                      chaves = [
+                          c["name"]
+                          for c in sorted(
+                              colunas,
+                              key=lambda x: x["pk"]
                           )
-                      else:
-                          print(nome, "=", repr(valor))
+                          if c["pk"]
+                      ]
 
-              db.close()
+                      print("CHAVE PRIMÁRIA:", chaves or "NÃO DEFINIDA")
 
-          finally:
-              if os.path.exists(caminho):
-                  os.remove(caminho)
+                      total = db.execute(
+                          "SELECT COUNT(*) FROM " + seguro
+                      ).fetchone()[0]
+
+                      print("TOTAL DE REGISTROS:", total)
+
+                      candidatas = [
+                          c["name"] for c in colunas
+                          if any(
+                              termo in c["name"].lower()
+                              for termo in (
+                                  "data", "date", "time",
+                                  "timestamp", "criado",
+                                  "atualizado", "horario",
+                                  "candle", "tempo"
+                              )
+                          )
+                      ]
+
+                      print(
+                          "COLUNAS DE DATA/TEMPO:",
+                          candidatas or "NÃO IDENTIFICADAS"
+                      )
+
+                      if tabela == "arquivos_origem":
+                          print("\nREGISTROS DE arquivos_origem")
+                          print("(CONTEÚDO BINÁRIO NÃO SERÁ EXIBIDO)")
+
+                          campos = [
+                              c["name"] for c in colunas
+                              if c["name"] != "conteudo"
+                          ]
+
+                          if campos:
+                              selecao = ", ".join(
+                                  '"' + x.replace('"', '""') + '"'
+                                  for x in campos
+                              )
+
+                              registros = db.execute(
+                                  "SELECT " + selecao +
+                                  " FROM " + seguro
+                              ).fetchall()
+
+                              for i, registro in enumerate(registros, 1):
+                                  print("\nREGISTRO:", i)
+
+                                  for campo in campos:
+                                      valor = registro[campo]
+
+                                      if isinstance(valor, str) and len(valor) > 300:
+                                          valor = valor[:300] + "... [TRUNCADO]"
+
+                                      print(" ", campo, "=", repr(valor))
+
+                          if "conteudo" in [c["name"] for c in colunas]:
+                              print("\nTAMANHOS DOS CONTEÚDOS BINÁRIOS:")
+
+                              tamanhos = db.execute(
+                                  "SELECT nome, tamanho_bytes, "
+                                  "length(conteudo) AS bytes_reais "
+                                  "FROM " + seguro +
+                                  " ORDER BY length(conteudo) DESC"
+                              ).fetchall()
+
+                              for r in tamanhos:
+                                  print(
+                                      "  Nome:", repr(r["nome"]),
+                                      "| tamanho_bytes:", r["tamanho_bytes"],
+                                      "| bytes_reais:", r["bytes_reais"]
+                                  )
+
+                  print("\nFIM DO BANCO:", nome_banco)
+
+              finally:
+                  if db is not None:
+                      db.close()
+
+                  if caminho and os.path.exists(caminho):
+                      os.remove(caminho)
+
+          for nome, arquivo in BANCOS:
+              consultar(nome, arquivo)
+
+          print("\n" + "=" * 70)
+          print("CONSULTA CONCLUÍDA")
+          print("MODO: SOMENTE LEITURA")
+          print("NENHUM BANCO ORIGINAL FOI ALTERADO")
+          print("=" * 70)
           PY
