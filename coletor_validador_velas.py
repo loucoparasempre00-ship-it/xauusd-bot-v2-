@@ -2,7 +2,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Coleta e valida candles XAU/USD M5, M15 e H1.
+"""Coleta incremental e valida candles XAU/USD M5, M15 e H1.
+Recupera velas fechadas que não chegaram a ser gravadas.
 Persistência definitiva: data/graficos.db.gz
 """
 
@@ -15,6 +16,7 @@ import sqlite3
 import tempfile
 import urllib.parse
 import urllib.request
+import urllib.error
 
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -26,17 +28,26 @@ BANCO_GZ = DATA_DIR / "graficos.db.gz"
 
 API_URL = "https://api.twelvedata.com/time_series"
 SIMBOLO = "XAU/USD"
+
 TIMEFRAMES = {
     "M5": ("5min", 5),
     "M15": ("15min", 15),
     "H1": ("1h", 60),
 }
-QUANTIDADE = 5000
+
+QUANTIDADE_INICIAL = 5000
+QUANTIDADE_MAXIMA = 5000
+MARGEM_RECUPERACAO = 2
 TIMEOUT = 60
+
+
+def agora_utc():
+    return datetime.now(timezone.utc)
 
 
 def abrir_banco_temporario():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
     temporario = tempfile.TemporaryDirectory()
     caminho_db = Path(temporario.name) / "graficos.db"
 
@@ -52,27 +63,88 @@ def abrir_banco_temporario():
     return temporario, caminho_db
 
 
-def coletar_timeframe(intervalo):
+def ultimo_timestamp(conexao, timeframe):
+    resultado = conexao.execute(
+        """
+        SELECT MAX(timestamp)
+        FROM candles
+        WHERE timeframe = ?
+        """,
+        (timeframe,),
+    ).fetchone()
+
+    return resultado[0] if resultado else None
+
+
+def calcular_quantidade(ultimo, minutos):
+    if not ultimo:
+        return QUANTIDADE_INICIAL
+
+    horario = datetime.strptime(
+        ultimo, "%Y-%m-%d %H:%M:%S"
+    ).replace(tzinfo=timezone.utc)
+
+    proxima_abertura = horario + timedelta(minutes=minutos)
+    diferenca = agora_utc() - proxima_abertura
+
+    velas_estimadas = max(
+        0,
+        math.ceil(diferenca.total_seconds() / (minutos * 60))
+    )
+
+    quantidade = velas_estimadas + MARGEM_RECUPERACAO
+
+    return max(
+        2,
+        min(quantidade, QUANTIDADE_MAXIMA)
+    )
+
+
+def coletar_timeframe(intervalo, ultimo, minutos):
     chave = os.getenv("TWELVE_DATA_API_KEY")
+
     if not chave:
-        raise RuntimeError("Secret TWELVE_DATA_API_KEY não encontrado.")
+        raise RuntimeError(
+            "Secret TWELVE_DATA_API_KEY não encontrado."
+        )
+
+    quantidade = calcular_quantidade(ultimo, minutos)
 
     parametros = {
         "symbol": SIMBOLO,
         "interval": intervalo,
-        "outputsize": QUANTIDADE,
+        "outputsize": quantidade,
         "timezone": "UTC",
         "apikey": chave,
     }
 
+    # Na coleta incremental, começa na vela seguinte
+    # à última que já existe no banco.
+    if ultimo:
+        horario = datetime.strptime(
+            ultimo, "%Y-%m-%d %H:%M:%S"
+        ).replace(tzinfo=timezone.utc)
+
+        inicio = horario + timedelta(minutes=minutos)
+
+        parametros["start_date"] = inicio.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
     url = API_URL + "?" + urllib.parse.urlencode(parametros)
+
     requisicao = urllib.request.Request(
         url,
-        headers={"User-Agent": "XAUUSD-Coletor/2.0"},
+        headers={"User-Agent": "XAUUSD-Coletor/3.0"},
     )
 
-    with urllib.request.urlopen(requisicao, timeout=TIMEOUT) as resposta:
-        dados = json.loads(resposta.read().decode("utf-8"))
+    with urllib.request.urlopen(
+        requisicao,
+        timeout=TIMEOUT
+    ) as resposta:
+        dados = json.loads(
+            resposta.read().decode("utf-8")
+        )
 
     if dados.get("status") == "error" or dados.get("code"):
         raise RuntimeError(
@@ -81,16 +153,20 @@ def coletar_timeframe(intervalo):
         )
 
     valores = dados.get("values")
-    if not isinstance(valores, list) or not valores:
-        raise RuntimeError(f"Nenhuma vela retornada para {intervalo}.")
 
-    return valores
+    if not isinstance(valores, list):
+        raise RuntimeError(
+            f"Resposta inválida da Twelve Data para {intervalo}."
+        )
+
+    return valores, quantidade
 
 
 def validar_vela(registro, minutos, agora):
     try:
         horario = datetime.strptime(
-            registro["datetime"], "%Y-%m-%d %H:%M:%S"
+            registro["datetime"],
+            "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=timezone.utc)
 
         abertura = float(registro["open"])
@@ -99,20 +175,32 @@ def validar_vela(registro, minutos, agora):
         fechamento = float(registro["close"])
 
         volume_texto = registro.get("volume")
+
         volume = (
             float(volume_texto)
             if volume_texto not in (None, "")
             else None
         )
+
     except (KeyError, TypeError, ValueError):
         return None
 
-    precos = (abertura, maxima, minima, fechamento)
-    if not all(math.isfinite(valor) and valor > 0 for valor in precos):
+    precos = (
+        abertura,
+        maxima,
+        minima,
+        fechamento,
+    )
+
+    if not all(
+        math.isfinite(valor) and valor > 0
+        for valor in precos
+    ):
         return None
 
     if maxima < max(abertura, fechamento, minima):
         return None
+
     if minima > min(abertura, fechamento, maxima):
         return None
 
@@ -122,7 +210,7 @@ def validar_vela(registro, minutos, agora):
     if horario.minute % minutos != 0 or horario.second != 0:
         return None
 
-    # Só aceita candles cujo intervalo já terminou.
+    # Nunca grava uma vela cujo período ainda não terminou.
     if horario + timedelta(minutes=minutos) > agora:
         return None
 
@@ -141,19 +229,33 @@ def validar_vela(registro, minutos, agora):
     )
 
 
-def validar_lote(registros, minutos):
-    agora = datetime.now(timezone.utc)
+def validar_lote(registros, minutos, ultimo):
+    agora = agora_utc()
+
     validas = {}
     invalidas = 0
+    repetidas = 0
 
     for registro in registros:
         vela = validar_vela(registro, minutos, agora)
+
         if vela is None:
             invalidas += 1
             continue
+
+        # Não regrava velas que já existem no histórico.
+        if ultimo and vela[0] <= ultimo:
+            repetidas += 1
+            continue
+
         validas[vela[0]] = vela
 
-    return sorted(validas.values(), key=lambda item: item[0]), invalidas
+    ordenadas = sorted(
+        validas.values(),
+        key=lambda item: item[0]
+    )
+
+    return ordenadas, invalidas, repetidas
 
 
 def criar_estrutura_banco(conexao):
@@ -179,23 +281,26 @@ def criar_estrutura_banco(conexao):
 
 
 def salvar_velas(conexao, timeframe, velas):
-    agora = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    if not velas:
+        return
+
+    agora = agora_utc().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     conexao.executemany("""
-        INSERT INTO candles (
-            timeframe, timestamp, abertura, maxima, minima,
-            fechamento, volume, fonte, atualizado_em
+        INSERT OR IGNORE INTO candles (
+            timeframe,
+            timestamp,
+            abertura,
+            maxima,
+            minima,
+            fechamento,
+            volume,
+            fonte,
+            atualizado_em
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(timeframe, timestamp)
-        DO UPDATE SET
-            abertura = excluded.abertura,
-            maxima = excluded.maxima,
-            minima = excluded.minima,
-            fechamento = excluded.fechamento,
-            volume = excluded.volume,
-            fonte = excluded.fonte,
-            atualizado_em = excluded.atualizado_em
     """, [
         (
             timeframe,
@@ -212,70 +317,159 @@ def salvar_velas(conexao, timeframe, velas):
     ])
 
 
+def contar_velas(conexao, timeframe):
+    resultado = conexao.execute(
+        """
+        SELECT COUNT(*)
+        FROM candles
+        WHERE timeframe = ?
+        """,
+        (timeframe,),
+    ).fetchone()
+
+    return resultado[0] if resultado else 0
+
+
 def compactar_banco(caminho_db):
-    temporario_gz = BANCO_GZ.with_name(BANCO_GZ.name + ".tmp")
+    temporario_gz = BANCO_GZ.with_name(
+        BANCO_GZ.name + ".tmp"
+    )
 
     try:
         with open(caminho_db, "rb") as origem:
             with open(temporario_gz, "wb") as arquivo:
                 with gzip.GzipFile(
-                    fileobj=arquivo, mode="wb", mtime=0
+                    fileobj=arquivo,
+                    mode="wb",
+                    mtime=0
                 ) as destino:
+
                     while True:
                         bloco = origem.read(1024 * 1024)
+
                         if not bloco:
                             break
+
                         destino.write(bloco)
 
         os.replace(temporario_gz, BANCO_GZ)
+
     finally:
         if temporario_gz.exists():
             temporario_gz.unlink()
 
 
+def processar_timeframe(conexao, timeframe, intervalo, minutos):
+    print(f"Coletando {timeframe}...")
+
+    ultimo = ultimo_timestamp(conexao, timeframe)
+
+    if ultimo:
+        print(f"Última vela no banco: {ultimo}")
+    else:
+        print("Banco sem histórico para esta temporalidade.")
+
+    try:
+        recebidas, quantidade_solicitada = coletar_timeframe(
+            intervalo,
+            ultimo,
+            minutos
+        )
+
+    except urllib.error.HTTPError as erro:
+        if erro.code == 429:
+            total = contar_velas(conexao, timeframe)
+
+            if total > 0:
+                print(
+                    f"AVISO {timeframe}: limite 429 da API. "
+                    "Histórico existente preservado; "
+                    "recuperação ficará para a próxima execução."
+                )
+
+                return {
+                    "recebidas": 0,
+                    "novas": 0,
+                    "invalidas": 0,
+                    "repetidas": 0,
+                    "total_no_banco": total,
+                    "situacao": "API 429 - histórico preservado",
+                }
+
+        raise
+
+    validas, invalidas, repetidas = validar_lote(
+        recebidas,
+        minutos,
+        ultimo
+    )
+
+    salvar_velas(
+        conexao,
+        timeframe,
+        validas
+    )
+
+    total = contar_velas(conexao, timeframe)
+
+    if validas:
+        print(
+            f"{timeframe}: {len(validas)} novas velas "
+            "fechadas recuperadas."
+        )
+    else:
+        print(
+            f"{timeframe}: nenhuma vela nova fechada."
+        )
+
+    return {
+        "recebidas": len(recebidas),
+        "solicitadas": quantidade_solicitada,
+        "novas": len(validas),
+        "invalidas": invalidas,
+        "repetidas": repetidas,
+        "total_no_banco": total,
+        "situacao": "atualizado",
+    }
+
+
 def main():
     print("COLETOR XAUUSD — M5 / M15 / H1")
+    print("Modo: incremental com recuperação de velas")
 
     temporario, caminho_db = abrir_banco_temporario()
+
     resumo = {}
 
     try:
         conexao = sqlite3.connect(caminho_db)
+
         try:
             criar_estrutura_banco(conexao)
 
-            # Cada temporalidade é coletada e validada separadamente.
-            for timeframe, (intervalo_api, minutos) in TIMEFRAMES.items():
-                print(f"Coletando {timeframe}...")
-                recebidas = coletar_timeframe(intervalo_api)
-                validas, invalidas = validar_lote(recebidas, minutos)
+            for timeframe, (intervalo, minutos) in TIMEFRAMES.items():
+                resumo[timeframe] = processar_timeframe(
+                    conexao,
+                    timeframe,
+                    intervalo,
+                    minutos
+                )
 
-                if not validas:
+            # Não permite concluir com alguma temporalidade
+            # sem histórico disponível.
+            for timeframe in TIMEFRAMES:
+                if contar_velas(conexao, timeframe) == 0:
                     raise RuntimeError(
-                        f"Nenhuma vela fechada e válida em {timeframe}. "
-                        "Banco oficial não será atualizado."
+                        f"{timeframe} está sem histórico. "
+                        "Não é seguro atualizar o banco."
                     )
 
-                salvar_velas(conexao, timeframe, validas)
-
-                resumo[timeframe] = {
-                    "recebidas": len(recebidas),
-                    "validas": len(validas),
-                    "invalidas": invalidas,
-                }
-
             conexao.commit()
-
-            for timeframe in TIMEFRAMES:
-                total = conexao.execute(
-                    "SELECT COUNT(*) FROM candles WHERE timeframe = ?",
-                    (timeframe,),
-                ).fetchone()[0]
-                resumo[timeframe]["total_no_banco"] = total
 
         except Exception:
             conexao.rollback()
             raise
+
         finally:
             conexao.close()
 
@@ -284,20 +478,29 @@ def main():
     finally:
         temporario.cleanup()
 
+    print("\nRESUMO DA COLETA")
+
     for timeframe, dados in resumo.items():
         print(
-            f"{timeframe}: recebidas={dados['recebidas']} | "
-            f"válidas={dados['validas']} | "
+            f"{timeframe}: "
+            f"recebidas={dados['recebidas']} | "
+            f"novas={dados['novas']} | "
             f"inválidas={dados['invalidas']} | "
-            f"total={dados['total_no_banco']}"
+            f"repetidas={dados['repetidas']} | "
+            f"total={dados['total_no_banco']} | "
+            f"situação={dados['situacao']}"
         )
 
-    print(f"Banco atualizado: {BANCO_GZ}")
+    print(f"\nBanco atualizado: {BANCO_GZ}")
 
 
 if __name__ == "__main__":
     try:
         main()
+
     except Exception as erro:
-        print(f"ERRO: {erro}", file=sys.stderr)
+        print(
+            f"ERRO: {erro}",
+            file=sys.stderr
+        )
         sys.exit(1)
