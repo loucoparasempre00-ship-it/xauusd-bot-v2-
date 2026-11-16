@@ -40,6 +40,7 @@ jobs:
       - name: Recuperar fila da execucao anterior
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_ATUAL: ${{ github.run_id }}
         run: |
           set -e
           mkdir -p data
@@ -47,20 +48,20 @@ jobs:
           PREVIOUS_RUN_ID=$(gh run list \
             --workflow transmitir-bancos-gestor.yml \
             --limit 30 \
-            --json databaseId,status,createdAt \
-            --jq '[.[] | select(
-              .status == "completed" and
-              .databaseId != '${{ github.run_id }}'
-            )] | sort_by(.createdAt) | last | .databaseId // empty')
+            --json databaseId,createdAt \
+            --jq "[.[] | select(.databaseId != ${RUN_ATUAL})] | sort_by(.createdAt) | last | .databaseId // empty")
 
           if [ -n "$PREVIOUS_RUN_ID" ]; then
             echo "Recuperando fila da execução $PREVIOUS_RUN_ID"
 
             gh run download "$PREVIOUS_RUN_ID" \
               --name fila-progressiva-gestor \
-              --dir data || true
+              --dir data
+
+            test -s data/fila_progressiva_gestor.db
+            echo "FILA ANTERIOR RECUPERADA."
           else
-            echo "Nenhuma fila anterior encontrada."
+            echo "Nenhuma fila anterior encontrada. Inicializando fila."
           fi
 
       - name: Verificar arquivos e bancos
@@ -105,6 +106,7 @@ jobs:
         if: always()
         run: |
           echo "TRANSMISSAO PROGRESSIVA CENTRAL -> GESTOR"
-          echo "Um bloco por execução."
+          echo "Até 3 registros novos e 3 antigos por execução."
+          echo "Um único bloco por execução."
           echo "Confirmação antes de consumir."
           echo "Fila preservada para a próxima execução."
