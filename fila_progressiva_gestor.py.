@@ -1,7 +1,4 @@
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 import sys
 import gzip
@@ -10,13 +7,12 @@ import sqlite3
 import hashlib
 import base64
 import tempfile
-
 from datetime import datetime, timezone
 
 
-# =====================================================
+# ============================================================
 # CONFIGURAÇÃO
-# =====================================================
+# ============================================================
 
 BANCOS = {
     "graficos": "data/graficos.db.gz",
@@ -25,386 +21,401 @@ BANCOS = {
 
 ARQUIVO_FILA = "data/fila_progressiva_gestor.db"
 
-TAMANHO_LEITURA = 200
-TAMANHO_LOTE = 50
+LEITURA_POR_LOTE = 200
+ENVIO_POR_LOTE = 50
 
 
-# =====================================================
-# BANCO DA FILA
-# =====================================================
+# ============================================================
+# UTILITÁRIOS
+# ============================================================
 
-def conectar_fila():
+def agora():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def serializar_valor(valor):
+    if isinstance(valor, bytes):
+        return {
+            "__tipo__": "blob",
+            "base64": base64.b64encode(valor).decode("ascii"),
+        }
+
+    return valor
+
+
+def serializar_registro(registro):
+    dados = {
+        chave: serializar_valor(valor)
+        for chave, valor in dict(registro).items()
+    }
+
+    return json.dumps(
+        dados,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def hash_registro(banco, tabela, dados_json):
+    conteudo = f"{banco}|{tabela}|{dados_json}"
+    return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()
+
+
+def preparar_pasta():
     os.makedirs("data", exist_ok=True)
 
+
+# ============================================================
+# BANCO DA FILA
+# ============================================================
+
+def conectar_fila():
+    preparar_pasta()
+
     conexao = sqlite3.connect(ARQUIVO_FILA)
+    conexao.row_factory = sqlite3.Row
 
     conexao.execute("""
-        CREATE TABLE IF NOT EXISTS fila_progressiva (
+        CREATE TABLE IF NOT EXISTS fila_gestor (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            identificador TEXT NOT NULL UNIQUE,
             banco TEXT NOT NULL,
             tabela_origem TEXT NOT NULL,
-            registro_json TEXT NOT NULL,
-            tamanho_bytes INTEGER NOT NULL,
-            criado_utc TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pendente'
+            hash_registro TEXT NOT NULL UNIQUE,
+            dados_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pendente',
+            criado_em TEXT NOT NULL,
+            confirmado_em TEXT
         )
     """)
 
     conexao.execute("""
-        CREATE INDEX IF NOT EXISTS idx_fila_status
-        ON fila_progressiva(status, id)
+        CREATE INDEX IF NOT EXISTS idx_fila_gestor_status
+        ON fila_gestor(status, id)
     """)
 
     conexao.commit()
     return conexao
 
 
-# =====================================================
-# ABRIR BANCO OFICIAL SOMENTE PARA LEITURA
-# =====================================================
+# ============================================================
+# ABERTURA DOS BANCOS OFICIAIS
+# ============================================================
 
-def abrir_banco(caminho):
-    temporario = tempfile.NamedTemporaryFile(
+def abrir_banco_comprimido(caminho):
+    if not os.path.isfile(caminho):
+        raise FileNotFoundError(
+            f"Banco não encontrado: {caminho}"
+        )
+
+    arquivo_temporario = tempfile.NamedTemporaryFile(
         suffix=".db",
-        delete=False
+        delete=False,
     )
 
-    nome = temporario.name
-    temporario.close()
+    caminho_temporario = arquivo_temporario.name
+    arquivo_temporario.close()
 
     try:
         with gzip.open(caminho, "rb") as origem:
-            with open(nome, "wb") as destino:
+            with open(caminho_temporario, "wb") as destino:
                 while True:
                     bloco = origem.read(1024 * 1024)
+
                     if not bloco:
                         break
+
                     destino.write(bloco)
 
-        conexao = sqlite3.connect(
-            "file:" + nome + "?mode=ro",
-            uri=True
+        uri = (
+            "file:"
+            + os.path.abspath(caminho_temporario)
+            + "?mode=ro"
         )
 
+        conexao = sqlite3.connect(uri, uri=True)
         conexao.row_factory = sqlite3.Row
-        return conexao, nome
+
+        return conexao, caminho_temporario
 
     except Exception:
-        if os.path.exists(nome):
-            os.remove(nome)
+        if os.path.exists(caminho_temporario):
+            os.remove(caminho_temporario)
+
         raise
 
 
-# =====================================================
-# CONVERTER REGISTROS
-# =====================================================
+# ============================================================
+# IDENTIFICAÇÃO DAS TABELAS
+# ============================================================
 
-def converter_registro(linha):
-    resultado = {}
+def listar_tabelas(conexao):
+    registros = conexao.execute("""
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+        ORDER BY name
+    """).fetchall()
 
-    for chave, valor in dict(linha).items():
-
-        if isinstance(valor, bytes):
-            resultado[chave] = {
-                "__tipo__": "blob_base64",
-                "conteudo": base64.b64encode(
-                    valor
-                ).decode("ascii")
-            }
-
-        else:
-            resultado[chave] = valor
-
-    return resultado
+    return [registro["name"] for registro in registros]
 
 
-def gerar_identificador(banco, tabela, registro):
-    conteudo = json.dumps(
-        registro,
-        ensure_ascii=False,
-        sort_keys=True,
-        default=str
+# ============================================================
+# COPIAR REGISTROS PARA A FILA
+# ============================================================
+
+def copiar_tabela(
+    conexao_origem,
+    conexao_fila,
+    nome_banco,
+    nome_tabela,
+):
+    total_lidos = 0
+    total_novos = 0
+
+    cursor = conexao_origem.execute(
+        f'SELECT * FROM "{nome_tabela}"'
     )
-
-    base = f"{banco}|{tabela}|{conteudo}"
-
-    return hashlib.sha256(
-        base.encode("utf-8")
-    ).hexdigest()
-
-
-# =====================================================
-# COPIAR UMA TABELA PARA A FILA
-# =====================================================
-
-def copiar_tabela(fila, banco, conexao, tabela):
-
-    nome_tabela = '"' + tabela.replace('"', '""') + '"'
-
-    total = conexao.execute(
-        f"SELECT COUNT(*) FROM {nome_tabela}"
-    ).fetchone()[0]
-
-    print(
-        f"Preparando {banco}.{tabela}: {total} registros",
-        flush=True
-    )
-
-    cursor = conexao.execute(
-        f"SELECT * FROM {nome_tabela}"
-    )
-
-    copiados = 0
 
     while True:
+        registros = cursor.fetchmany(LEITURA_POR_LOTE)
 
-        linhas = cursor.fetchmany(TAMANHO_LEITURA)
-
-        if not linhas:
+        if not registros:
             break
 
-        registros = []
+        insercoes = []
 
-        for linha in linhas:
+        for registro in registros:
+            dados_json = serializar_registro(registro)
 
-            registro = converter_registro(linha)
-
-            identificador = gerar_identificador(
-                banco,
-                tabela,
-                registro
+            identificador = hash_registro(
+                nome_banco,
+                nome_tabela,
+                dados_json,
             )
 
-            conteudo = json.dumps(
-                registro,
-                ensure_ascii=False,
-                default=str
-            )
-
-            registros.append((
+            insercoes.append((
+                nome_banco,
+                nome_tabela,
                 identificador,
-                banco,
-                tabela,
-                conteudo,
-                len(conteudo.encode("utf-8")),
-                datetime.now(timezone.utc).isoformat(),
-                "pendente"
+                dados_json,
+                agora(),
             ))
 
-        with fila:
+        antes = conexao_fila.total_changes
 
-            fila.executemany("""
-                INSERT OR IGNORE INTO fila_progressiva (
-                    identificador,
-                    banco,
-                    tabela_origem,
-                    registro_json,
-                    tamanho_bytes,
-                    criado_utc,
-                    status
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, registros)
+        conexao_fila.executemany("""
+            INSERT OR IGNORE INTO fila_gestor (
+                banco,
+                tabela_origem,
+                hash_registro,
+                dados_json,
+                criado_em
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, insercoes)
 
-        copiados += len(registros)
+        total_novos += conexao_fila.total_changes - antes
+        total_lidos += len(registros)
 
-        print(
-            f"  Lidos: {copiados}/{total}",
-            flush=True
-        )
+        conexao_fila.commit()
 
-    print(
-        f"Concluída: {banco}.{tabela}",
-        flush=True
-    )
+    return total_lidos, total_novos
 
 
-# =====================================================
-# PREPARAÇÃO INICIAL DA FILA
-# =====================================================
+# ============================================================
+# PREPARAR FILA PROGRESSIVA
+# ============================================================
 
 def preparar_fila():
+    conexao_fila = conectar_fila()
 
-    fila = conectar_fila()
+    total_lidos = 0
+    total_novos = 0
 
     try:
+        for nome_banco, caminho in BANCOS.items():
+            print(f"\nBANCO: {nome_banco}")
+            print(f"Arquivo: {caminho}")
 
-        for banco, caminho in BANCOS.items():
-
-            if not os.path.isfile(caminho):
-                raise FileNotFoundError(caminho)
-
-            print(
-                f"\n========== {banco} ==========",
-                flush=True
-            )
-
-            conexao, temporario = abrir_banco(caminho)
+            conexao_origem = None
+            caminho_temporario = None
 
             try:
+                conexao_origem, caminho_temporario = (
+                    abrir_banco_comprimido(caminho)
+                )
 
-                tabelas = conexao.execute("""
-                    SELECT name
-                    FROM sqlite_master
-                    WHERE type = 'table'
-                    AND name NOT LIKE 'sqlite_%'
-                    ORDER BY name
-                """).fetchall()
+                tabelas = listar_tabelas(conexao_origem)
 
-                for item in tabelas:
+                for tabela in tabelas:
+                    lidos, novos = copiar_tabela(
+                        conexao_origem,
+                        conexao_fila,
+                        nome_banco,
+                        tabela,
+                    )
 
-                    copiar_tabela(
-                        fila,
-                        banco,
-                        conexao,
-                        item["name"]
+                    total_lidos += lidos
+                    total_novos += novos
+
+                    print(
+                        f"{tabela}: "
+                        f"{lidos} lidos, "
+                        f"{novos} novos na fila"
                     )
 
             finally:
+                if conexao_origem:
+                    conexao_origem.close()
 
-                conexao.close()
-
-                if os.path.exists(temporario):
-                    os.remove(temporario)
-
-        print("\nFILA INICIAL PREPARADA", flush=True)
-
-        mostrar_resumo(fila)
+                if (
+                    caminho_temporario
+                    and os.path.exists(caminho_temporario)
+                ):
+                    os.remove(caminho_temporario)
 
     finally:
-        fila.close()
+        conexao_fila.close()
+
+    print("\nPREPARAÇÃO CONCLUÍDA")
+    print(f"Registros examinados: {total_lidos}")
+    print(f"Novos registros na fila: {total_novos}")
 
 
-# =====================================================
-# RETIRAR UMA PORÇÃO DOS REGISTROS ANTIGOS
-# =====================================================
+# ============================================================
+# BUSCAR PRÓXIMO LOTE
+# ============================================================
 
-def pegar_lote():
-
-    fila = conectar_fila()
+def obter_lote(limite=ENVIO_POR_LOTE):
+    conexao = conectar_fila()
 
     try:
-
-        linhas = fila.execute("""
+        registros = conexao.execute("""
             SELECT
                 id,
                 banco,
                 tabela_origem,
-                registro_json,
-                tamanho_bytes
-            FROM fila_progressiva
+                dados_json
+            FROM fila_gestor
             WHERE status = 'pendente'
             ORDER BY id
             LIMIT ?
-        """, (TAMANHO_LOTE,)).fetchall()
+        """, (limite,)).fetchall()
 
         lote = []
 
-        for linha in linhas:
-
+        for registro in registros:
             lote.append({
-                "id": linha["id"],
-                "banco": linha["banco"],
-                "tabela": linha["tabela_origem"],
-                "registro": json.loads(
-                    linha["registro_json"]
-                ),
-                "tamanho_bytes": linha["tamanho_bytes"]
+                "id": registro["id"],
+                "banco": registro["banco"],
+                "tabela_origem": registro["tabela_origem"],
+                "dados": json.loads(registro["dados_json"]),
             })
 
-        print(
-            f"Registros pendentes selecionados: {len(lote)}",
-            flush=True
-        )
-
-        print(json.dumps(
-            lote,
-            ensure_ascii=False,
-            indent=2
-        ))
+        return {
+            "tipo": "lote_progressivo_gestor",
+            "somente_leitura": True,
+            "quantidade": len(lote),
+            "registros": lote,
+        }
 
     finally:
-        fila.close()
+        conexao.close()
 
 
-# =====================================================
-# CONFIRMAR RECEBIMENTO DE UM LOTE
-# Só chamar depois da confirmação do Gestor.
-# =====================================================
+# ============================================================
+# CONFIRMAR RECEBIMENTO PELO GESTOR
+# ============================================================
 
 def confirmar_lote(ids):
+    if not ids:
+        return 0
 
-    fila = conectar_fila()
+    ids_validos = []
+
+    for identificador in ids:
+        try:
+            ids_validos.append(int(identificador))
+        except (TypeError, ValueError):
+            continue
+
+    if not ids_validos:
+        return 0
+
+    conexao = conectar_fila()
 
     try:
+        marcadores = ",".join("?" for _ in ids_validos)
 
-        with fila:
-
-            fila.executemany("""
-                DELETE FROM fila_progressiva
-                WHERE id = ?
-            """, [(identificador,) for identificador in ids])
-
-        print(
-            f"{len(ids)} registros confirmados e retirados da fila.",
-            flush=True
+        cursor = conexao.execute(
+            f"""
+            DELETE FROM fila_gestor
+            WHERE status = 'pendente'
+              AND id IN ({marcadores})
+            """,
+            ids_validos,
         )
 
-        mostrar_resumo(fila)
+        conexao.commit()
+        return cursor.rowcount
 
     finally:
-        fila.close()
+        conexao.close()
 
 
-# =====================================================
+# ============================================================
 # RESUMO DA FILA
-# =====================================================
+# ============================================================
 
-def mostrar_resumo(fila=None):
-
-    propria = fila is None
-
-    if propria:
-        fila = conectar_fila()
+def resumo_fila():
+    conexao = conectar_fila()
 
     try:
-
-        total = fila.execute("""
+        pendentes = conexao.execute("""
             SELECT COUNT(*)
-            FROM fila_progressiva
-        """).fetchone()[0]
-
-        pendentes = fila.execute("""
-            SELECT COUNT(*)
-            FROM fila_progressiva
+            FROM fila_gestor
             WHERE status = 'pendente'
         """).fetchone()[0]
 
-        print("\n========== RESUMO DA FILA ==========")
+        total = conexao.execute("""
+            SELECT COUNT(*)
+            FROM fila_gestor
+        """).fetchone()[0]
+
+        por_banco = conexao.execute("""
+            SELECT banco, COUNT(*) AS quantidade
+            FROM fila_gestor
+            WHERE status = 'pendente'
+            GROUP BY banco
+            ORDER BY banco
+        """).fetchall()
+
+        print("\nRESUMO DA FILA PROGRESSIVA")
         print(f"Total armazenado: {total}")
         print(f"Pendentes: {pendentes}")
-        print(f"Tamanho do lote: {TAMANHO_LOTE}")
+        print(f"Lote máximo de envio: {ENVIO_POR_LOTE}")
 
-        if total == 0:
-            print("FILA VAZIA")
+        for registro in por_banco:
+            print(
+                f"{registro['banco']}: "
+                f"{registro['quantidade']} pendentes"
+            )
 
     finally:
-
-        if propria:
-            fila.close()
+        conexao.close()
 
 
-# =====================================================
+# ============================================================
 # EXECUÇÃO
-# =====================================================
+# ============================================================
 
-if __name__ == "__main__":
-
+def main():
     if len(sys.argv) < 2:
         print(
-            "Use: python fila_progressiva_gestor.py "
-            "[preparar|lote|resumo]"
+            "Uso: python fila_progressiva_gestor.py "
+            "preparar | lote | resumo"
         )
         sys.exit(1)
 
@@ -414,11 +425,20 @@ if __name__ == "__main__":
         preparar_fila()
 
     elif comando == "lote":
-        pegar_lote()
+        print(
+            json.dumps(
+                obter_lote(),
+                ensure_ascii=False,
+            )
+        )
 
     elif comando == "resumo":
-        mostrar_resumo()
+        resumo_fila()
 
     else:
-        print("Comando desconhecido.")
+        print(f"Comando desconhecido: {comando}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
