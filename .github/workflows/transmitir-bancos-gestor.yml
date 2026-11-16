@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   transmitir:
-    name: Preparar fila e transmitir bancos
+    name: Preparar fila e transmitir um bloco
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -27,7 +27,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main'
 
     steps:
-      - name: Baixar repositorio Central atualizado
+      - name: Baixar repositorio Central
         uses: actions/checkout@v4
         with:
           ref: main
@@ -37,16 +37,36 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Recuperar fila anterior
-        uses: actions/download-artifact@v4
-        with:
-          name: fila-progressiva-gestor
-          path: data
-        continue-on-error: true
+      - name: Recuperar fila da execucao anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p data
+
+          PREVIOUS_RUN_ID=$(gh run list \
+            --workflow transmitir-bancos-gestor.yml \
+            --limit 30 \
+            --json databaseId,status,createdAt \
+            --jq '[.[] | select(
+              .status == "completed" and
+              .databaseId != '${{ github.run_id }}'
+            )] | sort_by(.createdAt) | last | .databaseId // empty')
+
+          if [ -n "$PREVIOUS_RUN_ID" ]; then
+            echo "Recuperando fila da execução $PREVIOUS_RUN_ID"
+
+            gh run download "$PREVIOUS_RUN_ID" \
+              --name fila-progressiva-gestor \
+              --dir data || true
+          else
+            echo "Nenhuma fila anterior encontrada."
+          fi
 
       - name: Verificar arquivos e bancos
         run: |
           set -e
+
           test -s integracao_gestor_bancos.py
           test -s fila_progressiva_gestor.py
           test -s data/graficos.db.gz
@@ -55,13 +75,13 @@ jobs:
           python -m py_compile integracao_gestor_bancos.py
           python -m py_compile fila_progressiva_gestor.py
 
-      - name: Preparar fila progressiva
+      - name: Preparar e atualizar tabela progressiva
         run: |
           set -e
           python fila_progressiva_gestor.py preparar
           python fila_progressiva_gestor.py resumo
 
-      - name: Transmitir bancos para o Gestor
+      - name: Transmitir somente um bloco
         env:
           GESTOR_XAUUSD_URL: ${{ secrets.GESTOR_XAUUSD_BANCOS_URL }}
           GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
@@ -69,9 +89,10 @@ jobs:
           set -e
           test -n "$GESTOR_XAUUSD_URL"
           test -n "$GESTOR_XAUUSD_TOKEN"
+
           python integracao_gestor_bancos.py
 
-      - name: Salvar fila progressiva
+      - name: Salvar fila para a proxima execucao
         if: always() && hashFiles('data/fila_progressiva_gestor.db') != ''
         uses: actions/upload-artifact@v4
         with:
@@ -79,11 +100,11 @@ jobs:
           path: data/fila_progressiva_gestor.db
           if-no-files-found: error
           retention-days: 90
-          overwrite: true
 
-      - name: Resultado da transmissao
+      - name: Resultado
         if: always()
         run: |
-          echo "TRANSMISSAO CENTRAL -> GESTOR"
-          echo "FILA PROGRESSIVA"
-          echo "Modo: somente leitura"
+          echo "TRANSMISSAO PROGRESSIVA CENTRAL -> GESTOR"
+          echo "Um bloco por execução."
+          echo "Confirmação antes de consumir."
+          echo "Fila preservada para a próxima execução."
