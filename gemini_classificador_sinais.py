@@ -400,8 +400,8 @@ Total: 100 pontos.
 REGRAS DE DECISAO:
 
 80 a 100 pontos: APPROVED.
-65 a 79 pontos: APPROVED_COM_REDUCED_SIZE.
-Abaixo de 65 pontos: REJECTED.
+35 a 79 pontos: APPROVED_COM_REDUCED_SIZE.
+Abaixo de 35 pontos: REJECTED.
 
 IMPORTANTE:
 APPROVED_COM_REDUCED_SIZE deve ser registrado como
