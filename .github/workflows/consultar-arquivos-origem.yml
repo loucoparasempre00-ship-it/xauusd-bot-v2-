@@ -1,0 +1,114 @@
+
+name: Consultar estrutura arquivos_origem
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  consultar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Baixar Central
+        uses: actions/checkout@v4
+
+      - name: Consultar banco em modo somente leitura
+        run: |
+          python - <<'PY'
+          import gzip
+          import sqlite3
+          import tempfile
+          import os
+          import hashlib
+
+          origem = "data/graficos.db.gz"
+
+          if not os.path.isfile(origem):
+              raise SystemExit("Banco não encontrado: " + origem)
+
+          temporario = tempfile.NamedTemporaryFile(
+              suffix=".db",
+              delete=False
+          )
+          caminho = temporario.name
+          temporario.close()
+
+          try:
+              with gzip.open(origem, "rb") as entrada:
+                  with open(caminho, "wb") as saida:
+                      while True:
+                          bloco = entrada.read(1024 * 1024)
+                          if not bloco:
+                              break
+                          saida.write(bloco)
+
+              db = sqlite3.connect(
+                  "file:" + caminho + "?mode=ro",
+                  uri=True
+              )
+              db.row_factory = sqlite3.Row
+
+              print("=== ESTRUTURA: arquivos_origem ===")
+
+              colunas = db.execute(
+                  'PRAGMA table_info("arquivos_origem")'
+              ).fetchall()
+
+              if not colunas:
+                  raise RuntimeError("Tabela arquivos_origem não encontrada.")
+
+              for c in colunas:
+                  print(
+                      "Coluna:", c["name"],
+                      "| Tipo:", c["type"],
+                      "| Obrigatória:", bool(c["notnull"])
+                  )
+
+              print("\n=== QUANTIDADE DE REGISTROS ===")
+
+              total = db.execute(
+                  'SELECT COUNT(*) FROM "arquivos_origem"'
+              ).fetchone()[0]
+
+              print("Total:", total)
+
+              print("\n=== EXEMPLO SEM CONTEÚDO BINÁRIO ===")
+
+              registro = db.execute(
+                  'SELECT * FROM "arquivos_origem" LIMIT 1'
+              ).fetchone()
+
+              if registro is None:
+                  print("Tabela sem registros.")
+              else:
+                  for nome in registro.keys():
+                      valor = registro[nome]
+
+                      if isinstance(valor, (bytes, bytearray)):
+                          print(
+                              nome,
+                              "=[BINÁRIO OMITIDO]",
+                              "| bytes:", len(valor),
+                              "| SHA256:", hashlib.sha256(valor).hexdigest()
+                          )
+                      elif isinstance(valor, str) and len(valor) > 300:
+                          resumo = valor.encode("utf-8")
+                          print(
+                              nome,
+                              "=[CONTEÚDO EXTENSO OMITIDO]",
+                              "| caracteres:", len(valor),
+                              "| SHA256:", hashlib.sha256(resumo).hexdigest()
+                          )
+                      else:
+                          print(nome, "=", repr(valor))
+
+              db.close()
+
+          finally:
+              if os.path.exists(caminho):
+                  os.remove(caminho)
+          PY
