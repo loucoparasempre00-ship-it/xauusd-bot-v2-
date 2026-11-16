@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: transmitir-bancos-gestor
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   transmitir:
-    name: Transmitir bancos oficiais
+    name: Preparar fila e transmitir bancos
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -36,13 +37,29 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Recuperar fila anterior
+        uses: actions/download-artifact@v4
+        with:
+          name: fila-progressiva-gestor
+          path: data
+        continue-on-error: true
+
       - name: Verificar arquivos e bancos
         run: |
           set -e
           test -s integracao_gestor_bancos.py
+          test -s fila_progressiva_gestor.py
           test -s data/graficos.db.gz
           test -s data/estatisticas_m5.db.gz
+
           python -m py_compile integracao_gestor_bancos.py
+          python -m py_compile fila_progressiva_gestor.py
+
+      - name: Preparar fila progressiva
+        run: |
+          set -e
+          python fila_progressiva_gestor.py preparar
+          python fila_progressiva_gestor.py resumo
 
       - name: Transmitir bancos para o Gestor
         env:
@@ -54,8 +71,19 @@ jobs:
           test -n "$GESTOR_XAUUSD_TOKEN"
           python integracao_gestor_bancos.py
 
+      - name: Salvar fila progressiva
+        if: always() && hashFiles('data/fila_progressiva_gestor.db') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: fila-progressiva-gestor
+          path: data/fila_progressiva_gestor.db
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: true
+
       - name: Resultado da transmissao
         if: always()
         run: |
           echo "TRANSMISSAO CENTRAL -> GESTOR"
+          echo "FILA PROGRESSIVA"
           echo "Modo: somente leitura"
