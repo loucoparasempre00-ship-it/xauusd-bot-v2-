@@ -108,7 +108,7 @@ def transmitir(pacote):
     }
 
     if token:
-        cabecalhos["Authorization"] = f"Bearer {token}"
+        cabecalhos["X-Central-Secret"] = token
 
     requisicao = urllib.request.Request(
         url,
