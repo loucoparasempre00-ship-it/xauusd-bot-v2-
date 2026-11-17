@@ -1,3 +1,4 @@
+
 name: Transferir 6 Bancos para Gestor XAUUSD
 
 on:
@@ -27,10 +28,11 @@ jobs:
         with:
           ref: main
 
-      - name: Criar e validar ZIP dos seis bancos oficiais
+      - name: Criar e validar ZIP dos seis bancos
         run: |
           set -euo pipefail
           mkdir -p pacote
+
           for banco in \
             data/graficos.db.gz \
             data/estatisticas_m5.db.gz \
@@ -58,40 +60,32 @@ jobs:
             operacoes.db.gz \
             resultados_operacoes.db.gz \
             sinais.db.gz | sort)"
+
           RECEBIDO="$(unzip -Z1 bancos-xauusd.zip | sort)"
 
           if [ "$RECEBIDO" != "$ESPERADO" ]; then
-            echo "O ZIP nao contem exatamente os seis bancos oficiais."
-            printf 'Esperado:\n%s\nRecebido:\n%s\n' "$ESPERADO" "$RECEBIDO"
+            echo "O ZIP nao contem exatamente os seis bancos."
             exit 1
           fi
 
           sha256sum bancos-xauusd.zip
-          echo "ZIP validado: exatamente seis bancos oficiais."
+          echo "Os seis bancos foram validados."
 
-      - name: Enviar ZIP ao Worker do Gestor
+      - name: Enviar ZIP diretamente ao GitHub do Gestor
         env:
-          GESTOR_XAUUSD_BANCOS_URL: ${{ secrets.GESTOR_XAUUSD_BANCOS_URL }}
-          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
+          GH_TOKEN: ${{ secrets.GESTOR_GITHUB_TOKEN }}
+          GESTOR_REPO: loucoparasempre00-ship-it/gestor-xauusd
         run: |
           set -euo pipefail
-          test -n "$GESTOR_XAUUSD_BANCOS_URL"
-          test -n "$GESTOR_XAUUSD_TOKEN"
+          test -n "$GH_TOKEN"
 
-          URL="$GESTOR_XAUUSD_BANCOS_URL"
-          case "$URL" in
-            */central/bancos) ;;
-            */) URL="${URL}central/bancos" ;;
-            *) URL="${URL}/central/bancos" ;;
-          esac
+          TAG="bancos-xauusd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-          echo "Enviando pacote ZIP ao Worker do Gestor."
-          curl --fail-with-body --silent --show-error \
-            --request POST \
-            --header "X-Central-Secret: $GESTOR_XAUUSD_TOKEN" \
-            --header "Content-Type: application/zip" \
-            --data-binary @bancos-xauusd.zip \
-            "$URL"
+          gh release create "$TAG" bancos-xauusd.zip \
+            --repo "$GESTOR_REPO" \
+            --title "Transferencia dos seis bancos XAUUSD" \
+            --notes "Pacote enviado diretamente pela Central XAUUSD." \
+            --target main
 
-          echo
-          echo "Worker recebeu o pacote. O workflow do Gestor concluirá a gravação em backups/bancos-xauusd.zip."
+          echo "Pacote publicado no repositorio Gestor."
+          echo "Tag: $TAG"
