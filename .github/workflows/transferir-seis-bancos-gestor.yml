@@ -51,7 +51,7 @@ jobs:
           test "$(stat -c%s bancos-xauusd.zip)" -le $((80 * 1024 * 1024))
           unzip -t bancos-xauusd.zip
 
-          ESPERADO="$(printf '%s\\n' \
+          ESPERADO="$(printf '%s\n' \
             estatisticas_m5.db.gz \
             graficos.db.gz \
             memoria.db.gz \
@@ -62,7 +62,7 @@ jobs:
 
           if [ "$RECEBIDO" != "$ESPERADO" ]; then
             echo "O ZIP nao contem exatamente os seis bancos oficiais."
-            printf 'Esperado:\\n%s\\nRecebido:\\n%s\\n' "$ESPERADO" "$RECEBIDO"
+            printf 'Esperado:\n%s\nRecebido:\n%s\n' "$ESPERADO" "$RECEBIDO"
             exit 1
           fi
 
