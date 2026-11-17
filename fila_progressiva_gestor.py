@@ -28,6 +28,7 @@ BANCOS = {
 }
 CHECKPOINT = "data/gestor_checkpoint.json"
 TAMANHO_LOTE = 100
+MAX_PAYLOAD_BYTES = 512 * 1024
 TIPO_PACOTE = "espelho_bancos_leitura"
 
 
@@ -51,6 +52,9 @@ def serializar(valor):
 
 def carregar_checkpoint():
     if not os.path.exists(CHECKPOINT):
+        return {"versao": 1, "enviados": {}, "lotes": {}, "pendente": None,
+                "ultimo_envio": None}
+    if os.path.getsize(CHECKPOINT) == 0:
         return {"versao": 1, "enviados": {}, "lotes": {}, "pendente": None,
                 "ultimo_envio": None}
     with open(CHECKPOINT, "r", encoding="utf-8") as arquivo:
@@ -146,15 +150,30 @@ def enviar(payload):
         headers={"Content-Type": "application/json",
                  "Accept": "application/json",
                  "X-Central-Secret": token})
-    try:
-        with urllib.request.urlopen(requisicao, timeout=90) as resposta:
-            texto = resposta.read().decode("utf-8")
-            dados = json.loads(texto) if texto else {}
-            if resposta.status < 200 or resposta.status >= 300:
-                raise RuntimeError("Gestor respondeu HTTP " + str(resposta.status))
-    except urllib.error.HTTPError as erro:
-        detalhe = erro.read().decode("utf-8", errors="replace")[:500]
-        raise RuntimeError("Gestor respondeu HTTP " + str(erro.code) + ": " + detalhe)
+    ultimo_erro = None
+    for tentativa in range(4):
+        try:
+            with urllib.request.urlopen(requisicao, timeout=180) as resposta:
+                texto = resposta.read().decode("utf-8")
+                dados = json.loads(texto) if texto else {}
+                if resposta.status < 200 or resposta.status >= 300:
+                    raise RuntimeError("Gestor respondeu HTTP " + str(resposta.status))
+            ultimo_erro = None
+            break
+        except urllib.error.HTTPError as erro:
+            detalhe = erro.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError("Gestor respondeu HTTP " + str(erro.code) + ": " + detalhe)
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as erro:
+            ultimo_erro = erro
+            if tentativa < 3:
+                import time
+                espera = 5 * (2 ** tentativa)
+                print("Falha temporária no envio; nova tentativa em", espera,
+                      "segundos:", str(erro)[:200], flush=True)
+                time.sleep(espera)
+    if ultimo_erro is not None:
+        raise RuntimeError("Não foi possível concluir o envio após 4 tentativas: " +
+                           str(ultimo_erro))
     if dados.get("recebido") is not True or dados.get("armazenado") is not True:
         raise RuntimeError("Gestor não confirmou armazenamento: " +
                            json.dumps(dados, ensure_ascii=False)[:500])
@@ -253,8 +272,35 @@ def transferir():
                 numero = int(estado["lotes"].get(chave, 0)) + 1
                 ciclo_id = "incremental-" + banco + "-" + hashlib.sha256(
                     tabela.encode("utf-8")).hexdigest()[:12]
-                lote_registros = novos[:TAMANHO_LOTE]
-                lote_hashes = hashes[:TAMANHO_LOTE]
+
+                # Monta lote por tamanho real do JSON (incluindo blobs em base64),
+                # e não apenas por quantidade de linhas.
+                lote_registros = []
+                lote_hashes = []
+                for registro, identificador in zip(novos, hashes):
+                    candidato = lote_registros + [registro]
+                    payload_teste = {
+                        "tipo": TIPO_PACOTE, "somente_leitura": True,
+                        "ciclo_id": ciclo_id,
+                        "dados": {
+                            "banco": banco, "tabela": tabela, "lote": numero,
+                            "colunas": colunas, "total_registros_origem": total,
+                            "registros": candidato,
+                            "ultimo_lote": len(candidato) == len(novos)
+                        }
+                    }
+                    tamanho = len(json.dumps(
+                        payload_teste, ensure_ascii=False,
+                        separators=(",", ":")).encode("utf-8"))
+                    if lote_registros and tamanho > MAX_PAYLOAD_BYTES:
+                        break
+                    lote_registros.append(registro)
+                    lote_hashes.append(identificador)
+                    if tamanho > MAX_PAYLOAD_BYTES:
+                        print("Aviso: registro individual excede 512 KiB:",
+                              banco, tabela, "bytes=", tamanho, flush=True)
+                        break
+
                 payload = {
                     "tipo": TIPO_PACOTE, "somente_leitura": True,
                     "ciclo_id": ciclo_id,
@@ -262,9 +308,16 @@ def transferir():
                         "banco": banco, "tabela": tabela, "lote": numero,
                         "colunas": colunas, "total_registros_origem": total,
                         "registros": lote_registros,
-                        "ultimo_lote": len(novos) <= TAMANHO_LOTE
+                        "ultimo_lote": len(lote_registros) == len(novos)
                     }
                 }
+                tamanho_final = len(json.dumps(
+                    payload, ensure_ascii=False,
+                    separators=(",", ":")).encode("utf-8"))
+                print("Enviando lote", numero, banco, tabela,
+                      "registros=", len(lote_registros),
+                      "bytes=", tamanho_final, flush=True)
+
                 estado["pendente"] = {
                     "chave": chave, "banco": banco, "tabela": tabela,
                     "lote": numero, "hashes": lote_hashes, "payload": payload
@@ -272,8 +325,8 @@ def transferir():
                 salvar_checkpoint(estado)
                 confirmar_pendente(estado)
                 total_enviados += len(lote_registros)
-                novos = novos[TAMANHO_LOTE:]
-                hashes = hashes[TAMANHO_LOTE:]
+                novos = novos[len(lote_registros):]
+                hashes = hashes[len(lote_hashes):]
 
     print("TRANSFERÊNCIA CONCLUÍDA. Novos registros enviados:", total_enviados)
 
