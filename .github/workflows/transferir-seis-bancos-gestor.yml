@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GESTOR_XAUUSD_TOKEN"
-          AUTH="$(printf 'x-access-token:%s' "$GESTOR_XAUUSD_TOKEN" | base64 -w0)"
+          AUTH="$(printf 'loucoparasempre00-ship-it:%s' "$GESTOR_XAUUSD_TOKEN" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic $AUTH" clone --depth 1 https://github.com/loucoparasempre00-ship-it/gestor-xauusd.git destino
           mkdir -p destino/backups
           cp bancos-xauusd.zip destino/backups/bancos-xauusd.zip
