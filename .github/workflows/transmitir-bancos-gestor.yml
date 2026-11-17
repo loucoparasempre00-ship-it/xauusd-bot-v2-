@@ -1,4 +1,3 @@
-
 name: Transmitir Bancos para Gestor XAUUSD
 
 on:
@@ -45,23 +44,39 @@ jobs:
           set -e
           mkdir -p data
 
-          PREVIOUS_RUN_ID=$(gh run list \
+          PREVIOUS_RUN_IDS=$(gh run list \
             --workflow transmitir-bancos-gestor.yml \
-            --limit 30 \
+            --status success \
+            --limit 100 \
             --json databaseId,createdAt \
-            --jq "[.[] | select(.databaseId != ${RUN_ATUAL})] | sort_by(.createdAt) | last | .databaseId // empty")
+            --jq 'sort_by(.createdAt) | reverse | .[].databaseId')
 
-          if [ -n "$PREVIOUS_RUN_ID" ]; then
-            echo "Recuperando fila da execução $PREVIOUS_RUN_ID"
+          FILA_RECUPERADA="false"
 
-            gh run download "$PREVIOUS_RUN_ID" \
+          while IFS= read -r RUN_ID; do
+            [ -n "$RUN_ID" ] || continue
+            [ "$RUN_ID" = "$RUN_ATUAL" ] && continue
+
+            echo "Tentando recuperar fila da execucao $RUN_ID"
+            rm -f data/fila_progressiva_gestor.db
+
+            if gh run download "$RUN_ID" \
               --name fila-progressiva-gestor \
-              --dir data
+              --dir data; then
 
-            test -s data/fila_progressiva_gestor.db
-            echo "FILA ANTERIOR RECUPERADA."
-          else
-            echo "Nenhuma fila anterior encontrada. Inicializando fila."
+              if test -s data/fila_progressiva_gestor.db; then
+                echo "FILA ANTERIOR RECUPERADA DA EXECUCAO $RUN_ID."
+                FILA_RECUPERADA="true"
+                break
+              fi
+            fi
+
+            echo "Execucao $RUN_ID sem fila valida; tentando a anterior."
+          done <<< "$PREVIOUS_RUN_IDS"
+
+          if [ "$FILA_RECUPERADA" != "true" ]; then
+            echo "Nenhuma fila anterior valida encontrada."
+            echo "A fila sera inicializada a partir dos bancos oficiais."
           fi
 
       - name: Verificar arquivos e bancos
