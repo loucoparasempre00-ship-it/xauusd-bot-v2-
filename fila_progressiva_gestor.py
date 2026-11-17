@@ -184,6 +184,73 @@ def confirmar_pendente(estado):
     pendente = estado.get("pendente")
     if not pendente:
         return
+
+    tamanho_pendente = len(json.dumps(
+        pendente["payload"], ensure_ascii=False,
+        separators=(",", ":")).encode("utf-8"))
+
+    # Recupera com segurança um lote antigo que tenha sido salvo antes da
+    # adoção do limite por bytes. O repositório Gestor não recebeu esse lote
+    # na execução que falhou; cada fragmento ganha seu próprio número.
+    if tamanho_pendente > MAX_PAYLOAD_BYTES:
+        registros = pendente["payload"]["dados"]["registros"]
+        hashes = pendente["hashes"]
+        banco = pendente["banco"]
+        tabela = pendente["tabela"]
+        chave = pendente["chave"]
+        ciclo_id = pendente["payload"]["ciclo_id"]
+        total = pendente["payload"]["dados"]["total_registros_origem"]
+        colunas = pendente["payload"]["dados"]["colunas"]
+        estado["pendente"] = None
+        salvar_checkpoint(estado)
+
+        while registros:
+            numero = int(estado["lotes"].get(chave, 0)) + 1
+            grupo = []
+            grupo_hashes = []
+            for registro, identificador in zip(registros, hashes):
+                tentativa = grupo + [registro]
+                teste = {
+                    "tipo": TIPO_PACOTE, "somente_leitura": True,
+                    "ciclo_id": ciclo_id,
+                    "dados": {
+                        "banco": banco, "tabela": tabela, "lote": numero,
+                        "colunas": colunas, "total_registros_origem": total,
+                        "registros": tentativa, "ultimo_lote": False
+                    }
+                }
+                tamanho = len(json.dumps(
+                    teste, ensure_ascii=False,
+                    separators=(",", ":")).encode("utf-8"))
+                if grupo and tamanho > MAX_PAYLOAD_BYTES:
+                    break
+                grupo.append(registro)
+                grupo_hashes.append(identificador)
+                if tamanho > MAX_PAYLOAD_BYTES:
+                    print("Aviso: registro individual excede 512 KiB durante recuperação.",
+                          flush=True)
+                    break
+
+            restante = len(registros) - len(grupo)
+            payload = {
+                "tipo": TIPO_PACOTE, "somente_leitura": True,
+                "ciclo_id": ciclo_id,
+                "dados": {
+                    "banco": banco, "tabela": tabela, "lote": numero,
+                    "colunas": colunas, "total_registros_origem": total,
+                    "registros": grupo, "ultimo_lote": restante == 0
+                }
+            }
+            estado["pendente"] = {
+                "chave": chave, "banco": banco, "tabela": tabela,
+                "lote": numero, "hashes": grupo_hashes, "payload": payload
+            }
+            salvar_checkpoint(estado)
+            confirmar_pendente(estado)
+            registros = registros[len(grupo):]
+            hashes = hashes[len(grupo):]
+        return
+
     resposta = enviar(pendente["payload"])
     chave = pendente["chave"]
     enviados = estado["enviados"].setdefault(chave, [])
