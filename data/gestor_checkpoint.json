@@ -1,1 +1,87 @@
-{"versao":1,"enviados":{},"lotes":{},"pendente":{"chave":"graficos|arquivos_origem","banco":"graficos","tabela":"arquivos_origem","lote":1,"hashes":["17dca9117b340f741616e2d2ec950d29413a13e3ad95193a8fd2b4fd2a59dcc6","0774d7e80a6ce730e12af821bce38d7882702c0ea8761c2dae4e87f20bd1663f","a8c10aec21d5bce191e0aba0abb1b629921c89df5ccecd65570ad366a225a2f9"],"payload":{"tipo":"espelho_bancos_leitura","somente_leitura":true,"ciclo_id":"incremental-graficos-39a97a46df84","dados":{"banco":"graficos","tabela":"arquivos_origem","lote":1,"colunas":["caminho","nome","hash_sha256","tamanho_bytes","data_importacao","conteudo"],"total_registros_origem":17,"registros":[{"caminho":"data/arquivo_memoria/conflitos_velas_m5.json","nome":"conflitos_velas_m5.json","hash_sha256":"b07896664b3c94f2142e4befdbe4bd9afdd02b7898cade7bb814c378f1d18539","tamanho_bytes":526,"data_importacao":"2026-11-11T18:49:44.678998+00:00","conteudo":{"__tipo__":"blob","base64":"ewogICJhdHVhbGl6YWRvX3V0YyI6ICIyMDI2LTExLTExVDE4OjExOjU5LjMxNjM4MyswMDowMCIsCiAgInRvdGFsX2NvbmZsaXRvcyI6IDEsCiAgInJlZ2lzdHJvcyI6IFsKICAgIHsKICAgICAgImZlY2hhbWVudG9fdXRjIjogIjIwMjYtMTEtMTFUMTg6MDU6MDArMDA6MDAiLAogICAgICAiZm9udGVfYW50ZXJpb3IiOiAidmVsYXNfbTVfYXRpdmFzXzkwZC5jc3YiLAogICAgICAiZm9udGVfbm92YSI6ICJoaXN0b3JpY29fdmVsYXNfbTUuY3N2IiwKICAgICAgImNhbXBvc19kaXZlcmdlbnRlcyI6IFsKICAgICAgICAibG93IiwKICAgICAgICAiY2xvc2UiCiAgICAgIF0sCiAgICAgICJ2YWxvcmVzX2FudGVyaW9yZXMiOiB7CiAgICAgICAgImxvdyI6ICIzOTkwLjQyMjk4IiwKICAgICAgICAiY2xvc2UiOiAiMzk5MC43MjE3OCIKICAgICAgfSwKICAgICAgInZhbG9yZXNfbm92b3MiOiB7CiAgICAgICAgImxvdyI6ICIzOTg5LjE0MTU5IiwKICAgICAgICAiY2xvc2UiOiAiMzk4OS44MzExIgogICAgICB9CiAgICB9CiAgXQp9Cg=="}},{"caminho":"data/arquivo_memoria/velas_m5_anteriores.csv.gz","nome":"velas_m5_anteriores.csv.gz","hash_sha256":"163097ed93eaa31725073b5516dcd058b3ff4b0f48e0e94846f3f20722354dcb","tamanho_bytes":112,"data_importacao":"2026-11-11T18:49:44.679890+00:00","conteudo":{"__tipo__":"blob","base64":"H4sICO+v9GoC/3ZlbGFzX201X2FudGVyaW9yZXMuY3N2Lmd6LnRtcAAUykEKwCAMBMB7oT/ZPxUJayMkRjDq90vnPNmcM4uPZ6UgBju0vQqLA7GYxA5bTlSKFmfP+Od9fQAAAP//AwB5eF+8OQAAAA=="}},{"caminho":"data/organizado_01_graficos_velas.json","nome":"organizado_01_graficos_velas.json","hash_sha256":"39eda399bb5d5db1103a92de226a126623f1bf8fc09b8cdde08b75ab23274f9e","tamanho_bytes":414,"data_importacao":"2026-11-11T18:49:44.919254+00:00","conteudo":{"__tipo__":"blob","base64":"ewogICJpZGVudGlkYWRlIjogImZlY2hhbWVudG9fdXRjIiwKICAiaW50ZXJ2YWxvIjogIk01IiwKICAicmVncmEiOiAidGltZXN0YW1wX3V0YyArIDUgbWludXRvcyIsCiAgInRvdGFsX3VuaWNhcyI6IDUyNTMsCiAgImF0aXZhcyI6IDUyNTMsCiAgImFycXVpdmFkYXMiOiAwLAogICJkdXBsaWNhdGFzX2NvbnNvbGlkYWRhcyI6IDE0OTk5LAogICJjb25mbGl0b3Nfb2hsYyI6IDEsCiAgImFycXVpdm9fYXRpdm8iOiAiZGF0YS92ZWxhc19tNV9hdGl2YXNfOTBkLmNzdiIsCiAgImFycXVpdm9faGlzdG9yaWNvIjogImRhdGEvYXJxdWl2b19tZW1vcmlhL3ZlbGFzX201X2FudGVyaW9yZXMuY3N2Lmd6IiwKICAiYXJxdWl2b19jb25mbGl0b3MiOiAiZGF0YS9hcnF1aXZvX21lbW9yaWEvY29uZmxpdG9zX3ZlbGFzX201Lmpzb24iCn0K"}}],"ultimo_lote":false}}},"ultimo_envio":null}
+{
+  "versao": 1,
+  "enviados": {},
+  "lotes": {},
+  "pendente": {
+    "chave": "graficos|arquivos_origem",
+    "banco": "graficos",
+    "tabela": "arquivos_origem",
+    "lote": 1,
+    "hashes": [
+      "17dca9117b340f741616e2d2ec950d29413a13e3ad95193a8fd2b4fd2a59dcc6",
+      "0774d7e80a6ce730e12af821bce38d7882702c0ea8761c2dae4e87f20bd1663f",
+      "a8c10aec21d5bce191e0aba0abb1b629921c89df5ccecd65570ad366a225a2f9"
+    ],
+    "payload": {
+      "tipo": "espelho_bancos_leitura",
+      "somente_leitura": true,
+      "ciclo_id": "incremental-graficos-39a97a46df84",
+      "dados": {
+        "banco": "graficos",
+        "tabela": "arquivos_origem",
+        "lote": 1,
+        "colunas": [
+          "caminho",
+          "nome",
+          "hash_sha256",
+          "tamanho_bytes",
+          "data_importacao",
+          "conteudo"
+        ],
+        "total_registros_origem": 17,
+        "registros": [
+          {
+            "caminho": "data/arquivo_memoria/conflitos_velas_m5.json",
+            "nome": "conflitos_velas_m5.json",
+            "hash_sha256": "b07896664b3c94f2142e4befdbe4bd9afdd02b7898cade7bb814c378f1d18539",
+            "tamanho_bytes": 526,
+            "data_importacao": "2026-11-11T18:49:44.678998+00:00",
+            "conteudo": {
+              "__tipo__": "blob",
+              "base64": "ewogICJhdHVhbGl6YWRvX3V0YyI6ICIyMDI2LTExLTExVDE4OjExOjU5LjMxNjM4MyswMDowMCIsCiAgInRvdGFsX2NvbmZsaXRvcyI6IDEsCiAgInJlZ2lzdHJvcyI6IFsKICAgIHsKICAgICAgImZlY2hhbWVudG9fdXRjIjogIjIwMjYtMTEtMTFUMTg6MDU6MDArMDA6MDAiLAogICAgICAiZm9udGVfYW50ZXJpb3IiOiAidmVsYXNfbTVfYXRpdmFzXzkwZC5jc3YiLAogICAgICAiZm9udGVfbm92YSI6ICJoaXN0b3JpY29fdmVsYXNfbTUuY3N2IiwKICAgICAgImNhbXBvc19kaXZlcmdlbnRlcyI6IFsKICAgICAgICAibG93IiwKICAgICAgICAiY2xvc2UiCiAgICAgIF0sCiAgICAgICJ2YWxvcmVzX2FudGVyaW9yZXMiOiB7CiAgICAgICAgImxvdyI6ICIzOTkwLjQyMjk4IiwKICAgICAgICAiY2xvc2UiOiAiMzk5MC43MjE3OCIKICAgICAgfSwKICAgICAgInZhbG9yZXNfbm92b3MiOiB7CiAgICAgICAgImxvdyI6ICIzOTg5LjE0MTU5IiwKICAgICAgICAiY2xvc2UiOiAiMzk4OS44MzExIgogICAgICB9CiAgICB9CiAgXQp9Cg=="
+            }
+          },
+          {
+            "caminho": "data/arquivo_memoria/velas_m5_anteriores.csv.gz",
+            "nome": "velas_m5_anteriores.csv.gz",
+            "hash_sha256": "163097ed93eaa31725073b5516dcd058b3ff4b0f48e0e94846f3f20722354dcb",
+            "tamanho_bytes": 112,
+            "data_importacao": "2026-11-11T18:49:44.679890+00:00",
+            "conteudo": {
+              "__tipo__": "blob",
+              "base64": "H4sICO+v9GoC/3ZlbGFzX201X2FudGVyaW9yZXMuY3N2Lmd6LnRtcAAUykEKwCAMBMB7oT/ZPxUJayMkRjDq90vnPNmcM4uPZ6UgBju0vQqLA7GYxA5bTlSKFmfP+Od9fQAAAP//AwB5eF+8OQAAAA=="
+            }
+          },
+          {
+            "caminho": "data/organizado_01_graficos_velas.json",
+            "nome": "organizado_01_graficos_velas.json",
+            "hash_sha256": "39eda399bb5d5db1103a92de226a126623f1bf8fc09b8cdde08b75ab23274f9e",
+            "tamanho_bytes": 414,
+            "data_importacao": "2026-11-11T18:49:44.919254+00:00",
+            "conteudo": {
+              "__tipo__": "blob",
+              "base64": "ewogICJpZGVudGlkYWRlIjogImZlY2hhbWVudG9fdXRjIiwKICAiaW50ZXJ2YWxvIjogIk01IiwKICAicmVncmEiOiAidGltZXN0YW1wX3V0YyArIDUgbWludXRvcyIsCiAgInRvdGFsX3VuaWNhcyI6IDUyNTMsCiAgImF0aXZhcyI6IDUyNTMsCiAgImFycXVpdmFkYXMiOiAwLAogICJkdXBsaWNhdGFzX2NvbnNvbGlkYWRhcyI6IDE0OTk5LAogICJjb25mbGl0b3Nfb2hsYyI6IDEsCiAgImFycXVpdm9fYXRpdm8iOiAiZGF0YS92ZWxhc19tNV9hdGl2YXNfOTBkLmNzdiIsCiAgImFycXVpdm9faGlzdG9yaWNvIjogImRhdGEvYXJxdWl2b19tZW1vcmlhL3ZlbGFzX201X2FudGVyaW9yZXMuY3N2Lmd6IiwKICAiYXJxdWl2b19jb25mbGl0b3MiOiAiZGF0YS9hcnF1aXZvX21lbW9yaWEvY29uZmxpdG9zX3ZlbGFzX201Lmpzb24iCn0K"
+            }
+          }
+        ],
+        "ultimo_lote": false
+      }
+    }
+  },
+  "ultimo_envio": null,
+  "ultimo_arquivo_enviado": {
+    "nome": "bancos-xauusd.zip",
+    "sha256_bancos": "d33edd51852a29d3673c3f5cff878f1c8bcc4fff51beadcdbd4a4b22b686aa69",
+    "tag": "bancos-xauusd-44173759598-1",
+    "data_hora_utc": "2026-11-17T20:52:10.973210+00:00",
+    "arquivos_incluidos": [
+      "estatisticas_m5.db.gz",
+      "graficos.db.gz",
+      "memoria.db.gz",
+      "operacoes.db.gz",
+      "resultados_operacoes.db.gz",
+      "sinais.db.gz"
+    ],
+    "destino": "loucoparasempre00-ship-it/gestor-xauusd"
+  }
+}
