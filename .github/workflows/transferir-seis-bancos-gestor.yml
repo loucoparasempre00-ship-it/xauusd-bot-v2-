@@ -1,11 +1,10 @@
-
 name: Transferir 6 Bancos para Gestor XAUUSD
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: transferencia-seis-bancos-gestor
@@ -14,19 +13,18 @@ concurrency:
 jobs:
   transferir:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     steps:
       - name: Baixar Central
         uses: actions/checkout@v4
         with:
           ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Criar e validar ZIP dos seis bancos
+      - name: Validar os seis bancos oficiais
         run: |
           set -euo pipefail
-          mkdir -p pacote
-
           for banco in \
             data/graficos.db.gz \
             data/estatisticas_m5.db.gz \
@@ -36,50 +34,30 @@ jobs:
             data/sinais.db.gz
           do
             test -s "$banco"
-            cp "$banco" pacote/
+            gzip -t "$banco"
+            echo "Validado: $banco"
           done
 
-          cd pacote
-          zip -0 -q ../bancos-xauusd.zip *.db.gz
-          cd ..
-
-          test -s bancos-xauusd.zip
-          test "$(stat -c%s bancos-xauusd.zip)" -le $((80 * 1024 * 1024))
-          unzip -t bancos-xauusd.zip
-
-          ESPERADO="$(printf '%s\n' \
-            estatisticas_m5.db.gz \
-            graficos.db.gz \
-            memoria.db.gz \
-            operacoes.db.gz \
-            resultados_operacoes.db.gz \
-            sinais.db.gz | sort)"
-
-          RECEBIDO="$(unzip -Z1 bancos-xauusd.zip | sort)"
-
-          if [ "$RECEBIDO" != "$ESPERADO" ]; then
-            echo "O ZIP nao contem exatamente os seis bancos."
-            exit 1
-          fi
-
-          sha256sum bancos-xauusd.zip
-          echo "Os seis bancos foram validados."
-
-      - name: Enviar ZIP diretamente ao GitHub do Gestor
+      - name: Transferir somente registros ainda não confirmados
         env:
-          GH_TOKEN: ${{ secrets.GESTOR_GITHUB_TOKEN }}
-          GESTOR_REPO: loucoparasempre00-ship-it/gestor-xauusd
+          GESTOR_XAUUSD_URL: ${{ secrets.GESTOR_XAUUSD_URL }}
+          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
+        run: python fila_progressiva_gestor.py transferir
+
+      - name: Persistir checkpoint mesmo se a transferência falhar
+        if: always()
         run: |
           set -euo pipefail
-          test -n "$GH_TOKEN"
-
-          TAG="bancos-xauusd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-
-          gh release create "$TAG" bancos-xauusd.zip \
-            --repo "$GESTOR_REPO" \
-            --title "Transferencia dos seis bancos XAUUSD" \
-            --notes "Pacote enviado diretamente pela Central XAUUSD." \
-            --target main
-
-          echo "Pacote publicado no repositorio Gestor."
-          echo "Tag: $TAG"
+          if [ -f data/gestor_checkpoint.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/gestor_checkpoint.json
+            if ! git diff --cached --quiet; then
+              git commit -m "Persistir checkpoint da transferência incremental"
+              git push origin HEAD:main
+            else
+              echo "Checkpoint sem alterações."
+            fi
+          else
+            echo "Checkpoint ainda não foi criado."
+          fi
