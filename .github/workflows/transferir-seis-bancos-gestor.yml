@@ -48,14 +48,18 @@ jobs:
           test "$(unzip -Z1 bancos-xauusd.zip | wc -l)" -eq 6
           sha256sum bancos-xauusd.zip
 
+      - name: Acessar repositório Gestor
+        uses: actions/checkout@v4
+        with:
+          repository: loucoparasempre00-ship-it/gestor-xauusd
+          ref: main
+          token: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
+          path: destino
+          persist-credentials: true
+
       - name: Gravar ZIP no repositório Gestor
-        env:
-          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$GESTOR_XAUUSD_TOKEN"
-          AUTH="$(printf 'loucoparasempre00-ship-it:%s' "$GESTOR_XAUUSD_TOKEN" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic $AUTH" clone --depth 1 https://github.com/loucoparasempre00-ship-it/gestor-xauusd.git destino
           mkdir -p destino/backups
           cp bancos-xauusd.zip destino/backups/bancos-xauusd.zip
           cd destino
@@ -67,7 +71,7 @@ jobs:
             exit 0
           fi
           git commit -m "Transferir pacote ZIP dos seis bancos oficiais da Central"
-          git -c http.extraheader="AUTHORIZATION: basic $AUTH" push origin HEAD:main
+          git push origin HEAD:main
 
       - name: Confirmar transferência
         run: |
