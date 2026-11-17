@@ -20,6 +20,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
       - name: Baixar Central
         uses: actions/checkout@v4
@@ -41,42 +42,56 @@ jobs:
             test -s "$banco"
             cp "$banco" pacote/
           done
+
           cd pacote
           zip -0 -q ../bancos-xauusd.zip *.db.gz
           cd ..
+
+          test -s bancos-xauusd.zip
+          test "$(stat -c%s bancos-xauusd.zip)" -le $((80 * 1024 * 1024))
           unzip -t bancos-xauusd.zip
-          test "$(unzip -Z1 bancos-xauusd.zip | wc -l)" -eq 6
-          sha256sum bancos-xauusd.zip
 
-      - name: Acessar repositório Gestor
-        uses: actions/checkout@v4
-        with:
-          repository: loucoparasempre00-ship-it/gestor-xauusd
-          ref: main
-          token: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
-          path: destino
-          persist-credentials: true
+          ESPERADO="$(printf '%s\\n' \
+            estatisticas_m5.db.gz \
+            graficos.db.gz \
+            memoria.db.gz \
+            operacoes.db.gz \
+            resultados_operacoes.db.gz \
+            sinais.db.gz | sort)"
+          RECEBIDO="$(unzip -Z1 bancos-xauusd.zip | sort)"
 
-      - name: Gravar ZIP no repositório Gestor
-        run: |
-          set -euo pipefail
-          mkdir -p destino/backups
-          cp bancos-xauusd.zip destino/backups/bancos-xauusd.zip
-          cd destino
-          git config user.name "Central XAUUSD"
-          git config user.email "actions@users.noreply.github.com"
-          git add backups/bancos-xauusd.zip
-          if git diff --cached --quiet; then
-            echo "O ZIP já está atualizado no Gestor."
-            exit 0
+          if [ "$RECEBIDO" != "$ESPERADO" ]; then
+            echo "O ZIP nao contem exatamente os seis bancos oficiais."
+            printf 'Esperado:\\n%s\\nRecebido:\\n%s\\n' "$ESPERADO" "$RECEBIDO"
+            exit 1
           fi
-          git commit -m "Transferir pacote ZIP dos seis bancos oficiais da Central"
-          git push origin HEAD:main
 
-      - name: Confirmar transferência
+          sha256sum bancos-xauusd.zip
+          echo "ZIP validado: exatamente seis bancos oficiais."
+
+      - name: Enviar ZIP ao Worker do Gestor
+        env:
+          GESTOR_XAUUSD_BANCOS_URL: ${{ secrets.GESTOR_XAUUSD_BANCOS_URL }}
+          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
         run: |
           set -euo pipefail
-          test -s destino/backups/bancos-xauusd.zip
-          unzip -t destino/backups/bancos-xauusd.zip
-          test "$(unzip -Z1 destino/backups/bancos-xauusd.zip | wc -l)" -eq 6
-          echo "TRANSFERENCIA VALIDADA: seis bancos dentro do ZIP no Gestor."
+          test -n "$GESTOR_XAUUSD_BANCOS_URL"
+          test -n "$GESTOR_XAUUSD_TOKEN"
+
+          URL="$GESTOR_XAUUSD_BANCOS_URL"
+          case "$URL" in
+            */central/bancos) ;;
+            */) URL="${URL}central/bancos" ;;
+            *) URL="${URL}/central/bancos" ;;
+          esac
+
+          echo "Enviando pacote ZIP ao Worker do Gestor."
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "X-Central-Secret: $GESTOR_XAUUSD_TOKEN" \
+            --header "Content-Type: application/zip" \
+            --data-binary @bancos-xauusd.zip \
+            "$URL"
+
+          echo
+          echo "Worker recebeu o pacote. O workflow do Gestor concluirá a gravação em backups/bancos-xauusd.zip."
