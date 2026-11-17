@@ -1,513 +1,287 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Transfere incrementalmente os seis bancos oficiais ao Gestor.
 
-import os
-import sys
-import gzip
-import json
-import sqlite3
-import hashlib
+A Central permanece como fonte. O checkpoint registra hashes enviados e um
+lote pendente completo para que uma falha/reexecução não perca nem duplique
+dados. Nenhum banco original é alterado.
+"""
 import base64
+import gzip
+import hashlib
+import json
+import os
+import sqlite3
+import sys
 import tempfile
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 BANCOS = {
     "graficos": "data/graficos.db.gz",
     "estatisticas_m5": "data/estatisticas_m5.db.gz",
+    "memoria": "data/memoria.db.gz",
+    "operacoes": "data/operacoes.db.gz",
+    "resultados_operacoes": "data/resultados_operacoes.db.gz",
+    "sinais": "data/sinais.db.gz",
 }
-
-ARQUIVO_FILA = "data/fila_progressiva_gestor.db"
-LEITURA_POR_LOTE = 200
-NOVOS_POR_EXECUCAO = 3
-ANTIGOS_POR_EXECUCAO = 3
+CHECKPOINT = "data/gestor_checkpoint.json"
+TAMANHO_LOTE = 100
+TIPO_PACOTE = "espelho_bancos_leitura"
 
 
 def agora():
     return datetime.now(timezone.utc).isoformat()
 
 
-def nome_seguro(nome):
-    return '"' + nome.replace('"', '""') + '"'
+def hash_registro(banco, tabela, registro):
+    bruto = json.dumps(registro, ensure_ascii=False, sort_keys=True,
+                       separators=(",", ":"))
+    origem = (banco + "|" + tabela + "|" + bruto).encode("utf-8")
+    return hashlib.sha256(origem).hexdigest(), bruto
 
 
-def serializar_valor(valor):
-    if isinstance(valor, (bytes, bytearray)):
-        return {
-            "__tipo__": "blob",
-            "base64": base64.b64encode(valor).decode("ascii"),
-        }
+def serializar(valor):
+    if isinstance(valor, (bytes, bytearray, memoryview)):
+        return {"__tipo__": "blob",
+                "base64": base64.b64encode(bytes(valor)).decode("ascii")}
     return valor
 
 
-def serializar_registro(registro):
-    dados = {
-        chave: serializar_valor(valor)
-        for chave, valor in dict(registro).items()
-    }
-    return json.dumps(
-        dados,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
+def carregar_checkpoint():
+    if not os.path.exists(CHECKPOINT):
+        return {"versao": 1, "enviados": {}, "lotes": {}, "pendente": None,
+                "ultimo_envio": None}
+    with open(CHECKPOINT, "r", encoding="utf-8") as arquivo:
+        estado = json.load(arquivo)
+    if estado.get("versao") != 1:
+        raise RuntimeError("Versão do checkpoint incompatível.")
+    estado.setdefault("enviados", {})
+    estado.setdefault("lotes", {})
+    estado.setdefault("pendente", None)
+    estado.setdefault("ultimo_envio", None)
+    return estado
 
 
-def hash_registro(banco, tabela, dados_json):
-    conteudo = f"{banco}|{tabela}|{dados_json}"
-    return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()
-
-
-def conectar_fila():
+def salvar_checkpoint(estado):
     os.makedirs("data", exist_ok=True)
-
-    conexao = sqlite3.connect(ARQUIVO_FILA)
-    conexao.row_factory = sqlite3.Row
-
-    conexao.execute("""
-        CREATE TABLE IF NOT EXISTS fila_gestor (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            banco TEXT NOT NULL,
-            tabela_origem TEXT NOT NULL,
-            hash_registro TEXT NOT NULL UNIQUE,
-            dados_json TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pendente',
-            criado_em TEXT NOT NULL,
-            confirmado_em TEXT,
-            colunas_json TEXT,
-            total_origem INTEGER,
-            novidade INTEGER NOT NULL DEFAULT 0
-        )
-    """)
-
-    colunas = {
-        linha["name"]
-        for linha in conexao.execute(
-            "PRAGMA table_info(fila_gestor)"
-        ).fetchall()
-    }
-
-    if "colunas_json" not in colunas:
-        conexao.execute(
-            "ALTER TABLE fila_gestor ADD COLUMN colunas_json TEXT"
-        )
-
-    if "total_origem" not in colunas:
-        conexao.execute(
-            "ALTER TABLE fila_gestor ADD COLUMN total_origem INTEGER"
-        )
-
-    if "novidade" not in colunas:
-        # Registros que já estavam na fila são tratados como antigos.
-        conexao.execute("""
-            ALTER TABLE fila_gestor
-            ADD COLUMN novidade INTEGER NOT NULL DEFAULT 0
-        """)
-
-    conexao.execute("""
-        CREATE INDEX IF NOT EXISTS idx_fila_gestor_status
-        ON fila_gestor(status, id)
-    """)
-
-    conexao.execute("""
-        CREATE INDEX IF NOT EXISTS idx_fila_gestor_origem
-        ON fila_gestor(banco, tabela_origem, status, id)
-    """)
-
-    conexao.execute("""
-        CREATE INDEX IF NOT EXISTS idx_fila_gestor_novidade
-        ON fila_gestor(status, novidade, id)
-    """)
-
-    conexao.commit()
-    return conexao
+    temporario = CHECKPOINT + ".tmp"
+    with open(temporario, "w", encoding="utf-8") as arquivo:
+        json.dump(estado, arquivo, ensure_ascii=False, separators=(",", ":"))
+        arquivo.flush()
+        os.fsync(arquivo.fileno())
+    os.replace(temporario, CHECKPOINT)
 
 
-def abrir_banco_comprimido(caminho):
-    if not os.path.isfile(caminho):
-        raise FileNotFoundError(f"Banco não encontrado: {caminho}")
-
-    temporario = tempfile.NamedTemporaryFile(
-        suffix=".db",
-        delete=False,
-    )
-    caminho_temp = temporario.name
+def abrir_banco(caminho):
+    if not os.path.isfile(caminho) or os.path.getsize(caminho) == 0:
+        raise FileNotFoundError("Banco ausente ou vazio: " + caminho)
+    temporario = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    nome_temp = temporario.name
     temporario.close()
-
     try:
-        with gzip.open(caminho, "rb") as origem:
-            with open(caminho_temp, "wb") as destino:
-                while True:
-                    bloco = origem.read(1024 * 1024)
-                    if not bloco:
-                        break
-                    destino.write(bloco)
-
-        uri = "file:" + os.path.abspath(caminho_temp) + "?mode=ro"
-        conexao = sqlite3.connect(uri, uri=True)
+        with gzip.open(caminho, "rb") as origem, open(nome_temp, "wb") as destino:
+            while True:
+                bloco = origem.read(1024 * 1024)
+                if not bloco:
+                    break
+                destino.write(bloco)
+        conexao = sqlite3.connect("file:" + os.path.abspath(nome_temp) + "?mode=ro",
+                                  uri=True)
         conexao.row_factory = sqlite3.Row
-        return conexao, caminho_temp
-
+        return conexao, nome_temp
     except Exception:
-        if os.path.exists(caminho_temp):
-            os.remove(caminho_temp)
+        if os.path.exists(nome_temp):
+            os.remove(nome_temp)
         raise
 
 
-def listar_tabelas(conexao):
-    linhas = conexao.execute("""
-        SELECT name
-        FROM sqlite_master
-        WHERE type = 'table'
-          AND name NOT LIKE 'sqlite_%'
-        ORDER BY name
-    """).fetchall()
-
-    return [linha["name"] for linha in linhas]
-
-
-def copiar_tabela(origem, fila, banco, tabela):
-    identificador = nome_seguro(tabela)
-
-    colunas = [
-        linha["name"]
-        for linha in origem.execute(
-            f"PRAGMA table_info({identificador})"
-        ).fetchall()
-    ]
-
-    if not colunas:
-        return 0, 0
-
-    total_origem = origem.execute(
-        f"SELECT COUNT(*) FROM {identificador}"
-    ).fetchone()[0]
-
-    colunas_json = json.dumps(
-        colunas,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
-
-    cursor_origem = origem.execute(
-        f"SELECT * FROM {identificador}"
-    )
-
-    total_lidos = 0
-    total_novos = 0
-
-    while True:
-        registros = cursor_origem.fetchmany(LEITURA_POR_LOTE)
-        if not registros:
-            break
-
-        insercoes = []
-
-        for registro in registros:
-            dados_json = serializar_registro(registro)
-            identificador_registro = hash_registro(
-                banco,
-                tabela,
-                dados_json,
-            )
-
-            insercoes.append((
-                banco,
-                tabela,
-                identificador_registro,
-                dados_json,
-                agora(),
-                colunas_json,
-                total_origem,
-            ))
-
-        cursor = fila.executemany("""
-            INSERT OR IGNORE INTO fila_gestor (
-                banco,
-                tabela_origem,
-                hash_registro,
-                dados_json,
-                criado_em,
-                colunas_json,
-                total_origem,
-                novidade
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-        """, insercoes)
-
-        total_novos += max(cursor.rowcount, 0)
-        total_lidos += len(registros)
-        fila.commit()
-
-    return total_lidos, total_novos
-
-
-def preparar_fila():
-    fila = conectar_fila()
-    total_lidos = 0
-    total_novos = 0
-
+def ler_tabela(caminho, tabela):
+    conexao, temporario = abrir_banco(caminho)
     try:
-        for banco, caminho in BANCOS.items():
-            print(f"\nBANCO: {banco}", flush=True)
-
-            origem = None
-            caminho_temp = None
-
-            try:
-                origem, caminho_temp = abrir_banco_comprimido(caminho)
-
-                for tabela in listar_tabelas(origem):
-                    lidos, novos = copiar_tabela(
-                        origem,
-                        fila,
-                        banco,
-                        tabela,
-                    )
-
-                    total_lidos += lidos
-                    total_novos += novos
-
-                    print(
-                        f"{tabela}: {lidos} examinados, "
-                        f"{novos} novos na fila",
-                        flush=True,
-                    )
-
-            finally:
-                if origem:
-                    origem.close()
-
-                if caminho_temp and os.path.exists(caminho_temp):
-                    os.remove(caminho_temp)
-
+        nome = '"' + tabela.replace('"', '""') + '"'
+        colunas = [r["name"] for r in conexao.execute(
+            "PRAGMA table_info(" + nome + ")").fetchall()]
+        if not colunas:
+            return [], [], 0
+        total = conexao.execute("SELECT COUNT(*) FROM " + nome).fetchone()[0]
+        registros = []
+        for linha in conexao.execute("SELECT * FROM " + nome):
+            registros.append({k: serializar(v) for k, v in dict(linha).items()})
+        return colunas, registros, total
     finally:
-        fila.close()
-
-    print("\nPREPARAÇÃO CONCLUÍDA")
-    print(f"Registros examinados: {total_lidos}")
-    print(f"Novos registros adicionados: {total_novos}")
+        conexao.close()
+        if os.path.exists(temporario):
+            os.remove(temporario)
 
 
-def obter_lote():
-    fila = conectar_fila()
-
+def listar_tabelas(caminho):
+    conexao, temporario = abrir_banco(caminho)
     try:
-        # Prioriza uma tabela que tenha informações novas.
-        primeira = fila.execute("""
-            SELECT banco, tabela_origem
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND novidade = 1
-            ORDER BY id
-            LIMIT 1
-        """).fetchone()
+        return [r[0] for r in conexao.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall()]
+    finally:
+        conexao.close()
+        if os.path.exists(temporario):
+            os.remove(temporario)
 
-        # Se não houver novidades, continua o histórico antigo.
-        if not primeira:
-            primeira = fila.execute("""
-                SELECT banco, tabela_origem
-                FROM fila_gestor
-                WHERE status = 'pendente'
-                ORDER BY id
-                LIMIT 1
-            """).fetchone()
 
-        if not primeira:
-            return {
-                "quantidade": 0,
-                "registros": [],
-                "ids": [],
-            }
+def url_receptor():
+    base = os.environ.get("GESTOR_XAUUSD_URL", "").strip().rstrip("/")
+    token = os.environ.get("GESTOR_XAUUSD_TOKEN", "").strip()
+    if not base or not token:
+        raise RuntimeError("Configure GESTOR_XAUUSD_URL e GESTOR_XAUUSD_TOKEN nos secrets.")
+    if not base.endswith("/central/bancos"):
+        base += "/central/bancos"
+    return base, token
 
-        banco = primeira["banco"]
-        tabela = primeira["tabela_origem"]
 
-        novos = fila.execute("""
-            SELECT id, dados_json, colunas_json, total_origem
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND banco = ?
-              AND tabela_origem = ?
-              AND novidade = 1
-            ORDER BY id
-            LIMIT ?
-        """, (
-            banco,
-            tabela,
-            NOVOS_POR_EXECUCAO,
-        )).fetchall()
+def enviar(payload):
+    url, token = url_receptor()
+    corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    requisicao = urllib.request.Request(
+        url, data=corpo, method="POST",
+        headers={"Content-Type": "application/json",
+                 "Accept": "application/json",
+                 "X-Central-Secret": token})
+    try:
+        with urllib.request.urlopen(requisicao, timeout=90) as resposta:
+            texto = resposta.read().decode("utf-8")
+            dados = json.loads(texto) if texto else {}
+            if resposta.status < 200 or resposta.status >= 300:
+                raise RuntimeError("Gestor respondeu HTTP " + str(resposta.status))
+    except urllib.error.HTTPError as erro:
+        detalhe = erro.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError("Gestor respondeu HTTP " + str(erro.code) + ": " + detalhe)
+    if dados.get("recebido") is not True or dados.get("armazenado") is not True:
+        raise RuntimeError("Gestor não confirmou armazenamento: " +
+                           json.dumps(dados, ensure_ascii=False)[:500])
+    return dados
 
-        antigos = fila.execute("""
-            SELECT id, dados_json, colunas_json, total_origem
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND banco = ?
-              AND tabela_origem = ?
-              AND novidade = 0
-            ORDER BY id
-            LIMIT ?
-        """, (
-            banco,
-            tabela,
-            ANTIGOS_POR_EXECUCAO,
-        )).fetchall()
 
-        selecionados = list(novos) + list(antigos)
+def confirmar_pendente(estado):
+    pendente = estado.get("pendente")
+    if not pendente:
+        return
+    resposta = enviar(pendente["payload"])
+    chave = pendente["chave"]
+    enviados = estado["enviados"].setdefault(chave, [])
+    conjunto = set(enviados)
+    for identificador in pendente["hashes"]:
+        if identificador not in conjunto:
+            enviados.append(identificador)
+            conjunto.add(identificador)
+    estado["ultimo_envio"] = agora()
+    estado["ultimo_ack"] = {
+        "banco": pendente["banco"], "tabela": pendente["tabela"],
+        "lote": pendente["lote"], "recebido_em": estado["ultimo_envio"],
+        "duplicado": bool(resposta.get("duplicado")),
+        "caminho": resposta.get("caminho")
+    }
+    estado["pendente"] = None
+    salvar_checkpoint(estado)
+    print("ACK:", estado["ultimo_ack"], flush=True)
 
-        if not selecionados:
-            return {
-                "quantidade": 0,
-                "registros": [],
-                "ids": [],
-            }
 
-        primeiro_registro = selecionados[0]
+def preparar_payload(estado, banco, tabela, colunas, registros, total):
+    chave = banco + "|" + tabela
+    enviados = set(estado["enviados"].get(chave, []))
+    pendentes = []
+    hashes = []
+    for registro in registros:
+        identificador, _ = hash_registro(banco, tabela, registro)
+        if identificador not in enviados:
+            pendentes.append(registro)
+            hashes.append(identificador)
 
-        total_pendente = fila.execute("""
-            SELECT COUNT(*)
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND banco = ?
-              AND tabela_origem = ?
-        """, (banco, tabela)).fetchone()[0]
+    if not pendentes:
+        return None
 
-        return {
-            "banco": banco,
-            "tabela": tabela,
-            "colunas": json.loads(
-                primeiro_registro["colunas_json"] or "[]"
-            ),
-            "total_origem": primeiro_registro["total_origem"] or 0,
-            "ultimo_lote": total_pendente <= len(selecionados),
-            "quantidade": len(selecionados),
-            "novos_quantidade": len(novos),
-            "antigos_quantidade": len(antigos),
-            "ids": [r["id"] for r in selecionados],
-            "registros": [
-                json.loads(r["dados_json"])
-                for r in selecionados
-            ],
+    numero = int(estado["lotes"].get(chave, 0)) + 1
+    ciclo_id = "incremental-" + banco + "-" + hashlib.sha256(
+        tabela.encode("utf-8")).hexdigest()[:12]
+    payload = {
+        "tipo": TIPO_PACOTE,
+        "somente_leitura": True,
+        "ciclo_id": ciclo_id,
+        "dados": {
+            "banco": banco, "tabela": tabela, "lote": numero,
+            "colunas": colunas, "total_registros_origem": total,
+            "registros": pendentes[:TAMANHO_LOTE],
+            "ultimo_lote": len(pendentes) <= TAMANHO_LOTE
         }
-
-    finally:
-        fila.close()
-
-
-def confirmar_lote(ids):
-    if not ids:
-        return 0
-
-    ids_validos = []
-
-    for valor in ids:
-        try:
-            ids_validos.append(int(valor))
-        except (TypeError, ValueError):
-            continue
-
-    if not ids_validos:
-        return 0
-
-    fila = conectar_fila()
-
-    try:
-        removidos = 0
-
-        for inicio in range(0, len(ids_validos), 500):
-            parte = ids_validos[inicio:inicio + 500]
-            marcadores = ",".join("?" for _ in parte)
-
-            cursor = fila.execute(
-                f"""
-                DELETE FROM fila_gestor
-                WHERE status = 'pendente'
-                  AND id IN ({marcadores})
-                """,
-                parte,
-            )
-
-            removidos += cursor.rowcount
-
-        fila.commit()
-        return removidos
-
-    finally:
-        fila.close()
+    }
+    selecionados = hashes[:TAMANHO_LOTE]
+    estado["pendente"] = {
+        "chave": chave, "banco": banco, "tabela": tabela, "lote": numero,
+        "hashes": selecionados, "payload": payload
+    }
+    salvar_checkpoint(estado)
+    return True
 
 
-def resumo_fila():
-    fila = conectar_fila()
+def transferir():
+    estado = carregar_checkpoint()
+    confirmar_pendente(estado)
 
-    try:
-        total = fila.execute(
-            "SELECT COUNT(*) FROM fila_gestor"
-        ).fetchone()[0]
+    total_enviados = 0
+    for banco, caminho in BANCOS.items():
+        print("Verificando banco:", banco, flush=True)
+        tabelas = listar_tabelas(caminho)
+        for tabela in tabelas:
+            colunas, registros, total = ler_tabela(caminho, tabela)
+            chave = banco + "|" + tabela
+            enviados = set(estado["enviados"].get(chave, []))
+            novos = []
+            hashes = []
+            for registro in registros:
+                identificador, _ = hash_registro(banco, tabela, registro)
+                if identificador not in enviados:
+                    novos.append(registro)
+                    hashes.append(identificador)
+            if not novos:
+                print(tabela + ": sem registros novos", flush=True)
+                continue
 
-        pendentes = fila.execute("""
-            SELECT COUNT(*)
-            FROM fila_gestor
-            WHERE status = 'pendente'
-        """).fetchone()[0]
+            print(tabela + ": " + str(len(novos)) + " registros novos", flush=True)
+            while novos:
+                numero = int(estado["lotes"].get(chave, 0)) + 1
+                ciclo_id = "incremental-" + banco + "-" + hashlib.sha256(
+                    tabela.encode("utf-8")).hexdigest()[:12]
+                lote_registros = novos[:TAMANHO_LOTE]
+                lote_hashes = hashes[:TAMANHO_LOTE]
+                payload = {
+                    "tipo": TIPO_PACOTE, "somente_leitura": True,
+                    "ciclo_id": ciclo_id,
+                    "dados": {
+                        "banco": banco, "tabela": tabela, "lote": numero,
+                        "colunas": colunas, "total_registros_origem": total,
+                        "registros": lote_registros,
+                        "ultimo_lote": len(novos) <= TAMANHO_LOTE
+                    }
+                }
+                estado["pendente"] = {
+                    "chave": chave, "banco": banco, "tabela": tabela,
+                    "lote": numero, "hashes": lote_hashes, "payload": payload
+                }
+                salvar_checkpoint(estado)
+                confirmar_pendente(estado)
+                estado["lotes"][chave] = numero
+                salvar_checkpoint(estado)
+                total_enviados += len(lote_registros)
+                novos = novos[TAMANHO_LOTE:]
+                hashes = hashes[TAMANHO_LOTE:]
 
-        novos = fila.execute("""
-            SELECT COUNT(*)
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND novidade = 1
-        """).fetchone()[0]
-
-        antigos = fila.execute("""
-            SELECT COUNT(*)
-            FROM fila_gestor
-            WHERE status = 'pendente'
-              AND novidade = 0
-        """).fetchone()[0]
-
-        print("\nRESUMO DA FILA PROGRESSIVA")
-        print(f"Total armazenado: {total}")
-        print(f"Pendentes: {pendentes}")
-        print(f"Novos pendentes: {novos}")
-        print(f"Antigos pendentes: {antigos}")
-        print(
-            "Por execução: até "
-            f"{NOVOS_POR_EXECUCAO} novos + "
-            f"{ANTIGOS_POR_EXECUCAO} antigos"
-        )
-
-        por_banco = fila.execute("""
-            SELECT banco, COUNT(*) AS quantidade
-            FROM fila_gestor
-            WHERE status = 'pendente'
-            GROUP BY banco
-            ORDER BY banco
-        """).fetchall()
-
-        for linha in por_banco:
-            print(
-                f"{linha['banco']}: "
-                f"{linha['quantidade']} pendentes"
-            )
-
-    finally:
-        fila.close()
+    print("TRANSFERÊNCIA CONCLUÍDA. Novos registros enviados:", total_enviados)
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Uso: preparar | lote | resumo")
-        sys.exit(1)
-
-    comando = sys.argv[1].lower()
-
-    if comando == "preparar":
-        preparar_fila()
-    elif comando == "lote":
-        print(json.dumps(obter_lote(), ensure_ascii=False))
-    elif comando == "resumo":
-        resumo_fila()
-    else:
-        raise RuntimeError(f"Comando desconhecido: {comando}")
+    if len(sys.argv) != 2 or sys.argv[1] != "transferir":
+        print("Uso: python fila_progressiva_gestor.py transferir")
+        raise SystemExit(2)
+    transferir()
 
 
 if __name__ == "__main__":
