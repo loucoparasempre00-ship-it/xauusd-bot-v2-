@@ -3,11 +3,6 @@ name: Transferir 6 Bancos para Gestor XAUUSD
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Central Inteligente XAUUSD
-    types:
-      - completed
 
 permissions:
   contents: read
@@ -18,7 +13,6 @@ concurrency:
 
 jobs:
   transferir:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
