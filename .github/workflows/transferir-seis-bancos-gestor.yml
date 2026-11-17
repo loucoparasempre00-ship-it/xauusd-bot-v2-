@@ -1,0 +1,78 @@
+name: Transferir 6 Bancos para Gestor XAUUSD
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Central Inteligente XAUUSD
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transferencia-seis-bancos-gestor
+  cancel-in-progress: false
+
+jobs:
+  transferir:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Baixar Central
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Criar e validar ZIP dos seis bancos oficiais
+        run: |
+          set -euo pipefail
+          mkdir -p pacote
+          for banco in \
+            data/graficos.db.gz \
+            data/estatisticas_m5.db.gz \
+            data/memoria.db.gz \
+            data/operacoes.db.gz \
+            data/resultados_operacoes.db.gz \
+            data/sinais.db.gz
+          do
+            test -s "$banco"
+            cp "$banco" pacote/
+          done
+          cd pacote
+          zip -0 -q ../bancos-xauusd.zip *.db.gz
+          cd ..
+          unzip -t bancos-xauusd.zip
+          test "$(unzip -Z1 bancos-xauusd.zip | wc -l)" -eq 6
+          sha256sum bancos-xauusd.zip
+
+      - name: Gravar ZIP no repositório Gestor
+        env:
+          GESTOR_XAUUSD_TOKEN: ${{ secrets.GESTOR_XAUUSD_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GESTOR_XAUUSD_TOKEN"
+          AUTH="$(printf 'x-access-token:%s' "$GESTOR_XAUUSD_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" clone --depth 1 https://github.com/loucoparasempre00-ship-it/gestor-xauusd.git destino
+          mkdir -p destino/backups
+          cp bancos-xauusd.zip destino/backups/bancos-xauusd.zip
+          cd destino
+          git config user.name "Central XAUUSD"
+          git config user.email "actions@users.noreply.github.com"
+          git add backups/bancos-xauusd.zip
+          if git diff --cached --quiet; then
+            echo "O ZIP já está atualizado no Gestor."
+            exit 0
+          fi
+          git commit -m "Transferir pacote ZIP dos seis bancos oficiais da Central"
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" push origin HEAD:main
+
+      - name: Confirmar transferência
+        run: |
+          set -euo pipefail
+          test -s destino/backups/bancos-xauusd.zip
+          unzip -t destino/backups/bancos-xauusd.zip
+          test "$(unzip -Z1 destino/backups/bancos-xauusd.zip | wc -l)" -eq 6
+          echo "TRANSFERENCIA VALIDADA: seis bancos dentro do ZIP no Gestor."
