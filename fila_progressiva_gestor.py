@@ -173,6 +173,9 @@ def confirmar_pendente(estado):
         if identificador not in conjunto:
             enviados.append(identificador)
             conjunto.add(identificador)
+    estado["lotes"][chave] = max(
+        int(estado["lotes"].get(chave, 0)), int(pendente["lote"])
+    )
     estado["ultimo_envio"] = agora()
     estado["ultimo_ack"] = {
         "banco": pendente["banco"], "tabela": pendente["tabela"],
@@ -268,8 +271,6 @@ def transferir():
                 }
                 salvar_checkpoint(estado)
                 confirmar_pendente(estado)
-                estado["lotes"][chave] = numero
-                salvar_checkpoint(estado)
                 total_enviados += len(lote_registros)
                 novos = novos[TAMANHO_LOTE:]
                 hashes = hashes[TAMANHO_LOTE:]
