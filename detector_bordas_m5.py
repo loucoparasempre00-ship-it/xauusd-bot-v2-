@@ -261,9 +261,9 @@ def salvar_resultados(conexao, velas, eventos, estatisticas):
         DELETE FROM tabuleiro
         WHERE timeframe = ?
           AND tipo_registro = 'ESTADO'
-          AND sequencia_json LIKE ?
+          AND substr(sequencia_json, 1, ?) = ?
         """,
-        (TIMEFRAME, '{"origem":"' + ORIGEM + '"%'),
+        (TIMEFRAME, len('{"origem":"' + ORIGEM + '"'), '{"origem":"' + ORIGEM + '"'),
     )
 
     registros = []
@@ -286,7 +286,7 @@ def salvar_resultados(conexao, velas, eventos, estatisticas):
             referencia, TIMEFRAME, "ESTADO",
             json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
             len(velas), dados["testes"], dados["rejeicoes"],
-            DISTANCIA_MAXIMA_BORDA, VERSAO,
+            None, VERSAO,
         ))
 
     for evento in eventos:
@@ -322,10 +322,6 @@ def salvar_resultados(conexao, velas, eventos, estatisticas):
         (corte,),
     )
 
-
-# Campo do esquema usado para compatibilidade estrutural; não representa
-# uma distância calculada pelo detector de bordas.
-DISTANCIA_MAXIMA_BORDA = 0
 
 
 def gerar_resumo(velas, eventos, estatisticas):
