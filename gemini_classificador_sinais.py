@@ -223,6 +223,7 @@ def criar_tabela(con):
     garantir_coluna(con, DESTINO, "entrada", "REAL")
     garantir_coluna(con, DESTINO, "stop_loss", "REAL")
     garantir_coluna(con, DESTINO, "take_profit", "REAL")
+    garantir_coluna(con, DESTINO, "preco_fechamento", "REAL")
 
     destino = nomes_colunas(con, DESTINO)
 
