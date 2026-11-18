@@ -128,54 +128,10 @@ jobs:
           python processador_estatistico_m5.py
 
       # ==================================================
-      # MODULO 05 - MOTOR MATEMATICO
+      # MODULOS 05 A 08 - MOTOR INTEGRADO DE SINAIS
       # ==================================================
 
-      - name: "05 - Verificar modulos matematicos"
-        run: |
-          set -e
-
-          test -f otimizador_parametros_setup.py
-          test -f validador_setup.py
-          test -f motor_setup_matematico.py
-
-      - name: "05 - Calibrar parametros matematicos"
-        run: |
-          set -e
-          python otimizador_parametros_setup.py
-
-      - name: "05 - Validar parametros"
-        id: validacao
-        run: |
-          set -e
-          python validador_setup.py
-
-      - name: "05 - Executar motor matematico"
-        if: steps.validacao.outputs.motor == 'sim'
-        run: |
-          set -e
-          python motor_setup_matematico.py
-
-      - name: "05 - Informar ausencia de parametros aprovados"
-        if: steps.validacao.outputs.motor != 'sim'
-        run: |
-          echo "Nenhuma versao aprovada."
-          echo "Motor matematico nao emitiu decisao."
-
-      # ==================================================
-      # MODULO 06 - ORGANIZADOR DE SINAIS
-      # ==================================================
-
-      - name: "06 - Organizar sinais recebidos"
-        run: |
-          set -e
-          python organizador_sinais_xau.py
-
-      # ==================================================
-      # MODULO 07 - CLASSIFICADOR GEMINI
-      # ==================================================
-
-      - name: "07 - Recuperar modelo selecionado pelo Testador"
+      - name: "05 - Recuperar modelo selecionado pelo Testador"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -200,28 +156,19 @@ jobs:
             --dir data
 
           test -s data/modelo_gemini.json
-
           echo "Modelo selecionado recuperado."
 
-      - name: "07 - Classificar sinais com Gemini"
+      - name: "05 a 08 - Executar motor integrado de sinais"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          set -e
-          test -n "$GEMINI_API_KEY"
-          python gemini_classificador_sinais.py
-
-      # ==================================================
-      # MODULO 08 - PROCESSADOR FINAL
-      # ==================================================
-
-      - name: "08 - Processar ranking e Telegram"
-        env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -e
-          python processador_final_sinais_xau.py
+          test -n "$GEMINI_API_KEY"
+          test -n "$TELEGRAM_BOT_TOKEN"
+          test -n "$TELEGRAM_CHAT_ID"
+          python motor_sinais_integrado.py
 
       # ==================================================
       # MODULO 09 - MEMORIA PERSISTENTE
@@ -555,6 +502,7 @@ jobs:
           git add data/operacoes.db.gz
           git add data/resultados_operacoes.db.gz
           git add data/sinais.db.gz
+          git add data/xauusd.db
 
           if git diff --cached --quiet; then
             echo "Nenhuma alteracao nos bancos oficiais."
@@ -581,9 +529,6 @@ jobs:
           echo "02 - Validacao de velas"
           echo "03 - Graficos e indicadores"
           echo "04 - Tabuleiro e estatisticas"
-          echo "05 - Motor matematico"
-          echo "06 - Organizador de sinais"
-          echo "07 - Classificador Gemini"
-          echo "08 - Processador Final"
+          echo "05 a 08 - Motor integrado de sinais"
           echo "09 - Memoria Persistente"
           echo "===================================="
