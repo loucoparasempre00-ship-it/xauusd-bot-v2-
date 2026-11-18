@@ -44,14 +44,16 @@ CREATE TABLE IF NOT EXISTS h1 (
 
 -- Uma linha por horario; os quatro indicadores ficam em colunas proprias.
 CREATE TABLE IF NOT EXISTS indicadores (
+    timeframe TEXT NOT NULL CHECK (timeframe IN ('M5','M15','H1')),
     data TEXT NOT NULL,
     hora TEXT NOT NULL,
     preco REAL NOT NULL,
     ema9 REAL,
+    ema21 REAL,
     rsi REAL,
     macd REAL,
     atr REAL,
-    PRIMARY KEY (data, hora)
+    PRIMARY KEY (timeframe, data, hora)
 );
 
 -- Registro unificado do Tabuleiro: estado atual e distribuicoes por horizonte.
@@ -121,7 +123,7 @@ CREATE TABLE IF NOT EXISTS ranking (
 CREATE INDEX IF NOT EXISTS idx_m5_data_hora ON m5(data_hora);
 CREATE INDEX IF NOT EXISTS idx_m15_data_hora ON m15(data_hora);
 CREATE INDEX IF NOT EXISTS idx_h1_data_hora ON h1(data_hora);
-CREATE INDEX IF NOT EXISTS idx_indicadores_data_hora ON indicadores(data, hora);
+CREATE INDEX IF NOT EXISTS idx_indicadores_data_hora ON indicadores(timeframe, data, hora);
 CREATE INDEX IF NOT EXISTS idx_tabuleiro_data_hora ON tabuleiro(data_hora);
 CREATE INDEX IF NOT EXISTS idx_sinais_validados_data_hora ON sinais_validados(data_hora);
 CREATE INDEX IF NOT EXISTS idx_sinais_negados_data_hora ON sinais_negados(data_hora);
