@@ -33,6 +33,7 @@ import io
 import urllib.request
 import urllib.error
 import sqlite3
+import time
 
 from datetime import datetime, timezone
 
@@ -87,39 +88,59 @@ def garantir_coluna(con, tabela, nome, tipo):
         )
 
 
-def carregar_modelo():
+def carregar_modelos(con):
+    """Modelo escolhido seguido das reservas aprovadas pelo Testador."""
     if not os.path.isfile(ARQUIVO_MODELO):
         raise RuntimeError(
             "Arquivo data/modelo_gemini.json nao encontrado. "
             "Disponibilize o artefato do Testador Gemini."
         )
-
-    with open(
-        ARQUIVO_MODELO,
-        "r",
-        encoding="utf-8",
-    ) as arquivo:
+    with open(ARQUIVO_MODELO, "r", encoding="utf-8") as arquivo:
         dados = json.load(arquivo)
 
     status = str(dados.get("status", "")).lower()
+    if status not in ("pronto", "pronto_com_aviso_api"):
+        raise RuntimeError("Testador Gemini nao esta pronto. Status: " + status)
 
-    if status not in (
-        "pronto",
-        "pronto_com_aviso_api",
-    ):
-        raise RuntimeError(
-            "Testador Gemini nao esta pronto. Status: "
-            + status
-        )
+    escolhido = str(dados.get("modelo_escolhido") or "").strip()
+    if not escolhido:
+        raise RuntimeError("Modelo escolhido nao informado pelo Testador.")
 
-    modelo = dados.get("modelo_escolhido")
+    modelos = [escolhido]
+    tabelas = {
+        r["name"] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    if "SELECAO_MODELO_GEMINI" in tabelas:
+        colunas = nomes_colunas(con, "SELECAO_MODELO_GEMINI")
+        necessarias = {"atualizado_utc", "modelo", "sucessos", "posicao", "status_teste"}
+        if necessarias.issubset(colunas):
+            ultima = con.execute(
+                "SELECT MAX(atualizado_utc) FROM SELECAO_MODELO_GEMINI"
+            ).fetchone()[0]
+            if ultima:
+                reservas = con.execute("""
+                    SELECT modelo, sucessos, status_teste
+                    FROM SELECAO_MODELO_GEMINI
+                    WHERE atualizado_utc = ?
+                    ORDER BY posicao ASC
+                """, (ultima,)).fetchall()
+                for linha in reservas:
+                    nome = str(linha["modelo"] or "").strip()
+                    teste = str(linha["status_teste"] or "").lower()
+                    sucessos = int(linha["sucessos"] or 0)
+                    if nome.startswith("models/gemini-") and sucessos > 0 and teste in ("sucesso", "historico") and nome not in modelos:
+                        modelos.append(nome)
 
-    if not modelo:
-        raise RuntimeError(
-            "Modelo escolhido nao informado pelo Testador."
-        )
+    for item in dados.get("modelos_rankeados", []):
+        nome = str(item.get("modelo") or "").strip()
+        sucessos = int(item.get("sucessos") or 0)
+        if nome.startswith("models/gemini-") and sucessos > 0 and nome not in modelos:
+            modelos.append(nome)
 
-    return modelo
+    print("Modelos disponiveis em ordem:", modelos)
+    return modelos
 
 
 def criar_tabela(con):
@@ -378,87 +399,52 @@ def consultar_historico(con):
 
 def montar_prompt(sinal, historico):
     dados_sinal = dict(sinal)
-
     dados_sinal.pop("transferido_utc", None)
 
     return f"""
 Voce e o AUDITOR GEMINI de sinais XAUUSD.
 
-Sua tarefa e avaliar a qualidade do sinal recebido,
-utilizando os dados reais fornecidos.
-
-REGRAS DE PONTUACAO:
-
-1. MTF e medias: 25 pontos.
-2. Bordas e estrutura de preco: 25 pontos.
-3. RSI e MACD: 15 pontos.
-4. Probabilidade estatistica: 20 pontos.
-5. Ranking historico de operacoes: 15 pontos.
-
-Total: 100 pontos.
-
-REGRAS DE DECISAO:
-
-80 a 100 pontos: APPROVED.
-35 a 79 pontos: APPROVED_COM_REDUCED_SIZE.
-Abaixo de 35 pontos: REJECTED.
-
-IMPORTANTE:
-APPROVED_COM_REDUCED_SIZE deve ser registrado como
-APPROVED na classificacao principal, mas sua condicao
-de lote reduzido precisa aparecer no relatorio.
-
-REGRAS DE RISCO:
-
-- Avalie o stop pela estrutura disponivel.
-- Avalie TP1 com relacao risco/retorno de pelo menos 1:1.5.
-- Avalie TP2 quando houver dados suficientes para
-  relacao risco/retorno de pelo menos 1:2.
-- Se a relacao estrutural disponivel for inferior a 1:1.2,
-  considere veto.
-- Nao invente entrada, stop, alvo ou cotacao.
-- Nao altere os valores originais do sinal.
-- Se nao houver dados suficientes para calcular risco,
-  informe que o calculo nao pode ser confirmado.
-- Nunca invente probabilidade ou historico ausente.
-
-REGRAS HISTORICAS:
-
-- Utilize o ranking real fornecido abaixo.
-- Considere somente operacoes com resultado conhecido.
-- Operacoes pendentes nao representam vitoria nem derrota.
-- Compare aprovadas e reprovadas quando houver amostra.
-- Nao invente padroes vencedores ou perdedores.
-- O ranking historico ja possui peso proprio de 15 pontos.
-- Nao conte o mesmo resultado duas vezes.
-- Ajustes historicos adicionais devem ser justificados
-  por evidencias distintas, sem dupla contagem.
+Analise o sinal com independencia de raciocinio. Use os dados
+recebidos, interprete o contexto e forme sua propria conclusao.
+O motor matematico e uma fonte de informacao, nao uma ordem.
 
 LIBERDADE ANALITICA:
+- Nao siga lista fixa de padroes nem categorias obrigatorias.
+- Nao exija alinhamento perfeito entre M5, M15 e H1.
+- Divergencia entre tempos graficos nao gera penalidade automatica.
+- Nao use pesos fixos de indicadores nem soma obrigatoria.
+- Identifique estruturas, comportamentos e padroes novos,
+  desde que sustentados pelos dados recebidos.
+- Pode concordar ou discordar do motor matematico, explicando por que.
+- Avalie contexto, oportunidade, incerteza e risco de forma integrada.
+- Nao aprove ou rejeite apenas para atingir uma nota ou faixa.
+- A nota e um registro da avaliacao, nao uma formula que determina
+  automaticamente a classificacao.
 
-Voce pode identificar oportunidades e padroes que nao
-estejam explicitamente listados, desde que sejam sustentados
-pelos dados recebidos.
+REGRAS OBRIGATORIAS DE SEGURANCA, INTEGRIDADE E REGISTRO:
+- Use somente dados presentes no sinal e no historico.
+- Nunca invente cotacoes, indicadores, probabilidades ou resultados.
+- Nao altere entrada, stop_loss ou take_profit originais.
+- Nao execute ordens nem solicite execucao automatica.
+- Justifique claramente decisao, evidencias, incertezas e limitacoes.
+- Registre classificacao, nota, modelo e relatorio.
+- Considere somente resultados historicos conhecidos; pendentes
+  nao sao vitorias nem derrotas.
+- Compare aprovados e rejeitados quando houver amostra, sem
+  inventar padroes nem contar o mesmo resultado duas vezes.
 
-Nao exija alinhamento perfeito entre todos os tempos graficos.
-Analise o contexto em conjunto.
-
-FORMATO OBRIGATORIO:
+RISCO:
+Analise stop e alvos existentes quando houver dados. Considere
+risco/retorno como elemento importante, sem veto mecanico isolado.
+Se faltarem dados, declare isso. Nunca crie nem altere precos.
 
 Responda exclusivamente em JSON valido:
-
 {{
   "classificacao": "APPROVED ou REJECTED",
   "nota_auditoria": 0,
-  "justificativa": "Motivo objetivo",
+  "justificativa": "Motivo objetivo e contextualizado",
   "condicao_lote": "NORMAL, REDUZIDO ou VETADO",
-  "pontuacao": {{
-    "mtf_medias": 0,
-    "bordas": 0,
-    "rsi_macd": 0,
-    "probabilidade": 0,
-    "ranking_historico": 0
-  }},
+  "pontuacao": {{}},
   "risco": {{
     "entrada_original": null,
     "stop_original": null,
@@ -467,21 +453,12 @@ Responda exclusivamente em JSON valido:
     "rr_tp2": null,
     "dados_suficientes": false
   }},
-  "relatorio": "Relatorio completo da avaliacao"
+  "relatorio": "Analise completa, contexto, evidencias, riscos e incertezas"
 }}
 
-Os pontos devem respeitar os limites:
-MTF: 0 a 25.
-Bordas: 0 a 25.
-RSI/MACD: 0 a 15.
-Probabilidade: 0 a 20.
-Ranking: 0 a 15.
-
-A nota deve ser a soma dos cinco componentes.
-
-Se o historico estiver ausente ou sem operacoes encerradas,
-nao invente pontuacao historica. Informe a limitacao e
-atribua somente pontos sustentados pelos dados.
+A nota deve ser numerica, entre 0 e 100, coerente com sua
+avaliacao. Nao existe soma obrigatoria nem limite de nota que
+force a classificacao. A pontuacao pode usar criterios livres.
 
 DADOS DO SINAL:
 {json.dumps(dados_sinal, ensure_ascii=False, default=str)}
@@ -489,7 +466,6 @@ DADOS DO SINAL:
 HISTORICO REAL DE OPERACOES:
 {json.dumps(historico, ensure_ascii=False, default=str)}
 """
-
 
 def requisicao_gemini(modelo, sinal, historico):
     if not GEMINI_KEY:
@@ -504,7 +480,7 @@ def requisicao_gemini(modelo, sinal, historico):
             }]
         }],
         "generationConfig": {
-            "temperature": 0.1,
+            "temperature": 0.35,
             "responseMimeType": "application/json",
             "maxOutputTokens": 1800,
         },
@@ -595,41 +571,13 @@ def requisicao_gemini(modelo, sinal, historico):
         )
 
     pontuacao = resultado.get("pontuacao", {})
+    if pontuacao is None:
+        pontuacao = {}
+    if not isinstance(pontuacao, dict):
+        raise RuntimeError("Pontuacao de auditoria invalida.")
 
-    limites = {
-        "mtf_medias": 25,
-        "bordas": 25,
-        "rsi_macd": 15,
-        "probabilidade": 20,
-        "ranking_historico": 15,
-    }
-
-    soma = 0
-
-    for campo, limite in limites.items():
-        valor = numero(pontuacao.get(campo))
-
-        if valor is None or not 0 <= valor <= limite:
-            raise RuntimeError(
-                f"Pontuacao invalida em {campo}."
-            )
-
-        soma += valor
-
-    if abs(soma - nota) > 0.1:
-        raise RuntimeError(
-            "A nota final nao corresponde a soma dos componentes."
-        )
-
-    if nota < 35 and classificacao != "REJECTED":
-        raise RuntimeError(
-            "Nota abaixo de 35 exige REJECTED."
-        )
-
-    if nota >= 80 and classificacao != "APPROVED":
-        raise RuntimeError(
-            "Nota igual ou superior a 80 exige APPROVED."
-        )
+    # Pontuacao livre e explicativa: sem categorias, pesos,
+    # soma obrigatoria ou faixas que forcem a classificacao.
 
     risco = resultado.get("risco", {})
     relatorio = str(
@@ -814,7 +762,7 @@ def executar():
         con.row_factory = sqlite3.Row
 
         colunas_origem = criar_tabela(con)
-        modelo = carregar_modelo()
+        modelos = carregar_modelos(con)
 
         sinais = con.execute("""
             SELECT *
@@ -822,7 +770,7 @@ def executar():
             ORDER BY codigo ASC
         """).fetchall()
 
-        print("Modelo selecionado:", modelo)
+        print("Modelo principal:", modelos[0])
         print("Sinais aguardando Gemini:", len(sinais))
 
         transferidos = 0
@@ -834,48 +782,52 @@ def executar():
 
             try:
                 print("\nConsultando historico para:", codigo)
-
                 historico = consultar_historico(con)
+                resultado = None
+                modelo_usado = None
+                falhas = []
 
-                print("Analisando sinal:", codigo)
+                # Tres tentativas totais. Prioriza o modelo escolhido
+                # e avanca para os proximos aprovados no ranking.
+                sequencia = modelos[:3]
+                while len(sequencia) < 3:
+                    sequencia.append(modelos[len(sequencia) % len(modelos)])
 
-                resultado = requisicao_gemini(
-                    modelo,
-                    sinal,
-                    historico,
-                )
+                for tentativa, modelo_tentativa in enumerate(sequencia, start=1):
+                    try:
+                        print("Tentativa", tentativa, "de 3:", modelo_tentativa)
+                        resultado = requisicao_gemini(
+                            modelo_tentativa, sinal, historico
+                        )
+                        modelo_usado = modelo_tentativa
+                        break
+                    except Exception as erro_modelo:
+                        detalhe = str(erro_modelo)
+                        falhas.append(f"{modelo_tentativa}: {detalhe}")
+                        print("Falha:", detalhe)
+                        if tentativa < 3:
+                            print("Aguardando 4 segundos para a proxima tentativa...")
+                            time.sleep(4)
+
+                if resultado is None:
+                    raise RuntimeError(
+                        "As tres tentativas falharam. " + " | ".join(falhas)
+                    )
 
                 transferir_classificacao(
-                    con,
-                    sinal,
-                    resultado,
-                    modelo,
-                    colunas_origem,
+                    con, sinal, resultado, modelo_usado, colunas_origem
                 )
-
                 transferidos += 1
-
                 print(
-                    codigo,
-                    "=>",
-                    resultado["classificacao"],
-                    "| Nota:",
-                    resultado["nota_auditoria"],
-                    "| TRANSFERIDO",
+                    codigo, "=>", resultado["classificacao"],
+                    "| Nota:", resultado["nota_auditoria"],
+                    "| Modelo:", modelo_usado, "| TRANSFERIDO",
                 )
 
             except Exception as erro:
                 con.rollback()
-
-                erro_processamento = (
-                    f"{codigo}: {str(erro)}"
-                )
-
-                print(
-                    "SINAL PRESERVADO NA ORIGEM:",
-                    erro_processamento,
-                )
-
+                erro_processamento = f"{codigo}: {str(erro)}"
+                print("SINAL PRESERVADO NA ORIGEM:", erro_processamento)
                 break
 
         restantes = con.execute("""
