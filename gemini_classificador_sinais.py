@@ -182,6 +182,9 @@ def criar_tabela(con):
         '"nota_auditoria" REAL',
         '"relatorio_gemini" TEXT',
         '"csv_linha" TEXT',
+        '"entrada" REAL',
+        '"stop_loss" REAL',
+        '"take_profit" REAL',
     ]
 
     for coluna in origem:
@@ -217,6 +220,9 @@ def criar_tabela(con):
     garantir_coluna(
         con, DESTINO, "csv_linha", "TEXT"
     )
+    garantir_coluna(con, DESTINO, "entrada", "REAL")
+    garantir_coluna(con, DESTINO, "stop_loss", "REAL")
+    garantir_coluna(con, DESTINO, "take_profit", "REAL")
 
     destino = nomes_colunas(con, DESTINO)
 
@@ -424,7 +430,7 @@ LIBERDADE ANALITICA:
 REGRAS OBRIGATORIAS DE SEGURANCA, INTEGRIDADE E REGISTRO:
 - Use somente dados presentes no sinal e no historico.
 - Nunca invente cotacoes, indicadores, probabilidades ou resultados.
-- Nao altere entrada, stop_loss ou take_profit originais.
+- Proponha entrada, stop_loss e take_profit para o sinal, usando o fechamento M5 recebido como referencia de mercado. Esses tres precos sao sua responsabilidade analitica.
 - Nao execute ordens nem solicite execucao automatica.
 - Justifique claramente decisao, evidencias, incertezas e limitacoes.
 - Registre classificacao, nota, modelo e relatorio.
@@ -433,15 +439,16 @@ REGRAS OBRIGATORIAS DE SEGURANCA, INTEGRIDADE E REGISTRO:
 - Compare aprovados e rejeitados quando houver amostra, sem
   inventar padroes nem contar o mesmo resultado duas vezes.
 
-RISCO:
-Analise stop e alvos existentes quando houver dados. Considere
-risco/retorno como elemento importante, sem veto mecanico isolado.
-Se faltarem dados, declare isso. Nunca crie nem altere precos.
+PRECOS DO SETUP:
+Defina entrada, stop_loss e take_profit com base no contexto e nos dados recebidos. Nao use margem, ATR, RR ou outro parametro fixo obrigatorio. Nao invente cotacao atual: use preco_fechamento como referencia observada e explique se a entrada proposta for diferente. Os precos propostos devem formar um setup coerente com a direcao.
 
 Responda exclusivamente em JSON valido:
 {{
   "classificacao": "APPROVED ou REJECTED",
   "nota_auditoria": 0,
+  "entrada": null,
+  "stop_loss": null,
+  "take_profit": null,
   "justificativa": "Motivo objetivo e contextualizado",
   "condicao_lote": "NORMAL, REDUZIDO ou VETADO",
   "pontuacao": {{}},
@@ -579,6 +586,19 @@ def requisicao_gemini(modelo, sinal, historico):
     # Pontuacao livre e explicativa: sem categorias, pesos,
     # soma obrigatoria ou faixas que forcem a classificacao.
 
+    entrada = numero(resultado.get("entrada"))
+    stop_loss = numero(resultado.get("stop_loss"))
+    take_profit = numero(resultado.get("take_profit"))
+    direcao = str(sinal.get("direcao") or sinal.get("decisao") or "").upper().strip()
+    if any(v is None or v <= 0 for v in (entrada, stop_loss, take_profit)):
+        raise RuntimeError("Gemini nao forneceu entrada, stop_loss e take_profit validos.")
+    if direcao == "LONG" and not (stop_loss < entrada < take_profit):
+        raise RuntimeError("Precos invalidos para LONG: esperado stop_loss < entrada < take_profit.")
+    if direcao == "SHORT" and not (take_profit < entrada < stop_loss):
+        raise RuntimeError("Precos invalidos para SHORT: esperado take_profit < entrada < stop_loss.")
+    if direcao not in ("LONG", "SHORT"):
+        raise RuntimeError("Direcao do sinal nao permite montar precos: " + direcao)
+
     risco = resultado.get("risco", {})
     relatorio = str(
         resultado.get("relatorio", "")
@@ -593,6 +613,9 @@ def requisicao_gemini(modelo, sinal, historico):
         "classificacao": classificacao,
         "justificativa": justificativa[:3000],
         "nota_auditoria": nota,
+        "entrada": entrada,
+        "stop_loss": stop_loss,
+        "take_profit": take_profit,
         "relatorio": relatorio[:12000],
         "pontuacao": pontuacao,
         "risco": risco,
@@ -685,6 +708,9 @@ def transferir_classificacao(
             "nota_auditoria",
             "relatorio_gemini",
             "csv_linha",
+            "entrada",
+            "stop_loss",
+            "take_profit",
         ]
 
         data_classificacao = agora()
@@ -700,6 +726,9 @@ def transferir_classificacao(
             resultado["nota_auditoria"],
             resultado["relatorio"],
             gerar_csv_linha(sinal, resultado, modelo),
+            resultado["entrada"],
+            resultado["stop_loss"],
+            resultado["take_profit"],
         ]
 
         for coluna in colunas_origem:
@@ -709,6 +738,9 @@ def transferir_classificacao(
                 "codigo",
                 "origem_id",
                 "transferido_utc",
+                "entrada",
+                "stop_loss",
+                "take_profit",
             ):
                 continue
 
