@@ -278,7 +278,7 @@ def set_telegram_status(c,code,status,error=None,message_id=None):
     c.execute("UPDATE sinais_validados SET resposta_json=? WHERE codigo=?",(json.dumps(package,ensure_ascii=False,default=str),code));c.commit()
 def send_pending(c):
     count=0
-    rows=c.execute("SELECT codigo,data_hora,direcao,entrada,stop_loss,take_profit,pontuacao,justificativa,resposta_json FROM sinais_validados WHERE data_hora>=datetime('now','-10 days') ORDER BY data_hora").fetchall()
+    rows=c.execute("SELECT codigo,data_hora,direcao,entrada,stop_loss,take_profit,pontuacao,justificativa,resposta_json FROM sinais_validados WHERE julianday(data_hora)>=julianday('now','-10 days') ORDER BY data_hora").fetchall()
     for x in rows:
         try:package=json.loads(x["resposta_json"] or "{}")
         except Exception:continue
@@ -292,7 +292,7 @@ def send_pending(c):
     return count
 def retention(c):
     for table in ("sinais_validados","sinais_negados","ranking"):
-        c.execute(f"DELETE FROM {table} WHERE data_hora<datetime('now','-10 days')")
+        c.execute(f"DELETE FROM {table} WHERE julianday(data_hora)<julianday('now','-10 days')")
     c.commit()
 
 def executar():
