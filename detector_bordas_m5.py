@@ -299,7 +299,7 @@ def salvar_resultados(conexao, velas, eventos, estatisticas):
         registros.append((
             evento["timestamp"], TIMEFRAME, "ESTADO",
             json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            len(velas), 1, 0, DISTANCIA_MAXIMA_BORDA, VERSAO,
+            len(velas), 1, 0, None, VERSAO,
         ))
 
     if registros:
