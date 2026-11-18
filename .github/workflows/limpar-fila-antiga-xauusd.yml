@@ -1,0 +1,128 @@
+name: Limpar fila antiga XAUUSD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: limpeza-fila-sinais-xauusd
+  cancel-in-progress: false
+
+jobs:
+  limpar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Limpar somente SINAIS_RECEBIDOS
+        run: |
+          set -e
+          python - <<'PY'
+          import gzip
+          import os
+          import shutil
+          import sqlite3
+          import tempfile
+
+          caminho = "data/sinais.db.gz"
+          if not os.path.isfile(caminho):
+              raise SystemExit("Banco data/sinais.db.gz nao encontrado.")
+
+          with tempfile.TemporaryDirectory() as pasta:
+              banco = os.path.join(pasta, "sinais.db")
+
+              with gzip.open(caminho, "rb") as origem:
+                  with open(banco, "wb") as destino:
+                      shutil.copyfileobj(origem, destino)
+
+              con = sqlite3.connect(banco)
+              tabelas = {
+                  linha[0] for linha in con.execute(
+                      "SELECT name FROM sqlite_master WHERE type='table'"
+                  )
+              }
+
+              if "SINAIS_RECEBIDOS" not in tabelas:
+                  con.close()
+                  raise SystemExit("Tabela SINAIS_RECEBIDOS nao encontrada; nada foi apagado.")
+
+              antes = con.execute(
+                  'SELECT COUNT(*) FROM "SINAIS_RECEBIDOS"'
+              ).fetchone()[0]
+
+              outras_tabelas = {
+                  tabela: con.execute(
+                      f'SELECT COUNT(*) FROM "{tabela.replace(chr(34), chr(34)*2)}"'
+                  ).fetchone()[0]
+                  for tabela in tabelas
+                  if tabela != "SINAIS_RECEBIDOS"
+              }
+
+              con.execute('DELETE FROM "SINAIS_RECEBIDOS"')
+              con.commit()
+
+              depois = con.execute(
+                  'SELECT COUNT(*) FROM "SINAIS_RECEBIDOS"'
+              ).fetchone()[0]
+
+              if depois != 0:
+                  con.close()
+                  raise SystemExit("A fila nao ficou vazia.")
+
+              for tabela, esperado in outras_tabelas.items():
+                  atual = con.execute(
+                      f'SELECT COUNT(*) FROM "{tabela.replace(chr(34), chr(34)*2)}"'
+                  ).fetchone()[0]
+                  if atual != esperado:
+                      con.close()
+                      raise SystemExit(
+                          f"Contagem alterada indevidamente na tabela {tabela}."
+                      )
+
+              integridade = con.execute("PRAGMA integrity_check").fetchone()[0]
+              if integridade != "ok":
+                  con.close()
+                  raise SystemExit(f"Falha de integridade: {integridade}")
+
+              con.close()
+
+              temporario = caminho + ".tmp"
+              with open(banco, "rb") as origem:
+                  with open(temporario, "wb") as bruto:
+                      with gzip.GzipFile(fileobj=bruto, mode="wb", mtime=0) as destino:
+                          shutil.copyfileobj(origem, destino)
+
+              os.replace(temporario, caminho)
+
+              print("LIMPEZA CONCLUIDA")
+              print("Registros removidos de SINAIS_RECEBIDOS:", antes)
+              print("Registros restantes:", depois)
+              print("Demais tabelas preservadas:", len(outras_tabelas))
+              print("Integridade SQLite:", integridade)
+          PY
+
+      - name: Salvar somente o banco de sinais
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sinais.db.gz
+          if git diff --cached --quiet; then
+            echo "Nenhum registro pendente para remover."
+            exit 0
+          fi
+          git commit -m "Limpeza controlada da fila antiga de sinais"
+          git pull --rebase origin main
+          git push origin HEAD:main
