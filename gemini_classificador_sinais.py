@@ -621,9 +621,9 @@ def requisicao_gemini(modelo, sinal, historico):
             "A nota final nao corresponde a soma dos componentes."
         )
 
-    if nota < 65 and classificacao != "REJECTED":
+    if nota < 35 and classificacao != "REJECTED":
         raise RuntimeError(
-            "Nota abaixo de 65 exige REJECTED."
+            "Nota abaixo de 35 exige REJECTED."
         )
 
     if nota >= 80 and classificacao != "APPROVED":
