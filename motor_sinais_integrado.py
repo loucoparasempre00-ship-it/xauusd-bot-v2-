@@ -188,7 +188,7 @@ Exemplo de formato:
 {{
  "classificacao":"APPROVED ou REJECTED",
  "nota_auditoria":0,
- "entrada":4021.50,
+ "entrada":{signal["preco_fechamento"]},
  "stop_loss":4028.00,
  "take_profit":4011.75,
  "justificativa":"Motivo contextualizado",
