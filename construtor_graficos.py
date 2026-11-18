@@ -108,11 +108,11 @@ def carregar_candles(conexao, timeframe):
     """, (timeframe,)).fetchall()
 
 
-def construir_estrutura(candles):
+def construir_estrutura(candles, indice_inicial=0, preco_anterior=None):
     registros = []
-    preco_anterior = None
 
-    for indice, candle in enumerate(candles):
+    for posicao, candle in enumerate(candles):
+        indice = indice_inicial + posicao
         abertura = float(candle["abertura"])
         maxima = float(candle["maxima"])
         minima = float(candle["minima"])
@@ -162,14 +162,14 @@ def construir_estrutura(candles):
     return registros
 
 
-def salvar_estrutura(conexao, timeframe, registros):
+def salvar_estrutura(conexao, timeframe, registros, reconstruir=False):
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-    # Recalcula a sequência inteira para manter o eixo X coerente.
-    conexao.execute(
-        "DELETE FROM estrutura_grafica WHERE timeframe = ?",
-        (timeframe,),
-    )
+    if reconstruir:
+        conexao.execute(
+            "DELETE FROM estrutura_grafica WHERE timeframe = ?",
+            (timeframe,),
+        )
 
     conexao.executemany("""
         INSERT INTO estrutura_grafica (
@@ -212,6 +212,73 @@ def salvar_estrutura(conexao, timeframe, registros):
     ])
 
 
+def preparar_incremento(conexao, timeframe):
+    """
+    Retorna (candles_novos, proximo_eixo_x, preco_anterior, reconstruir).
+
+    Se houver lacunas dentro do histórico já estruturado ou mudança de
+    versão, reconstrói esse timeframe para preservar eixo X e variação.
+    """
+    ultima = conexao.execute("""
+        SELECT timestamp, eixo_x, eixo_y_fechamento, versao
+        FROM estrutura_grafica
+        WHERE timeframe = ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """, (timeframe,)).fetchone()
+
+    if ultima is None:
+        candles = carregar_candles(conexao, timeframe)
+        return candles, 0, None, True
+
+    timestamp_limite = ultima["timestamp"]
+
+    total_candles_anteriores = conexao.execute("""
+        SELECT COUNT(*) FROM candles
+        WHERE timeframe = ? AND timestamp <= ?
+    """, (timeframe, timestamp_limite)).fetchone()[0]
+
+    total_estruturas_anteriores = conexao.execute("""
+        SELECT COUNT(*) FROM estrutura_grafica
+        WHERE timeframe = ? AND timestamp <= ?
+    """, (timeframe, timestamp_limite)).fetchone()[0]
+
+    estrutura_orfa = conexao.execute("""
+        SELECT 1
+        FROM estrutura_grafica e
+        LEFT JOIN candles c
+          ON c.timeframe = e.timeframe
+         AND c.timestamp = e.timestamp
+        WHERE e.timeframe = ?
+          AND c.timestamp IS NULL
+        LIMIT 1
+    """, (timeframe,)).fetchone()
+
+    reconstruir = (
+        ultima["versao"] != VERSAO
+        or total_candles_anteriores != total_estruturas_anteriores
+        or estrutura_orfa is not None
+    )
+
+    if reconstruir:
+        candles = carregar_candles(conexao, timeframe)
+        return candles, 0, None, True
+
+    candles_novos = conexao.execute("""
+        SELECT timestamp, abertura, maxima, minima, fechamento
+        FROM candles
+        WHERE timeframe = ? AND timestamp > ?
+        ORDER BY timestamp ASC
+    """, (timeframe, timestamp_limite)).fetchall()
+
+    return (
+        candles_novos,
+        int(ultima["eixo_x"]) + 1,
+        float(ultima["eixo_y_fechamento"]),
+        False,
+    )
+
+
 def compactar_banco(caminho_db):
     temporario_gz = BANCO_GZ.with_name(BANCO_GZ.name + ".tmp")
 
@@ -246,17 +313,39 @@ def main():
 
         try:
             for timeframe in TIMEFRAMES:
-                candles = carregar_candles(conexao, timeframe)
+                candles, eixo_inicial, preco_anterior, reconstruir = (
+                    preparar_incremento(conexao, timeframe)
+                )
 
-                if not candles:
+                if not candles and reconstruir:
                     raise RuntimeError(
                         f"Não existem candles {timeframe} no banco."
                     )
 
-                registros = construir_estrutura(candles)
-                salvar_estrutura(conexao, timeframe, registros)
+                registros = construir_estrutura(
+                    candles,
+                    indice_inicial=eixo_inicial,
+                    preco_anterior=preco_anterior,
+                )
 
-                resumo[timeframe] = len(registros)
+                if reconstruir or registros:
+                    salvar_estrutura(
+                        conexao,
+                        timeframe,
+                        registros,
+                        reconstruir=reconstruir,
+                    )
+
+                total = conexao.execute("""
+                    SELECT COUNT(*) FROM estrutura_grafica
+                    WHERE timeframe = ?
+                """, (timeframe,)).fetchone()[0]
+
+                resumo[timeframe] = {
+                    "novas": len(registros),
+                    "total": total,
+                    "modo": "reconstruido" if reconstruir else "incremental",
+                }
 
             conexao.commit()
 
@@ -269,8 +358,11 @@ def main():
 
         compactar_banco(caminho_db)
 
-        for timeframe, total in resumo.items():
-            print(f"{timeframe}: {total} estruturas gráficas")
+        for timeframe, dados in resumo.items():
+            print(
+                f"{timeframe}: novas={dados['novas']} | "
+                f"total={dados['total']} | modo={dados['modo']}"
+            )
 
         print(f"Banco atualizado: {BANCO_GZ}")
 
