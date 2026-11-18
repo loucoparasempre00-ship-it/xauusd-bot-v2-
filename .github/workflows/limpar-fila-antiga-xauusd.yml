@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Limpar somente SINAIS_RECEBIDOS
+      - name: Limpar classificacoes e ranking antigos
         run: |
           set -e
           python - <<'PY'
@@ -37,6 +37,8 @@ jobs:
           import tempfile
 
           caminho = "data/sinais.db.gz"
+          alvos = ("RANKING_MELHORES", "CLASSIFICACAO_GEMINI")
+
           if not os.path.isfile(caminho):
               raise SystemExit("Banco data/sinais.db.gz nao encontrado.")
 
@@ -48,54 +50,101 @@ jobs:
                       shutil.copyfileobj(origem, destino)
 
               con = sqlite3.connect(banco)
+              con.execute("PRAGMA foreign_keys = ON")
+
               tabelas = {
                   linha[0] for linha in con.execute(
                       "SELECT name FROM sqlite_master WHERE type='table'"
                   )
               }
 
-              if "SINAIS_RECEBIDOS" not in tabelas:
+              faltando = set(alvos) - tabelas
+              if faltando:
                   con.close()
-                  raise SystemExit("Tabela SINAIS_RECEBIDOS nao encontrada; nada foi apagado.")
+                  raise SystemExit(
+                      "Tabelas obrigatorias ausentes; nada foi apagado: "
+                      + ", ".join(sorted(faltando))
+                  )
 
-              antes = con.execute(
-                  'SELECT COUNT(*) FROM "SINAIS_RECEBIDOS"'
-              ).fetchone()[0]
+              # Impede apagar dados que sejam referenciados por outras tabelas.
+              referencias_externas = []
+              for tabela in tabelas:
+                  nome_sql = '"' + tabela.replace('"', '""') + '"'
+                  for fk in con.execute(
+                      f"PRAGMA foreign_key_list({nome_sql})"
+                  ):
+                      tabela_referenciada = fk[2]
+                      if tabela_referenciada in alvos and tabela not in alvos:
+                          referencias_externas.append(
+                              f"{tabela} -> {tabela_referenciada}"
+                          )
 
-              outras_tabelas = {
+              if referencias_externas:
+                  con.close()
+                  raise SystemExit(
+                      "Limpeza interrompida: existem referencias externas: "
+                      + "; ".join(referencias_externas)
+                  )
+
+              antes = {
                   tabela: con.execute(
-                      f'SELECT COUNT(*) FROM "{tabela.replace(chr(34), chr(34)*2)}"'
+                      f'SELECT COUNT(*) FROM "{tabela}"'
                   ).fetchone()[0]
-                  for tabela in tabelas
-                  if tabela != "SINAIS_RECEBIDOS"
+                  for tabela in alvos
               }
 
-              con.execute('DELETE FROM "SINAIS_RECEBIDOS"')
-              con.commit()
+              preservadas = {
+                  tabela: con.execute(
+                      'SELECT COUNT(*) FROM "' + tabela.replace('"', '""') + '"'
+                  ).fetchone()[0]
+                  for tabela in tabelas
+                  if tabela not in alvos
+              }
 
-              depois = con.execute(
-                  'SELECT COUNT(*) FROM "SINAIS_RECEBIDOS"'
-              ).fetchone()[0]
+              con.execute("BEGIN IMMEDIATE")
+              con.execute('DELETE FROM "RANKING_MELHORES"')
+              con.execute('DELETE FROM "CLASSIFICACAO_GEMINI"')
 
-              if depois != 0:
+              restantes = {
+                  tabela: con.execute(
+                      f'SELECT COUNT(*) FROM "{tabela}"'
+                  ).fetchone()[0]
+                  for tabela in alvos
+              }
+
+              if any(restantes.values()):
+                  con.rollback()
                   con.close()
-                  raise SystemExit("A fila nao ficou vazia.")
+                  raise SystemExit(
+                      "As tabelas de classificacao/ranking nao ficaram vazias."
+                  )
 
-              for tabela, esperado in outras_tabelas.items():
+              for tabela, esperado in preservadas.items():
                   atual = con.execute(
-                      f'SELECT COUNT(*) FROM "{tabela.replace(chr(34), chr(34)*2)}"'
+                      'SELECT COUNT(*) FROM "' + tabela.replace('"', '""') + '"'
                   ).fetchone()[0]
                   if atual != esperado:
+                      con.rollback()
                       con.close()
                       raise SystemExit(
                           f"Contagem alterada indevidamente na tabela {tabela}."
                       )
 
+              violacoes = con.execute("PRAGMA foreign_key_check").fetchall()
+              if violacoes:
+                  con.rollback()
+                  con.close()
+                  raise SystemExit(
+                      f"Falha de integridade referencial: {len(violacoes)} violacao(oes)."
+                  )
+
               integridade = con.execute("PRAGMA integrity_check").fetchone()[0]
               if integridade != "ok":
+                  con.rollback()
                   con.close()
-                  raise SystemExit(f"Falha de integridade: {integridade}")
+                  raise SystemExit(f"Falha de integridade SQLite: {integridade}")
 
+              con.commit()
               con.close()
 
               temporario = caminho + ".tmp"
@@ -107,9 +156,11 @@ jobs:
               os.replace(temporario, caminho)
 
               print("LIMPEZA CONCLUIDA")
-              print("Registros removidos de SINAIS_RECEBIDOS:", antes)
-              print("Registros restantes:", depois)
-              print("Demais tabelas preservadas:", len(outras_tabelas))
+              for tabela in alvos:
+                  print(f"Registros removidos de {tabela}:", antes[tabela])
+                  print(f"Registros restantes em {tabela}:", restantes[tabela])
+              print("Demais tabelas preservadas:", len(preservadas))
+              print("Integridade referencial: ok")
               print("Integridade SQLite:", integridade)
           PY
 
@@ -123,6 +174,6 @@ jobs:
             echo "Nenhum registro pendente para remover."
             exit 0
           fi
-          git commit -m "Limpeza controlada da fila antiga de sinais"
+          git commit -m "Limpeza de classificacoes e ranking antigos"
           git pull --rebase origin main
           git push origin HEAD:main
