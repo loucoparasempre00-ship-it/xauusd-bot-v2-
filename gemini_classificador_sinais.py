@@ -440,16 +440,19 @@ REGRAS OBRIGATORIAS DE SEGURANCA, INTEGRIDADE E REGISTRO:
 - Compare aprovados e rejeitados quando houver amostra, sem
   inventar padroes nem contar o mesmo resultado duas vezes.
 
-PRECOS DO SETUP:
-Defina entrada, stop_loss e take_profit com base no contexto e nos dados recebidos. Nao use margem, ATR, RR ou outro parametro fixo obrigatorio. Nao invente cotacao atual: use preco_fechamento como referencia observada e explique se a entrada proposta for diferente. Os precos propostos devem formar um setup coerente com a direcao.
+PRECOS DO SETUP (CAMPOS OBRIGATORIOS):
+Voce DEVE calcular e preencher entrada, stop_loss e take_profit.
+Os tres campos devem conter numeros JSON positivos (ex.: 4021.50), nunca null, nunca texto e nunca ser omitidos, inclusive quando a classificacao for REJECTED.
+Use preco_fechamento como referencia observada. Nao invente cotacao atual.
+Escolha os precos de acordo com o contexto real recebido e com a direcao do sinal. Nao use margem, ATR, RR ou outro parametro fixo obrigatorio. Se os dados forem insuficientes para um setup confiavel, ainda assim informe uma proposta numerica conservadora coerente com os dados disponiveis e explique a incerteza no relatorio. Nao aprove o sinal apenas por ter preenchido os precos.
 
-Responda exclusivamente em JSON valido:
+Responda exclusivamente em JSON valido. Os exemplos numericos abaixo indicam o TIPO de dado esperado; substitua-os pelos precos calculados:
 {{
   "classificacao": "APPROVED ou REJECTED",
   "nota_auditoria": 0,
-  "entrada": null,
-  "stop_loss": null,
-  "take_profit": null,
+  "entrada": 4021.50,
+  "stop_loss": 4028.00,
+  "take_profit": 4011.75,
   "justificativa": "Motivo objetivo e contextualizado",
   "condicao_lote": "NORMAL, REDUZIDO ou VETADO",
   "pontuacao": {{}},
