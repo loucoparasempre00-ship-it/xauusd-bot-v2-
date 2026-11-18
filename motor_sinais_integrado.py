@@ -12,6 +12,9 @@ TABLES={"m5","m15","h1","indicadores","tabuleiro","sinais_validados","sinais_neg
 TF={"M5":5,"M15":15,"H1":60}
 WINDOW=48
 HORIZON=3
+PESO_TECNICO=0.75
+PESO_GEMINI=0.25
+LIMITE_APROVACAO=40.0
 GEMINI=os.getenv("GEMINI_API_KEY","").strip()
 TG_TOKEN=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
 TG_CHAT=os.getenv("TELEGRAM_CHAT_ID","").strip()
@@ -171,11 +174,15 @@ Avalie oportunidade, contexto, risco e incerteza de forma integrada.
 Use somente os dados recebidos; nao invente cotacoes ou resultados.
 Nao execute ordens.
 
-Retorne JSON valido com classificacao APPROVED ou REJECTED, nota_auditoria
-entre 0 e 100, justificativa, relatorio e precos positivos.
+A entrada operacional e fixa: use exatamente o ultimo fechamento M5
+informado em preco_fechamento. Nao escolha nem altere a entrada.
+Sua responsabilidade e calcular livremente stop_loss e take_profit.
+Nao existe limite fixo de distancia do stop. Nao imponha ATR, RR ou
+qualquer multiplicador fixo para stop ou alvo.
 LONG: stop_loss < entrada < take_profit.
 SHORT: take_profit < entrada < stop_loss.
-Use preco_fechamento M5 como referencia. Nao imponha ATR ou RR fixos.
+Retorne JSON valido com classificacao APPROVED ou REJECTED, nota_auditoria
+entre 0 e 100, justificativa, relatorio, stop_loss e take_profit.
 
 Exemplo de formato:
 {{
@@ -209,9 +216,9 @@ def call_gemini(model,signal,history):
     except Exception:raise RuntimeError("Resposta Gemini nao e JSON valido: "+text[:500])
     classification=str(r.get("classificacao","")).upper().strip()
     justification=str(r.get("justificativa","")).strip()
-    rating=n(r.get("nota_auditoria")); entry=n(r.get("entrada")); stop=n(r.get("stop_loss")); target=n(r.get("take_profit"))
+    rating=n(r.get("nota_auditoria")); entry=n(signal["preco_fechamento"]); stop=n(r.get("stop_loss")); target=n(r.get("take_profit"))
     if classification not in ("APPROVED","REJECTED") or not justification or rating is None or not 0<=rating<=100:raise RuntimeError("Classificacao, justificativa ou nota Gemini invalida.")
-    if any(x is None or x<=0 for x in (entry,stop,target)):raise RuntimeError("Gemini nao forneceu precos validos.")
+    if any(x is None or x<=0 for x in (entry,stop,target)):raise RuntimeError("Gemini nao forneceu fechamento M5, stop ou alvo validos.")
     if signal["direcao"]=="LONG" and not stop<entry<target:raise RuntimeError("Precos invalidos para LONG.")
     if signal["direcao"]=="SHORT" and not target<entry<stop:raise RuntimeError("Precos invalidos para SHORT.")
     report=str(r.get("relatorio","")).strip()
@@ -244,7 +251,7 @@ def candle_done(c,timestamp):
     return c.execute("SELECT 1 FROM ranking WHERE data_hora=? LIMIT 1",(timestamp,)).fetchone() is not None
 
 def persist(c,signal,result,model):
-    package={"pipeline_integrado":True,"gemini":result["raw"],"relatorio":result["relatorio"],"pontuacao":result["pontuacao"],"telegram":{"status":"PENDENTE"}}
+    package={"pipeline_integrado":True,"gemini":result["raw"],"classificacao_gemini":result.get("classificacao_gemini"),"nota_gemini":result.get("nota_gemini"),"score_tecnico":result.get("score_tecnico"),"score_combinado":result.get("score_combinado"),"relatorio":result["relatorio"],"pontuacao":result["pontuacao"],"telegram":{"status":"PENDENTE"}}
     response=json.dumps(package,ensure_ascii=False,default=str)
     c.execute("BEGIN IMMEDIATE")
     try:
@@ -252,7 +259,7 @@ def persist(c,signal,result,model):
             c.execute("INSERT INTO sinais_validados (codigo,data_hora,direcao,entrada,stop_loss,take_profit,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(signal["codigo"],signal["data_hora"],signal["direcao"],result["entrada"],result["stop"],result["alvo"],result["classificacao"],result["justificativa"],model,result["nota"],response))
         else:
             c.execute("INSERT INTO sinais_negados (codigo,data_hora,direcao,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?)",(signal["codigo"],signal["data_hora"],signal["direcao"],result["classificacao"],result["justificativa"],model,result["nota"],response))
-        c.execute("INSERT INTO ranking (codigo,data_hora,classificacao_gemini,direcao,entrada,stop_loss,take_profit,pontuacao,resultado_usdt,status_resultado,atualizado_em) VALUES (?,?,?,?,?,?,?,?,NULL,'PENDENTE',?)",(signal["codigo"],signal["data_hora"],result["classificacao"],signal["direcao"],result["entrada"],result["stop"],result["alvo"],result["nota"],stamp()))
+        c.execute("INSERT INTO ranking (codigo,data_hora,classificacao_gemini,direcao,entrada,stop_loss,take_profit,pontuacao,resultado_usdt,status_resultado,atualizado_em) VALUES (?,?,?,?,?,?,?,?,NULL,'PENDENTE',?)",(signal["codigo"],signal["data_hora"],result.get("classificacao_gemini",result["classificacao"]),signal["direcao"],result["entrada"],result["stop"],result["alvo"],result["nota"],stamp()))
         c.commit()
     except Exception:c.rollback();raise
 
@@ -298,22 +305,22 @@ def retention(c):
 def executar():
     c=db_open()
     try:
-        readings=load_readings(c); calibration=calibrate_validate(readings)
-        print(json.dumps({"etapa":"calibracao_validacao","aprovado":calibration["approved"],"gatilho_long":calibration["long"],"gatilho_short":-calibration["short"],"validacao":calibration["validation"]},ensure_ascii=False,indent=2))
-        if not calibration["approved"]:
-            print("Parametros reprovados. Nenhum sinal emitido.");retention(c);return
-        latest=readings[-1]; features={k:v for k,v in latest["features"].items() if k in set(calibration["features"])}
+        readings=load_readings(c)
+        latest=readings[-1]
+        features=latest["features"]
         if len(features)<3:raise RuntimeError("Indicadores validos insuficientes para decisao final.")
-        math_result=score(features); value=math_result["score_final"]
-        direction="LONG" if value>=calibration["long"] else "SHORT" if value<=-calibration["short"] else "LATERAL"
-        print(json.dumps({"etapa":"motor_matematico","data_hora":latest["timestamp"],"preco_fechamento":latest["price"],"direcao":direction,"score_final":value,"indicadores":math_result["indicadores"]},ensure_ascii=False,indent=2))
-        if direction=="LATERAL":
-            print("Sem direcao operacional.");send_pending(c);retention(c);return
+        math_result=score(features)
+        value=math_result["score_final"]
+        if abs(value)<1e-12:
+            print("Motor matematico sem direcao. Nenhum sinal emitido.");send_pending(c);retention(c);return
+        direction="LONG" if value>0 else "SHORT"
+        score_tecnico=min(100.0,abs(value)/max(1.0,len(features)*10.0)*100.0)
+        print(json.dumps({"etapa":"motor_matematico","data_hora":latest["timestamp"],"preco_fechamento":latest["price"],"direcao":direction,"score_final":value,"score_tecnico":round(score_tecnico,4),"indicadores":math_result["indicadores"]},ensure_ascii=False,indent=2))
         if candle_done(c,latest["timestamp"]):
             print("Candle ja processado; sem duplicar.");send_pending(c);retention(c);return
         if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
         models=get_models();code=next_code(c)
-        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"gatilho_long":calibration["long"],"gatilho_short":-calibration["short"],"janela_m5":WINDOW,"horizonte_calibracao":HORIZON,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"calibracao":{"treino":calibration["train"],"validacao":calibration["validation"]}}
+        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c)}
         history=real_history(c); attempts=models[:3]
         while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
         result=None;used=None;failures=[]
@@ -324,7 +331,14 @@ def executar():
                 failures.append(model+": "+str(error));print("Falha Gemini:",error)
                 if index<3:time.sleep(4)
         if result is None:raise RuntimeError("Tres tentativas Gemini falharam: "+" | ".join(failures))
-        persist(c,signal,result,used);print(f"{code}: {result['classificacao']} pelo {used}.")
+        result["classificacao_gemini"]=result["classificacao"]
+        result["nota_gemini"]=result["nota"]
+        result["score_tecnico"]=score_tecnico
+        result["score_combinado"]=round(score_tecnico*PESO_TECNICO+result["nota_gemini"]*PESO_GEMINI,4)
+        result["nota"]=result["score_combinado"]
+        result["classificacao"]="APPROVED" if result["score_combinado"]>=LIMITE_APROVACAO else "REJECTED"
+        print(json.dumps({"etapa":"decisao_combinada","score_tecnico":score_tecnico,"nota_gemini":result["nota_gemini"],"pesos":{"tecnico":PESO_TECNICO,"gemini":PESO_GEMINI},"score_combinado":result["score_combinado"],"limite":LIMITE_APROVACAO,"classificacao_gemini":result["classificacao_gemini"],"classificacao_final":result["classificacao"]},ensure_ascii=False))
+        persist(c,signal,result,used);print(f"{code}: {result['classificacao']} pelo score combinado.")
         send_pending(c);retention(c)
         check=c.execute("PRAGMA integrity_check").fetchone()[0]
         if check!="ok":raise RuntimeError("Falha de integridade SQLite: "+str(check))
