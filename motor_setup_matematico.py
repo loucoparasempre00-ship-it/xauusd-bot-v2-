@@ -63,6 +63,11 @@ def garantir_colunas_indicadores(con):
         )
     }
 
+    if "preco_fechamento" not in existentes:
+        con.execute(
+            "ALTER TABLE setup_decisoes ADD COLUMN preco_fechamento REAL"
+        )
+
     novas = []
 
     for indicador in INDICADORES:
