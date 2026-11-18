@@ -17,7 +17,7 @@ RANKING_MELHORES
 - Consulta o historico real das operacoes.
 - Nao utiliza JSON antigo de ranking.
 - Nao confunde ranking de modelos com ranking de operacoes.
-- Nao inventa entrada, stop ou alvo.
+- Gemini propoe entrada, stop e alvo com base no fechamento M5 e no contexto.
 - Preserva todos os campos originais do sinal.
 - Registra nota, justificativa, relatorio e CSV.
 - Remove da origem somente apos confirmar a gravacao.
