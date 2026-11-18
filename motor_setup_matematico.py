@@ -100,11 +100,11 @@ def obter_ultima_leitura_fechada():
 
     ultima = fechadas[-1]
 
-    return ultima["timestamp"], ultima["features"]
+    return ultima["timestamp"], ultima["features"], ultima["preco"]
 
 
 def decidir():
-    timestamp, features = obter_ultima_leitura_fechada()
+    timestamp, features, preco_fechamento = obter_ultima_leitura_fechada()
 
     temporario, db_path, con = abrir_sqlite_gz(SINAIS)
 
@@ -182,6 +182,7 @@ def decidir():
 
         indicadores_json = {
             "janela_m5": JANELA,
+            "preco_fechamento": preco_fechamento,
             "nota_long": nota_long,
             "nota_short": nota_short,
             "score_final": score_final,
@@ -199,6 +200,7 @@ def decidir():
         colunas = [
             "criado_utc",
             "timestamp_candle",
+            "preco_fechamento",
             "decisao",
             "pontuacao",
             "limite",
@@ -213,6 +215,7 @@ def decidir():
         valores = [
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             timestamp,
+            preco_fechamento,
             decisao,
             score_final,
             gatilho_long if decisao != "SHORT" else -gatilho_short,
@@ -271,6 +274,7 @@ def decidir():
         saida = {
             "status": "EVENTO_REGISTRADO",
             "timestamp_candle": timestamp,
+            "preco_fechamento": preco_fechamento,
             "decisao": decisao,
             "nota_long": nota_long,
             "nota_short": nota_short,
