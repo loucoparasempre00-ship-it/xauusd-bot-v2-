@@ -25,10 +25,17 @@ O canal do Gestor não encaminha mensagens para a Central, não dispara `reposit
 - `mercado.js`: organiza contexto de mercado recebido.
 - `telegram.js`: webhook e envio de mensagens do canal Telegram do Gestor.
 - `conversador.js`: coordena memória, contexto e resposta do Gemini Gestor por dependências próprias.
-- `gemini_gestor.js`: inteligência e instruções próprias do Gestor (etapa de integração).
+- `gemini_gestor.js`: inteligência própria do Gestor, com prompt independente, histórico contextual e fallback de modelos.
 - `memoria.js`: memória conversacional independente.
 - `acompanhamento.js`: avaliação consultiva de operações abertas.
 
+## Gemini Gestor
+
+- Usa `GESTOR_GEMINI_API_KEY` (ou `GEMINI_API_KEY` como compatibilidade técnica).
+- Modelo principal: `GESTOR_GEMINI_MODEL`; na ausência, `GEMINI_MODEL` e depois `gemini-3.1-flash-lite`.
+- Reservas opcionais: `GESTOR_GEMINI_MODELS_JSON`, contendo uma lista JSON de nomes de modelos.
+- A seleção automática publicada pelo Testador da Central ainda não é consumida diretamente pelo Worker: o artefato `selecao-modelo-gemini` é temporário e o banco oficial não é acessível diretamente pelo Worker. A ligação desse resultado ao Gestor será feita por uma integração explícita, sem duplicar o Testador.
+
 ## Estado
 
-Os módulos de validação, organização de mercado, webhook/envio Telegram e orquestração conversacional estão incorporados. A ligação ao ponto de entrada do Worker, ao Gemini Gestor, à memória persistente e aos dados oficiais ainda não foi ativada nem testada. Nenhum Worker, secret, webhook publicado, workflow da Central ou banco oficial foi alterado nesta etapa.
+Os módulos de validação, organização de mercado, webhook/envio Telegram e orquestração conversacional estão incorporados. A ligação ao ponto de entrada do Worker, à memória persistente e aos dados oficiais ainda não foi ativada nem testada. O módulo Gemini Gestor e sua chamada pelo conversador estão incorporados, mas ainda não foram testados em execução. Nenhum Worker, secret, webhook publicado, workflow da Central ou banco oficial foi alterado nesta etapa.
