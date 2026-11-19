@@ -1,6 +1,6 @@
 -- ESQUEMA OFICIAL XAUUSD
 -- SQLite / Cloudflare D1
--- Exatamente 8 tabelas. Nenhum dado ou modulo e migrado por este arquivo.
+-- Exatamente 10 tabelas oficiais. Nenhum dado e migrado por este arquivo.
 -- Retencao: os modulos deverao executar a limpeza dos registros com mais de 10 dias
 -- somente depois de confirmar a gravacao/validacao dos novos dados.
 
@@ -119,6 +119,56 @@ CREATE TABLE IF NOT EXISTS ranking (
     status_resultado TEXT NOT NULL DEFAULT 'PENDENTE',
     atualizado_em TEXT NOT NULL
 );
+
+
+-- Estatisticas consolidadas das regioes de preco M5.
+CREATE TABLE IF NOT EXISTS estatisticas_regioes (
+    timeframe TEXT NOT NULL CHECK (timeframe = 'M5'),
+    regiao INTEGER NOT NULL,
+    limite_inferior REAL NOT NULL,
+    limite_superior REAL NOT NULL,
+    visitas INTEGER NOT NULL DEFAULT 0,
+    toques INTEGER NOT NULL DEFAULT 0,
+    rejeicoes INTEGER NOT NULL DEFAULT 0,
+    rompimentos INTEGER NOT NULL DEFAULT 0,
+    prob_toque REAL NOT NULL DEFAULT 0,
+    prob_rejeicao REAL NOT NULL DEFAULT 0,
+    prob_rompimento REAL NOT NULL DEFAULT 0,
+    wilson_rejeicao_inferior REAL NOT NULL DEFAULT 0,
+    amostras INTEGER NOT NULL DEFAULT 0,
+    amostra_suficiente INTEGER NOT NULL DEFAULT 0,
+    rejeicoes_superiores INTEGER NOT NULL DEFAULT 0,
+    rejeicoes_inferiores INTEGER NOT NULL DEFAULT 0,
+    rompimentos_alta INTEGER NOT NULL DEFAULT 0,
+    rompimentos_baixa INTEGER NOT NULL DEFAULT 0,
+    toques_superiores INTEGER NOT NULL DEFAULT 0,
+    toques_inferiores INTEGER NOT NULL DEFAULT 0,
+    classificacao TEXT NOT NULL,
+    total_eventos INTEGER NOT NULL DEFAULT 0,
+    data_hora_referencia TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL,
+    PRIMARY KEY (timeframe, regiao)
+);
+
+-- Estatisticas consolidadas das transicoes entre regioes M5.
+CREATE TABLE IF NOT EXISTS estatisticas_transicoes (
+    timeframe TEXT NOT NULL CHECK (timeframe = 'M5'),
+    origem INTEGER NOT NULL,
+    destino INTEGER NOT NULL,
+    transicoes INTEGER NOT NULL,
+    saidas_origem INTEGER NOT NULL,
+    probabilidade REAL NOT NULL,
+    visitas_origem INTEGER NOT NULL,
+    amostra_suficiente INTEGER NOT NULL,
+    data_hora_referencia TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL,
+    PRIMARY KEY (timeframe, origem, destino)
+);
+
+CREATE INDEX IF NOT EXISTS idx_estatisticas_regioes_atualizado
+    ON estatisticas_regioes(timeframe, atualizado_em);
+CREATE INDEX IF NOT EXISTS idx_estatisticas_transicoes_atualizado
+    ON estatisticas_transicoes(timeframe, atualizado_em);
 
 CREATE INDEX IF NOT EXISTS idx_m5_data_hora ON m5(data_hora);
 CREATE INDEX IF NOT EXISTS idx_m15_data_hora ON m15(data_hora);
