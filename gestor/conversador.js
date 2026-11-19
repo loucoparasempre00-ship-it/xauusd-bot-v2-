@@ -8,6 +8,7 @@
 
 import { responderMensagemGestor, enviarMensagemGestor } from "./telegram.js";
 import { consultarGeminiGestor as consultarGeminiGestorPadrao } from "./gemini_gestor.js";
+import { recuperarMemoriaGestor as recuperarMemoriaPadrao, salvarMemoriaGestor as salvarMemoriaPadrao } from "./memoria.js";
 
 function resposta(dados, status = 200) {
   return new Response(JSON.stringify(dados), {
@@ -41,9 +42,13 @@ export async function processarEventoGestor(evento, env, dependencias = {}) {
       : consultarGeminiGestorPadrao;
 
     etapa = "recuperar memória do Gestor";
-    const memoria = typeof recuperarMemoriaGestor === "function"
-      ? await recuperarMemoriaGestor(chatId, env)
-      : { contexto: {}, historico: [] };
+    const recuperarMemoria = typeof recuperarMemoriaGestor === "function"
+      ? recuperarMemoriaGestor
+      : recuperarMemoriaPadrao;
+    const salvarMemoria = typeof salvarMemoriaGestor === "function"
+      ? salvarMemoriaGestor
+      : salvarMemoriaPadrao;
+    const memoria = await recuperarMemoria(chatId, env);
 
     etapa = "obter contexto do Gestor";
     const contextoMercado = typeof obterContextoGestor === "function"
@@ -78,9 +83,9 @@ export async function processarEventoGestor(evento, env, dependencias = {}) {
     etapa = "responder no Telegram do Gestor";
     await responderMensagemGestor(evento, resultado.texto, env);
 
-    if (typeof salvarMemoriaGestor === "function") {
+    {
       etapa = "salvar memória do Gestor";
-      await salvarMemoriaGestor(chatId, {
+      await salvarMemoria(chatId, {
         usuario: evento.texto.trim(),
         assistente: resultado.texto,
         modelo: resultado.modelo_utilizado || resultado.modelo || null
@@ -91,7 +96,7 @@ export async function processarEventoGestor(evento, env, dependencias = {}) {
       sucesso: true,
       canal: "telegram_gestor",
       modelo: resultado.modelo_utilizado || resultado.modelo || null,
-      memoria_salva: typeof salvarMemoriaGestor === "function"
+      memoria_salva: true
     });
   } catch (erro) {
     console.error("Falha no conversador do Gestor:", etapa, erro?.message || erro);
