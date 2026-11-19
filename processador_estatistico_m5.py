@@ -148,6 +148,8 @@ def carregar_eventos_bordas(conexao):
     for row in linhas:
         try:
             payload = json.loads(row["sequencia_json"])
+            if not isinstance(payload, dict):
+                continue
             if payload.get("origem") != ORIGEM_DETECTOR:
                 continue
             if payload.get("tipo") != "EVENTO_BORDA":
