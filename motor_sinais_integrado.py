@@ -456,7 +456,7 @@ def send_pending(c):
         except Exception:continue
         if not package.get("pipeline_integrado") or (package.get("telegram") or {}).get("status")=="ENVIADO":continue
         signal={"data_hora":x["data_hora"],"direcao":x["direcao"]}
-        result={"entrada":x["entrada"],"stop":x["stop_loss"],"alvo":x["take_profit"],"nota":x["pontuacao"],"justificativa":x["justificativa"]}
+        result={"direcao":x["direcao"],"entrada":x["entrada"],"stop":x["stop_loss"],"alvo":x["take_profit"],"nota":x["pontuacao"],"justificativa":x["justificativa"]}
         try:
             mid=telegram_send(signal,result,x["codigo"]);set_telegram_status(c,x["codigo"],"ENVIADO",message_id=mid);count+=1
         except Exception as error:
