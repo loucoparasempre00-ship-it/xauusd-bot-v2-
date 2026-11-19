@@ -7,6 +7,7 @@
  */
 
 import { responderMensagemGestor, enviarMensagemGestor } from "./telegram.js";
+import { consultarGeminiGestor as consultarGeminiGestorPadrao } from "./gemini_gestor.js";
 
 function resposta(dados, status = 200) {
   return new Response(JSON.stringify(dados), {
@@ -35,9 +36,9 @@ export async function processarEventoGestor(evento, env, dependencias = {}) {
       obterContextoGestor
     } = dependencias;
 
-    if (typeof consultarGeminiGestor !== "function") {
-      return resposta({ erro: "Inteligência Gemini Gestor ainda não conectada" }, 503);
-    }
+    const consultarInteligencia = typeof consultarGeminiGestor === "function"
+      ? consultarGeminiGestor
+      : consultarGeminiGestorPadrao;
 
     etapa = "recuperar memória do Gestor";
     const memoria = typeof recuperarMemoriaGestor === "function"
@@ -64,7 +65,7 @@ export async function processarEventoGestor(evento, env, dependencias = {}) {
     };
 
     etapa = "consultar Gemini Gestor";
-    const resultado = await consultarGeminiGestor({
+    const resultado = await consultarInteligencia({
       mensagem: evento.texto.trim(),
       contexto,
       historico: Array.isArray(memoria?.historico) ? memoria.historico : []
