@@ -24,33 +24,46 @@ jobs:
           persist-credentials: false
 
       - name: Consultar banco oficial em modo somente leitura
+        id: consulta
         env:
-          GESTOR_REQUEST_ID: ${{ github.event.client_payload.request_id }}
-        run: python gestor/consulta_central.py
-
-      - name: Devolver contexto ao Worker
-        env:
-          GESTOR_CALLBACK_URL: ${{ secrets.GESTOR_CALLBACK_URL }}
-          GESTOR_CALLBACK_SECRET: ${{ secrets.GESTOR_CALLBACK_SECRET }}
           GESTOR_REQUEST_ID: ${{ github.event.client_payload.request_id }}
         run: |
           set -euo pipefail
-          test -n "$GESTOR_CALLBACK_URL"
+          test -n "$GESTOR_REQUEST_ID"
+          python gestor/consulta_central.py
+
+      - name: Devolver resultado autenticado ao Worker
+        if: always()
+        env:
+          GESTOR_CALLBACK_SECRET: ${{ secrets.GESTOR_CALLBACK_SECRET }}
+          GESTOR_REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          CONSULTA_SUCESSO: ${{ steps.consulta.outcome == 'success' }}
+        run: |
+          set -euo pipefail
           test -n "$GESTOR_CALLBACK_SECRET"
-          test -s gestor_contexto.json
+          test -n "$GESTOR_REQUEST_ID"
           python - <<'PY'
           import json, os, urllib.request
-          with open("gestor_contexto.json", encoding="utf-8") as f:
-              contexto = json.load(f)
-          payload = json.dumps({"request_id": os.environ["GESTOR_REQUEST_ID"],
-                                "sucesso": True, "contexto": contexto}).encode()
+          sucesso = os.environ.get("CONSULTA_SUCESSO") == "true"
+          contexto = None
+          if sucesso:
+              with open("gestor_contexto.json", encoding="utf-8") as f:
+                  contexto = json.load(f)
+          payload = json.dumps({
+              "request_id": os.environ["GESTOR_REQUEST_ID"],
+              "sucesso": sucesso,
+              "contexto": contexto
+          }).encode()
           req = urllib.request.Request(
-              os.environ["GESTOR_CALLBACK_URL"], data=payload,
-              headers={"Content-Type":"application/json",
-                       "X-Gestor-Callback-Secret":os.environ["GESTOR_CALLBACK_SECRET"]},
+              "https://gestor-xauusd.loucoparasempre00.workers.dev/gestor/resultado",
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "X-Gestor-Callback-Secret": os.environ["GESTOR_CALLBACK_SECRET"]
+              },
               method="POST")
           with urllib.request.urlopen(req, timeout=30) as response:
               if not 200 <= response.status < 300:
                   raise RuntimeError("Callback recusado: HTTP " + str(response.status))
-          print("Contexto entregue ao Worker.")
+          print("Retorno enviado ao Worker; consulta_sucesso =", sucesso)
           PY
