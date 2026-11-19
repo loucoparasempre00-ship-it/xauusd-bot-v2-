@@ -224,7 +224,7 @@ Exemplo de formato:
 SINAL:
 {json.dumps(signal,ensure_ascii=False,default=str)}
 
-HISTORICO:
+As estatisticas_regioes e estatisticas_transicoes representam historico consolidado de visitas,\ntoques, rejeicoes, rompimentos e deslocamentos entre faixas de preco.\nConsidere esses dados como contexto probabilistico, sem trata-los como garantia.\n\nHISTORICO:
 {json.dumps(history,ensure_ascii=False,default=str)}
 """
 def call_gemini(model,signal,history):
@@ -344,7 +344,7 @@ def executar():
         if candle_done(c,latest["timestamp"]):
             print("Candle ja processado; sem duplicar.");send_pending(c);retention(c);return
         if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
-        models=get_models();code=next_code(c)
+        models=get_models();code=next_code(c);stats=statistical_context(c)
         signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"estatisticas_regioes":stats["regioes"],"estatisticas_transicoes":stats["transicoes"]}
         history=real_history(c); attempts=models[:3]
         while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
