@@ -39,7 +39,7 @@ def db_open():
     if not DB.is_file(): raise FileNotFoundError("Banco oficial data/xauusd.db ausente.")
     c=sqlite3.connect(DB); c.row_factory=sqlite3.Row
     names={r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-    if names!=TABLES: raise RuntimeError("Banco fora do esquema: sao exigidas exatamente as oito tabelas oficiais. Encontradas: "+str(sorted(names)))
+    if names!=TABLES: raise RuntimeError("Banco fora do esquema: sao exigidas exatamente as dez tabelas oficiais. Encontradas: "+str(sorted(names)))
     return c
 
 def load_readings(c):
@@ -345,7 +345,7 @@ def executar():
             print("Candle ja processado; sem duplicar.");send_pending(c);retention(c);return
         if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
         models=get_models();code=next_code(c)
-        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"estatisticas_regioes":statistical_context(c)["regioes"],"estatisticas_transicoes":statistical_context(c)["transicoes"]}
+        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"estatisticas_regioes":stats["regioes"],"estatisticas_transicoes":stats["transicoes"]}
         history=real_history(c); attempts=models[:3]
         while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
         result=None;used=None;failures=[]
