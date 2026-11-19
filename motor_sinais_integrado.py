@@ -231,11 +231,13 @@ encerradas e sem transformar coincidencias em regras absolutas.
 
 DECISAO
 O limite minimo de aprovacao e {signal["limite_aprovacao"]} por cento.
-Aplique esse limite como condicao obrigatoria: uma direcao aprovada precisa
-ter media igual ou superior ao limite. Mesmo acima do limite, voce pode
-rejeitar se o contexto, os riscos ou o historico nao sustentarem a entrada.
-Escolha LONG, SHORT ou NONE. Se ambas forem fracas, conflitantes ou
-insuficientes, rejeite. Nao force operacao.
+A decisao e determinada pela media 50/50, sem veto discricionario:
+- Se somente LONG atingir o limite, aprove LONG.
+- Se somente SHORT atingir o limite, aprove SHORT.
+- Se ambas atingirem, aprove a direcao com a maior media.
+- Se nenhuma atingir, rejeite com NONE.
+Riscos e historico devem explicar a qualidade e as ressalvas, mas nunca
+vetar uma direcao cuja media atingiu o limite. Nao altere as medias.
 
 DOIS CENARIOS
 Apresente um setup LONG e um setup SHORT. Para ambos, a entrada deve ser
@@ -261,11 +263,11 @@ Retorne somente JSON valido, sem markdown, com esta estrutura:
  "analise_historica":"",
  "relatorio_mercado":""
 }}
-Se status for APPROVED, direcao deve ser LONG ou SHORT e a media dessa
-direcao deve respeitar o limite. Se REJECTED, direcao deve ser NONE.
-Os dois cenarios devem conter precos numericos validos. Se os dados forem
-insuficientes para construir um cenario confiavel, nao invente: use valores
-nulos e rejeite quando isso impedir uma decisao segura.
+Informe status e direcao conforme a regra deterministica da media.
+A decisao final sera validada e definida pelo codigo Python, nao por um veto
+do Gemini. Os dois cenarios devem conter precos numericos validos. Se os
+dados forem insuficientes para construir um cenario, nao invente: use
+valores nulos; o codigo impedira a aprovacao se os precos forem invalidos.
 
 SINAL E MOTOR:
 {json.dumps(signal,ensure_ascii=False,default=str)}
@@ -291,16 +293,12 @@ def call_gemini(model,signal,history,market):
     if text.startswith("```"):text=text.replace("```json","",1).replace("```","").strip()
     try:r=json.loads(text)
     except Exception:raise RuntimeError("Resposta Gemini nao e JSON valido: "+text[:700])
-    status=str(r.get("status","")).upper().strip()
-    direction=str(r.get("direcao","")).upper().strip()
     own=r.get("avaliacao_gemini") or {}; averages=r.get("medias") or {}; scenarios=r.get("cenarios") or {}
     math_long=n(signal["motor_matematico"]["long_percentual"])
     math_short=n(signal["motor_matematico"]["short_percentual"])
     gem_long=n(own.get("long_percentual")); gem_short=n(own.get("short_percentual"))
     avg_long=n(averages.get("long")); avg_short=n(averages.get("short"))
-    values=(gem_long,gem_short,avg_long,avg_short)
-    if status not in ("APPROVED","REJECTED") or direction not in ("LONG","SHORT","NONE"):
-        raise RuntimeError("Status ou direcao Gemini invalidos.")
+    values=(math_long,math_short,gem_long,gem_short,avg_long,avg_short)
     if any(x is None or not 0<=x<=100 for x in values):
         raise RuntimeError("Percentuais Gemini ou medias ausentes/invalidos.")
     expected_long=(math_long+gem_long)/2
@@ -328,14 +326,19 @@ def call_gemini(model,signal,history,market):
     report=str(r.get("relatorio_mercado","")).strip()
     if not justification or not historical or not report:
         raise RuntimeError("Gemini nao forneceu justificativa, analise historica e relatorio.")
+    limit=float(signal["limite_aprovacao"])
+    long_ok=avg_long>=limit
+    short_ok=avg_short>=limit
+    if long_ok and (not short_ok or avg_long>avg_short):
+        status="APPROVED"; direction="LONG"
+    elif short_ok and (not long_ok or avg_short>avg_long):
+        status="APPROVED"; direction="SHORT"
+    else:
+        # Sem direcao acima do limite ou empate exato: nao forcar sinal.
+        status="REJECTED"; direction="NONE"
     if status=="APPROVED":
-        if direction not in ("LONG","SHORT"):raise RuntimeError("Sinal aprovado sem direcao.")
-        chosen_avg=avg_long if direction=="LONG" else avg_short
-        if chosen_avg < float(signal["limite_aprovacao"]):
-            raise RuntimeError("Gemini aprovou direcao abaixo do limite minimo.")
         selected=parsed[direction.lower()]
     else:
-        if direction!="NONE":raise RuntimeError("Sinal rejeitado deve retornar direcao NONE.")
         selected={"entrada":None,"stop":None,"alvo":None}
     raw_result={"resposta_gemini":r,"modelo":model}
     return {"classificacao":status,"direcao":direction,"nota":avg_long if direction=="LONG" else avg_short if direction=="SHORT" else max(avg_long,avg_short),
