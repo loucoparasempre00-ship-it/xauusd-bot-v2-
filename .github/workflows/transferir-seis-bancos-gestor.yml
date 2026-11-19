@@ -2,10 +2,6 @@ name: Transferir 6 Bancos para Gestor XAUUSD
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types:
-      - telegram_mensagem_gemini
-
 permissions:
   contents: write
 
