@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   central:
-    name: Central - 8 modulos em sequencia
+    name: Central - banco unico e motor integrado
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -42,87 +42,29 @@ jobs:
           python coletor_validador_velas.py
 
       # ==================================================
-      # MODULO 02 - VALIDACAO DAS VELAS
+      # MODULO 02 - INDICADORES TECNICOS
       # ==================================================
 
-      - name: "02 - Validar banco de velas"
-        run: |
-          set -e
-
-          python - <<'PY'
-          import gzip
-          import sqlite3
-          import tempfile
-          import os
-
-          banco = "data/graficos.db.gz"
-
-          if not os.path.isfile(banco):
-              raise SystemExit("Banco de graficos ausente.")
-
-          with tempfile.NamedTemporaryFile(suffix=".db") as arquivo:
-              with gzip.open(banco, "rb") as origem:
-                  arquivo.write(origem.read())
-                  arquivo.flush()
-
-              con = sqlite3.connect(arquivo.name)
-
-              tabelas = {
-                  r[0] for r in con.execute(
-                      "SELECT name FROM sqlite_master WHERE type='table'"
-                  )
-              }
-
-              if "candles" not in tabelas:
-                  raise SystemExit("Tabela candles ausente.")
-
-              for tf in ("M5", "M15", "H1"):
-                  total = con.execute(
-                      "SELECT COUNT(*) FROM candles WHERE timeframe=?",
-                      (tf,)
-                  ).fetchone()[0]
-
-                  print(f"{tf}: {total} velas")
-
-                  if total == 0:
-                      raise SystemExit(
-                          f"Sem velas validadas em {tf}."
-                      )
-
-              con.close()
-
-          print("Validacao das velas concluida.")
-          PY
-
-      # ==================================================
-      # MODULO 03 - GRAFICOS E INDICADORES
-      # ==================================================
-
-      - name: "03 - Construir graficos"
-        run: |
-          set -e
-          python construtor_graficos.py
-
-      - name: "03 - Calcular indicadores tecnicos"
+      - name: "02 - Calcular indicadores tecnicos"
         run: |
           set -e
           python indicadores_tecnicos.py
 
       # ==================================================
-      # MODULO 04 - TABULEIRO E ESTATISTICAS
+      # MODULO 03 - TABULEIRO E ESTATISTICAS
       # ==================================================
 
-      - name: "04 - Atualizar tabuleiro"
+      - name: "03 - Atualizar tabuleiro"
         run: |
           set -e
           python tabuleiro.py
 
-      - name: "04 - Detectar bordas M5"
+      - name: "03 - Detectar bordas M5"
         run: |
           set -e
           python detector_bordas_m5.py
 
-      - name: "04 - Processar estatisticas M5"
+      - name: "03 - Processar estatisticas M5"
         run: |
           set -e
           python processador_estatistico_m5.py
@@ -181,11 +123,6 @@ jobs:
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/graficos.db.gz
-          git add data/estatisticas_m5.db.gz
-          git add data/operacoes.db.gz
-          git add data/resultados_operacoes.db.gz
-          git add data/sinais.db.gz
           git add data/xauusd.db
 
           if git diff --cached --quiet; then
@@ -210,8 +147,7 @@ jobs:
           echo "CENTRAL INTELIGENTE XAUUSD"
           echo "===================================="
           echo "01 - Coleta de velas"
-          echo "02 - Validacao de velas"
-          echo "03 - Graficos e indicadores"
-          echo "04 - Tabuleiro e estatisticas"
-          echo "05 a 08 - Motor integrado de sinais"
+          echo "02 - Indicadores tecnicos"
+          echo "03 - Tabuleiro, bordas e estatisticas M5"
+          echo "04 - Motor integrado de sinais"
           echo "===================================="
