@@ -26,7 +26,7 @@ O canal do Gestor não encaminha mensagens para a Central, não dispara `reposit
 - `telegram.js`: webhook e envio de mensagens do canal Telegram do Gestor.
 - `conversador.js`: coordena memória, contexto e resposta do Gemini Gestor por dependências próprias.
 - `gemini_gestor.js`: inteligência própria do Gestor, com prompt independente, histórico contextual e fallback de modelos.
-- `memoria.js`: memória conversacional independente.
+- `memoria.js`: memória conversacional persistente no D1 `gestor-xauusd-db`, usando as tabelas existentes `conversas` e `mensagens`.
 - `acompanhamento.js`: avaliação consultiva de operações abertas.
 
 ## Gemini Gestor
@@ -38,4 +38,4 @@ O canal do Gestor não encaminha mensagens para a Central, não dispara `reposit
 
 ## Estado
 
-Os módulos de validação, organização de mercado, webhook/envio Telegram e orquestração conversacional estão incorporados. A ligação ao ponto de entrada do Worker, à memória persistente e aos dados oficiais ainda não foi ativada nem testada. O módulo Gemini Gestor e sua chamada pelo conversador estão incorporados, mas ainda não foram testados em execução. Nenhum Worker, secret, webhook publicado, workflow da Central ou banco oficial foi alterado nesta etapa.
+Os módulos de validação, organização de mercado, webhook/envio Telegram, Gemini Gestor e memória D1 estão incorporados. O conversador agora recupera e salva o histórico automaticamente pelo binding `GESTOR_DB`. A ligação ao ponto de entrada do Worker ainda não foi ativada nem testada.\n\n### Acesso ao banco oficial XAUUSD\n\nO banco oficial `data/xauusd.db` permanece no repositório V2 e não é acessível diretamente pelo Worker Cloudflare como um arquivo SQLite local. Nenhum espelho ou segundo banco foi criado. Para consultar esses dados pelo Gestor, ainda é necessária uma ponte sob demanda entre o Worker e a Central, com resposta restrita aos dados solicitados. Essa ponte não foi criada nesta etapa para evitar alterar o workflow da Central ou conceder acesso amplo ao repositório.\n\nNenhum Worker, secret, webhook publicado, workflow da Central ou banco oficial foi alterado nesta etapa. A integração D1 foi incorporada ao código, mas depende da confirmação do binding já existente no Worker e de teste real.
