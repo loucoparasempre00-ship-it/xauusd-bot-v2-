@@ -70,10 +70,10 @@ jobs:
           python processador_estatistico_m5.py
 
       # ==================================================
-      # MODULOS 05 A 08 - MOTOR INTEGRADO DE SINAIS
+      # MODULO 04 - MOTOR INTEGRADO DE SINAIS
       # ==================================================
 
-      - name: "05 - Recuperar modelo selecionado pelo Testador"
+      - name: "04 - Recuperar modelo selecionado pelo Testador"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -100,7 +100,7 @@ jobs:
           test -s data/modelo_gemini.json
           echo "Modelo selecionado recuperado."
 
-      - name: "05 a 08 - Executar motor integrado de sinais"
+      - name: "04 - Executar motor integrado de sinais"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
