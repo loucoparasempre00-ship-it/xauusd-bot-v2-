@@ -4,25 +4,31 @@ Módulo interno responsável pela conversa com o usuário e pelo acompanhamento 
 
 ## Fronteiras
 
-- O Gestor será independente do Gemini Sinal da Central.
+- O Gestor possui inteligência Gemini própria, independente do Gemini Sinal da Central.
 - Não gera nem altera sinais da Central.
 - Não envia ordens à corretora; recomendações dependem de confirmação manual pelo Telegram.
 - Consome os dados oficiais do projeto, sem criar cópias ou bancos espelhados.
-- A integração com o banco oficial `data/xauusd.db`, o Testador/Seletor Gemini e o Telegram será feita nas próximas etapas.
 - Memória conversacional e decisões do Gestor permanecem separadas das do Gemini Sinal.
 
-## Organização prevista
+## Canais de comunicação
 
-- `gemini_gestor.js`: inteligência e instruções próprias do Gestor.
-- `conversador.js`: fluxo de mensagens e respostas.
-- `acompanhamento.js`: avaliação consultiva de operações abertas.
+Existem dois canais Telegram distintos no projeto:
+
+1. **Telegram da Central:** permanece sob responsabilidade dos componentes e workflows atuais da Central. Este módulo não altera seu bot, token, webhook ou fluxo de sinais.
+2. **Telegram do Gestor:** canal conversacional próprio, isolado por configurações `GESTOR_TELEGRAM_*`, atendido por `telegram.js` e `conversador.js`.
+
+O canal do Gestor não encaminha mensagens para a Central, não dispara `repository_dispatch` e não usa o webhook da Central. Os tokens e segredos dos dois canais não devem ser compartilhados.
+
+## Arquivos
+
+- `validadores.js`: valida pacotes recebidos.
+- `mercado.js`: organiza contexto de mercado recebido.
+- `telegram.js`: webhook e envio de mensagens do canal Telegram do Gestor.
+- `conversador.js`: coordena memória, contexto e resposta do Gemini Gestor por dependências próprias.
+- `gemini_gestor.js`: inteligência e instruções próprias do Gestor (etapa de integração).
 - `memoria.js`: memória conversacional independente.
-- `mercado.js`: leitura e organização do contexto oficial de mercado.
-- `validadores.js`: validação de mensagens, sinais e contexto recebido.
-- `telegram.js`: comunicação com o Telegram.
-
-Os arquivos serão incorporados com suas dependências verificadas; não serão criados bancos, espelhos de dados ou workflows de sincronização paralelos nesta pasta.
+- `acompanhamento.js`: avaliação consultiva de operações abertas.
 
 ## Estado
 
-Estrutura inicial criada. O módulo ainda não está conectado à Central, ao Worker ou ao Telegram.
+Os módulos de validação, organização de mercado, webhook/envio Telegram e orquestração conversacional estão incorporados. A ligação ao ponto de entrada do Worker, ao Gemini Gestor, à memória persistente e aos dados oficiais ainda não foi ativada nem testada. Nenhum Worker, secret, webhook publicado, workflow da Central ou banco oficial foi alterado nesta etapa.
