@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Pipeline integrado de sinais XAUUSD. Usa somente as oito tabelas oficiais."""
+"""Pipeline integrado de sinais XAUUSD. Usa somente as dez tabelas oficiais."""
 import bisect, json, math, os, sqlite3, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 DB=ROOT/"data"/"xauusd.db"
 MODEL=ROOT/"data"/"modelo_gemini.json"
-TABLES={"m5","m15","h1","indicadores","tabuleiro","sinais_validados","sinais_negados","ranking"}
+TABLES={"m5","m15","h1","indicadores","tabuleiro","sinais_validados","sinais_negados","ranking","estatisticas_regioes","estatisticas_transicoes"}
 TF={"M5":5,"M15":15,"H1":60}
 WINDOW=48
 HORIZON=3
@@ -149,6 +149,31 @@ def board_context(c):
             except Exception:pass
         out.append(x)
     return out
+def statistical_context(c):
+    regions=[dict(x) for x in c.execute(
+        """SELECT * FROM estatisticas_regioes
+           WHERE timeframe='M5'
+           ORDER BY amostra_suficiente DESC, prob_rejeicao DESC,
+                    amostras DESC, visitas DESC LIMIT 25"""
+    )]
+    transitions=[dict(x) for x in c.execute(
+        """SELECT * FROM estatisticas_transicoes
+           WHERE timeframe='M5'
+           ORDER BY amostra_suficiente DESC, probabilidade DESC,
+                    transicoes DESC LIMIT 30"""
+    )]
+    return {
+        "timeframe":"M5",
+        "regioes":regions,
+        "transicoes":transitions,
+        "total_regioes_disponiveis":c.execute(
+            "SELECT COUNT(*) FROM estatisticas_regioes WHERE timeframe='M5'"
+        ).fetchone()[0],
+        "total_transicoes_disponiveis":c.execute(
+            "SELECT COUNT(*) FROM estatisticas_transicoes WHERE timeframe='M5'"
+        ).fetchone()[0],
+    }
+
 def get_models():
     if not MODEL.is_file():raise RuntimeError("Artifact data/modelo_gemini.json do Testador nao encontrado.")
     with open(MODEL,encoding="utf-8") as f:data=json.load(f)
@@ -320,7 +345,7 @@ def executar():
             print("Candle ja processado; sem duplicar.");send_pending(c);retention(c);return
         if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
         models=get_models();code=next_code(c)
-        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c)}
+        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"estatisticas_regioes":statistical_context(c)["regioes"],"estatisticas_transicoes":statistical_context(c)["transicoes"]}
         history=real_history(c); attempts=models[:3]
         while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
         result=None;used=None;failures=[]
