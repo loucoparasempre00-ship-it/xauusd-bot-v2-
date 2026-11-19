@@ -12,8 +12,8 @@ TABLES={"m5","m15","h1","indicadores","tabuleiro","sinais_validados","sinais_neg
 TF={"M5":5,"M15":15,"H1":60}
 WINDOW=48
 HORIZON=3
-PESO_TECNICO=0.75
-PESO_GEMINI=0.25
+PESO_TECNICO=0.50
+PESO_GEMINI=0.50
 LIMITE_APROVACAO=40.0
 GEMINI=os.getenv("GEMINI_API_KEY","").strip()
 TG_TOKEN=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -100,7 +100,15 @@ def score(features):
         if contribution>0:buy+=contribution
         elif contribution<0:sell+=abs(contribution)
         detail[key]={"nota_assinada":round(v,4),"peso":1,"contribuicao":round(contribution,4)}
-    return {"nota_long":round(buy,4),"nota_short":round(sell,4),"score_final":round(buy-sell,4),"indicadores":detail}
+    max_points=max(1.0,len(detail)*10.0)
+    return {
+        "nota_long":round(buy,4),
+        "nota_short":round(sell,4),
+        "percentual_long":round(min(100.0,buy/max_points*100.0),4),
+        "percentual_short":round(min(100.0,sell/max_points*100.0),4),
+        "pontos_maximos":round(max_points,4),
+        "indicadores":detail
+    }
 
 def make_samples(readings):
     out=[]
@@ -142,37 +150,30 @@ def calibrate_validate(readings):
 
 def board_context(c):
     out=[]
-    for row in c.execute("SELECT * FROM tabuleiro ORDER BY data_hora DESC LIMIT 30"):
+    for row in c.execute("SELECT * FROM tabuleiro ORDER BY data_hora DESC LIMIT 60"):
         x=dict(row)
         if x.get("sequencia_json"):
             try:x["sequencia_json"]=json.loads(x["sequencia_json"])
             except Exception:pass
         out.append(x)
     return out
+
 def statistical_context(c):
-    regions=[dict(x) for x in c.execute(
-        """SELECT * FROM estatisticas_regioes
-           WHERE timeframe='M5'
-           ORDER BY amostra_suficiente DESC, prob_rejeicao DESC,
-                    amostras DESC, visitas DESC LIMIT 25"""
-    )]
-    transitions=[dict(x) for x in c.execute(
-        """SELECT * FROM estatisticas_transicoes
-           WHERE timeframe='M5'
-           ORDER BY amostra_suficiente DESC, probabilidade DESC,
-                    transicoes DESC LIMIT 30"""
-    )]
-    return {
-        "timeframe":"M5",
-        "regioes":regions,
-        "transicoes":transitions,
-        "total_regioes_disponiveis":c.execute(
-            "SELECT COUNT(*) FROM estatisticas_regioes WHERE timeframe='M5'"
-        ).fetchone()[0],
-        "total_transicoes_disponiveis":c.execute(
-            "SELECT COUNT(*) FROM estatisticas_transicoes WHERE timeframe='M5'"
-        ).fetchone()[0],
-    }
+    regions=[dict(x) for x in c.execute("SELECT * FROM estatisticas_regioes WHERE timeframe='M5' ORDER BY regiao")]
+    transitions=[dict(x) for x in c.execute("SELECT * FROM estatisticas_transicoes WHERE timeframe='M5' ORDER BY origem,destino")]
+    return {"regioes":regions,"transicoes":transitions}
+
+def market_context(c):
+    context={}
+    for table in ("m5","m15","h1"):
+        context[table]=[dict(x) for x in c.execute(f"SELECT * FROM {table} ORDER BY data_hora DESC LIMIT 40")]
+    context["indicadores"]={}
+    for tf in ("M5","M15","H1"):
+        context["indicadores"][tf]=[dict(x) for x in c.execute(
+            "SELECT * FROM indicadores WHERE timeframe=? ORDER BY data DESC,hora DESC LIMIT 30",(tf,))]
+    context["tabuleiro"]=board_context(c)
+    context["estatisticas"]=statistical_context(c)
+    return context
 
 def get_models():
     if not MODEL.is_file():raise RuntimeError("Artifact data/modelo_gemini.json do Testador nao encontrado.")
@@ -186,51 +187,102 @@ def get_models():
         if name.startswith("models/gemini-") and int(item.get("sucessos") or 0)>0 and name not in models:models.append(name)
     return models
 
-def gemini_prompt(signal,history):
+def gemini_prompt(signal,history,market):
     return f"""
-Voce e o AUDITOR GEMINI de sinais XAUUSD. Analise livremente o contexto.
-O motor matematico e uma fonte de informacao, nao uma ordem.
+Voce e o GESTOR DE MERCADO XAUUSD. Sua funcao e analisar o mercado, combinar
+sua avaliacao independente com o motor matematico, consultar o historico e
+decidir se existe uma oportunidade valida. Voce nao executa ordens.
 
-Nao siga lista fixa de padroes ou categorias. Nao exija alinhamento perfeito
-M5/M15/H1. Divergencia entre tempos graficos nao gera penalidade automatica.
-Nao use pesos fixos nem soma obrigatoria. Identifique estruturas novas
-sustentadas pelos dados. Pode discordar do motor matematico e explicar.
-Avalie oportunidade, contexto, risco e incerteza de forma integrada.
-Use somente os dados recebidos; nao invente cotacoes ou resultados.
-Nao execute ordens.
+ANALISE DO MERCADO
+Analise todos os dados recebidos das dez tabelas oficiais: M5, M15, H1,
+indicadores, tabuleiro, sinais_validados, sinais_negados, ranking,
+estatisticas_regioes e estatisticas_transicoes. Nao ignore informacoes
+relevantes. Os dados de operacoes anteriores estao no bloco HISTORICO.
+Nao exija alinhamento perfeito entre timeframes, nao use uma lista fixa de
+padroes e nao aplique penalidades automaticas por divergencia. Interprete
+livremente o contexto, identifique comportamentos e padroes sustentados
+pelos dados e explique incertezas. Pode discordar do motor matematico.
 
-A entrada operacional e fixa: use exatamente o ultimo fechamento M5
-informado em preco_fechamento. Nao escolha nem altere a entrada.
-Sua responsabilidade e calcular livremente stop_loss e take_profit.
-Nao existe limite fixo de distancia do stop. Nao imponha ATR, RR ou
-qualquer multiplicador fixo para stop ou alvo.
+MOTOR MATEMATICO
+Os pontos e percentuais LONG e SHORT abaixo foram calculados pelo motor.
+Trate-os como uma fonte independente, nao como uma direcao preselecionada:
+{json.dumps(signal["motor_matematico"],ensure_ascii=False)}
+
+SUA AVALIACAO INDEPENDENTE
+Depois de analisar o mercado, atribua seu proprio percentual de forca LONG
+e seu proprio percentual de forca SHORT, cada um de 0 a 100. Nao copie os
+valores do motor. Avalie cada direcao separadamente; os dois percentuais
+nao precisam somar 100.
+
+FORMULA OBRIGATORIA — PESO IGUAL
+Calcule voce mesmo, nesta mesma resposta, as duas medias:
+MEDIA LONG = (percentual matematico LONG + percentual Gemini LONG) / 2
+MEDIA SHORT = (percentual matematico SHORT + percentual Gemini SHORT) / 2
+O peso e exatamente 50% para cada fonte. Mostre os valores e o resultado
+numerico. Nao faca uma segunda chamada.
+
+HISTORICO E APRENDIZADO
+Consulte integralmente os registros recebidos de sinais_validados,
+sinais_negados e ranking. Diferencie operacoes encerradas de pendentes.
+Considere resultados positivos e negativos, LONG e SHORT separadamente,
+quando houver dados suficientes. Use o historico para avaliar a qualidade
+da oportunidade, sem inventar resultados, sem tratar pendencias como
+encerradas e sem transformar coincidencias em regras absolutas.
+
+DECISAO
+O limite minimo de aprovacao e {signal["limite_aprovacao"]} por cento.
+Aplique esse limite como condicao obrigatoria: uma direcao aprovada precisa
+ter media igual ou superior ao limite. Mesmo acima do limite, voce pode
+rejeitar se o contexto, os riscos ou o historico nao sustentarem a entrada.
+Escolha LONG, SHORT ou NONE. Se ambas forem fracas, conflitantes ou
+insuficientes, rejeite. Nao force operacao.
+
+DOIS CENARIOS
+Apresente um setup LONG e um setup SHORT. Para ambos, a entrada deve ser
+exatamente o ultimo fechamento M5: {signal["preco_fechamento"]}.
+Defina stop_loss e take_profit coerentes com a estrutura observada.
 LONG: stop_loss < entrada < take_profit.
 SHORT: take_profit < entrada < stop_loss.
-Retorne JSON valido com classificacao APPROVED ou REJECTED, nota_auditoria
-entre 0 e 100, justificativa, relatorio, stop_loss e take_profit.
+Nao invente precos nem use multiplicadores obrigatorios de ATR ou RR.
+Explique a justificativa e os riscos de cada cenario.
 
-Exemplo de formato:
+FORMATO DE RESPOSTA
+Retorne somente JSON valido, sem markdown, com esta estrutura:
 {{
- "classificacao":"APPROVED ou REJECTED",
- "nota_auditoria":0,
- "entrada":{signal["preco_fechamento"]},
- "stop_loss":4028.00,
- "take_profit":4011.75,
- "justificativa":"Motivo contextualizado",
- "pontuacao":{{}},
- "relatorio":"Analise completa"
+ "status":"APPROVED ou REJECTED",
+ "direcao":"LONG, SHORT ou NONE",
+ "avaliacao_gemini":{{"long_percentual":0,"short_percentual":0}},
+ "medias":{{"long":0,"short":0}},
+ "cenarios":{{
+   "long":{{"entrada":0,"stop_loss":0,"take_profit":0,"justificativa":"","riscos":""}},
+   "short":{{"entrada":0,"stop_loss":0,"take_profit":0,"justificativa":"","riscos":""}}
+ }},
+ "justificativa_decisao":"",
+ "analise_historica":"",
+ "relatorio_mercado":""
 }}
+Se status for APPROVED, direcao deve ser LONG ou SHORT e a media dessa
+direcao deve respeitar o limite. Se REJECTED, direcao deve ser NONE.
+Os dois cenarios devem conter precos numericos validos. Se os dados forem
+insuficientes para construir um cenario confiavel, nao invente: use valores
+nulos e rejeite quando isso impedir uma decisao segura.
 
-SINAL:
+SINAL E MOTOR:
 {json.dumps(signal,ensure_ascii=False,default=str)}
 
-As estatisticas_regioes e estatisticas_transicoes representam historico consolidado de visitas,\ntoques, rejeicoes, rompimentos e deslocamentos entre faixas de preco.\nConsidere esses dados como contexto probabilistico, sem trata-los como garantia.\n\nHISTORICO:
+DADOS DE MERCADO DAS TABELAS OFICIAIS:
+{json.dumps(market,ensure_ascii=False,default=str)}
+
+HISTORICO DAS TRES TABELAS DE RESULTADOS:
 {json.dumps(history,ensure_ascii=False,default=str)}
 """
-def call_gemini(model,signal,history):
+
+def call_gemini(model,signal,history,market):
     if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
-    body={"contents":[{"parts":[{"text":gemini_prompt(signal,history)}]}],"generationConfig":{"temperature":.35,"responseMimeType":"application/json","maxOutputTokens":1800}}
-    req=urllib.request.Request(API+"/"+model+":generateContent",data=json.dumps(body,ensure_ascii=False).encode(),headers={"Content-Type":"application/json","x-goog-api-key":GEMINI},method="POST")
+    body={"contents":[{"parts":[{"text":gemini_prompt(signal,history,market)}]}],
+          "generationConfig":{"temperature":.35,"responseMimeType":"application/json","maxOutputTokens":3000}}
+    req=urllib.request.Request(API+"/"+model+":generateContent",data=json.dumps(body,ensure_ascii=False).encode(),
+        headers={"Content-Type":"application/json","x-goog-api-key":GEMINI},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=60) as response:raw=json.loads(response.read().decode())
     except urllib.error.HTTPError as e:raise RuntimeError(f"Gemini HTTP {e.code}: "+e.read().decode("utf-8","replace")[:800])
@@ -238,32 +290,88 @@ def call_gemini(model,signal,history):
     text="".join(p.get("text","") for p in parts).strip()
     if text.startswith("```"):text=text.replace("```json","",1).replace("```","").strip()
     try:r=json.loads(text)
-    except Exception:raise RuntimeError("Resposta Gemini nao e JSON valido: "+text[:500])
-    classification=str(r.get("classificacao","")).upper().strip()
-    justification=str(r.get("justificativa","")).strip()
-    rating=n(r.get("nota_auditoria")); entry=n(signal["preco_fechamento"]); stop=n(r.get("stop_loss")); target=n(r.get("take_profit"))
-    if classification not in ("APPROVED","REJECTED") or not justification or rating is None or not 0<=rating<=100:raise RuntimeError("Classificacao, justificativa ou nota Gemini invalida.")
-    if any(x is None or x<=0 for x in (entry,stop,target)):raise RuntimeError("Gemini nao forneceu fechamento M5, stop ou alvo validos.")
-    if signal["direcao"]=="LONG" and not stop<entry<target:raise RuntimeError("Precos invalidos para LONG.")
-    if signal["direcao"]=="SHORT" and not target<entry<stop:raise RuntimeError("Precos invalidos para SHORT.")
-    report=str(r.get("relatorio","")).strip()
-    if not report:raise RuntimeError("Gemini nao informou relatorio.")
-    return {"classificacao":classification,"justificativa":justification[:3000],"nota":rating,"entrada":entry,"stop":stop,"alvo":target,"relatorio":report[:12000],"pontuacao":r.get("pontuacao",{}),"raw":raw}
+    except Exception:raise RuntimeError("Resposta Gemini nao e JSON valido: "+text[:700])
+    status=str(r.get("status","")).upper().strip()
+    direction=str(r.get("direcao","")).upper().strip()
+    own=r.get("avaliacao_gemini") or {}; averages=r.get("medias") or {}; scenarios=r.get("cenarios") or {}
+    math_long=n(signal["motor_matematico"]["long_percentual"])
+    math_short=n(signal["motor_matematico"]["short_percentual"])
+    gem_long=n(own.get("long_percentual")); gem_short=n(own.get("short_percentual"))
+    avg_long=n(averages.get("long")); avg_short=n(averages.get("short"))
+    values=(gem_long,gem_short,avg_long,avg_short)
+    if status not in ("APPROVED","REJECTED") or direction not in ("LONG","SHORT","NONE"):
+        raise RuntimeError("Status ou direcao Gemini invalidos.")
+    if any(x is None or not 0<=x<=100 for x in values):
+        raise RuntimeError("Percentuais Gemini ou medias ausentes/invalidos.")
+    expected_long=(math_long+gem_long)/2
+    expected_short=(math_short+gem_short)/2
+    if abs(avg_long-expected_long)>.15 or abs(avg_short-expected_short)>.15:
+        raise RuntimeError("Gemini informou medias diferentes da formula 50/50.")
+    parsed={}
+    entry=n(signal["preco_fechamento"])
+    for key in ("long","short"):
+        item=scenarios.get(key) or {}
+        stop=n(item.get("stop_loss")); target=n(item.get("take_profit")); scenario_entry=n(item.get("entrada"))
+        if scenario_entry is None or stop is None or target is None or min(scenario_entry,stop,target)<=0:
+            raise RuntimeError("Setup "+key.upper()+" sem entrada, stop ou alvo numerico valido.")
+        if abs(scenario_entry-entry)>0.000001:
+            raise RuntimeError("Entrada do cenario "+key.upper()+" difere do ultimo fechamento M5.")
+        if key=="long" and not stop<entry<target:
+            raise RuntimeError("Precos invalidos para setup LONG.")
+        if key=="short" and not target<entry<stop:
+            raise RuntimeError("Precos invalidos para setup SHORT.")
+        parsed[key]={"entrada":entry,"stop":stop,"alvo":target,
+                     "justificativa":str(item.get("justificativa","")).strip(),
+                     "riscos":str(item.get("riscos","")).strip()}
+    justification=str(r.get("justificativa_decisao","")).strip()
+    historical=str(r.get("analise_historica","")).strip()
+    report=str(r.get("relatorio_mercado","")).strip()
+    if not justification or not historical or not report:
+        raise RuntimeError("Gemini nao forneceu justificativa, analise historica e relatorio.")
+    if status=="APPROVED":
+        if direction not in ("LONG","SHORT"):raise RuntimeError("Sinal aprovado sem direcao.")
+        chosen_avg=avg_long if direction=="LONG" else avg_short
+        if chosen_avg < float(signal["limite_aprovacao"]):
+            raise RuntimeError("Gemini aprovou direcao abaixo do limite minimo.")
+        selected=parsed[direction.lower()]
+    else:
+        if direction!="NONE":raise RuntimeError("Sinal rejeitado deve retornar direcao NONE.")
+        selected={"entrada":None,"stop":None,"alvo":None}
+    raw_result={"resposta_gemini":r,"modelo":model}
+    return {"classificacao":status,"direcao":direction,"nota":avg_long if direction=="LONG" else avg_short if direction=="SHORT" else max(avg_long,avg_short),
+            "entrada":selected.get("entrada"),"stop":selected.get("stop"),"alvo":selected.get("alvo"),
+            "cenarios":parsed,"avaliacao_gemini":{"long":gem_long,"short":gem_short},
+            "medias":{"long":avg_long,"short":avg_short},"justificativa":justification[:3000],
+            "analise_historica":historical[:6000],"relatorio":report[:12000],
+            "pontuacao":{"motor_long":math_long,"motor_short":math_short,"gemini_long":gem_long,
+                         "gemini_short":gem_short,"media_long":avg_long,"media_short":avg_short},
+            "raw":raw_result}
 
 def real_history(c):
-    rows=[dict(x) for x in c.execute("SELECT codigo,classificacao_gemini,direcao,entrada,stop_loss,take_profit,resultado_usdt,status_resultado FROM ranking")]
+    validated=[dict(x) for x in c.execute(
+        "SELECT codigo,data_hora,direcao,entrada,stop_loss,take_profit,classificacao,justificativa,modelo,pontuacao FROM sinais_validados ORDER BY data_hora")]
+    denied=[dict(x) for x in c.execute(
+        "SELECT codigo,data_hora,direcao,classificacao,justificativa,modelo,pontuacao FROM sinais_negados ORDER BY data_hora")]
+    ranking=[dict(x) for x in c.execute(
+        "SELECT codigo,data_hora,classificacao_gemini,direcao,entrada,stop_loss,take_profit,pontuacao,resultado_usdt,status_resultado,atualizado_em FROM ranking ORDER BY data_hora")]
     closed=[]; pending=0
-    for x in rows:
+    for x in ranking:
         result=n(x.get("resultado_usdt"))
         if result is None or str(x.get("status_resultado") or "").upper()=="PENDENTE":pending+=1
         else:closed.append(x)
     stats={}
-    for classification in ("APPROVED","REJECTED"):
-        group=[x for x in closed if x["classificacao_gemini"]==classification]
-        values=[n(x["resultado_usdt"]) for x in group]; wins=sum(1 for x in values if x>0)
-        stats[classification]={"total_encerradas":len(values),"positivas":wins,"negativas":sum(1 for x in values if x<0),"resultado_medio_usdt":round(sum(values)/len(values),4) if values else None,"resultado_total_usdt":round(sum(values),4),"taxa_positiva_percentual":round(wins/len(values)*100,2) if values else None}
-    ordered=sorted(closed,key=lambda x:n(x.get("resultado_usdt")) or 0,reverse=True)
-    return {"disponibilidade":"DADOS_REAIS_CONSULTADOS","total_encerradas":len(closed),"total_pendentes":pending,"estatisticas":stats,"melhores_resultados":ordered[:10],"piores_resultados":ordered[-10:]}
+    for direction in ("LONG","SHORT"):
+        group=[x for x in closed if str(x.get("direcao") or "").upper()==direction]
+        values=[n(x.get("resultado_usdt")) for x in group]
+        wins=sum(1 for x in values if x>0)
+        stats[direction]={"encerradas":len(values),"positivas":wins,
+            "negativas":sum(1 for x in values if x<0),
+            "resultado_total_usdt":round(sum(values),4),
+            "taxa_positiva_percentual":round(wins/len(values)*100,2) if values else None}
+    return {"sinais_validados":validated,"sinais_negados":denied,"ranking":ranking,
+            "total_validados":len(validated),"total_negados":len(denied),
+            "total_encerradas":len(closed),"total_pendentes":pending,
+            "estatisticas_por_direcao":stats}
 
 def next_code(c):
     maximum=0
@@ -276,31 +384,60 @@ def candle_done(c,timestamp):
     return c.execute("SELECT 1 FROM ranking WHERE data_hora=? LIMIT 1",(timestamp,)).fetchone() is not None
 
 def persist(c,signal,result,model):
-    package={"pipeline_integrado":True,"gemini":result["raw"],"classificacao_gemini":result.get("classificacao_gemini"),"nota_gemini":result.get("nota_gemini"),"score_tecnico":result.get("score_tecnico"),"score_combinado":result.get("score_combinado"),"relatorio":result["relatorio"],"pontuacao":result["pontuacao"],"telegram":{"status":"PENDENTE"}}
+    package={"pipeline_integrado":True,"gemini":result["raw"],
+        "classificacao_gemini":result["classificacao"],"nota_gemini":result["nota"],
+        "score_tecnico":None,"score_combinado":result["nota"],
+        "pontuacao":result["pontuacao"],"cenarios":result["cenarios"],
+        "medias":result["medias"],"analise_historica":result["analise_historica"],
+        "relatorio":result["relatorio"],"telegram":{"status":"PENDENTE"}}
     response=json.dumps(package,ensure_ascii=False,default=str)
     c.execute("BEGIN IMMEDIATE")
     try:
         if result["classificacao"]=="APPROVED":
-            c.execute("INSERT INTO sinais_validados (codigo,data_hora,direcao,entrada,stop_loss,take_profit,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(signal["codigo"],signal["data_hora"],signal["direcao"],result["entrada"],result["stop"],result["alvo"],result["classificacao"],result["justificativa"],model,result["nota"],response))
+            c.execute("INSERT INTO sinais_validados (codigo,data_hora,direcao,entrada,stop_loss,take_profit,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (signal["codigo"],signal["data_hora"],result["direcao"],result["entrada"],result["stop"],result["alvo"],
+                 result["classificacao"],result["justificativa"],model,result["nota"],response))
         else:
-            c.execute("INSERT INTO sinais_negados (codigo,data_hora,direcao,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?)",(signal["codigo"],signal["data_hora"],signal["direcao"],result["classificacao"],result["justificativa"],model,result["nota"],response))
-        c.execute("INSERT INTO ranking (codigo,data_hora,classificacao_gemini,direcao,entrada,stop_loss,take_profit,pontuacao,resultado_usdt,status_resultado,atualizado_em) VALUES (?,?,?,?,?,?,?,?,NULL,'PENDENTE',?)",(signal["codigo"],signal["data_hora"],result.get("classificacao_gemini",result["classificacao"]),signal["direcao"],result["entrada"],result["stop"],result["alvo"],result["nota"],stamp()))
+            c.execute("INSERT INTO sinais_negados (codigo,data_hora,direcao,classificacao,justificativa,modelo,pontuacao,resposta_json) VALUES (?,?,?,?,?,?,?,?)",
+                (signal["codigo"],signal["data_hora"],"NONE",result["classificacao"],result["justificativa"],model,result["nota"],response))
+        c.execute("INSERT INTO ranking (codigo,data_hora,classificacao_gemini,direcao,entrada,stop_loss,take_profit,pontuacao,resultado_usdt,status_resultado,atualizado_em) VALUES (?,?,?,?,?,?,?,?,NULL,'PENDENTE',?)",
+            (signal["codigo"],signal["data_hora"],result["classificacao"],result["direcao"],result["entrada"],result["stop"],result["alvo"],result["nota"],stamp()))
         c.commit()
-    except Exception:c.rollback();raise
+    except Exception:
+        c.rollback()
+        raise
 
 def telegram_send(signal,result,code):
     if not TG_TOKEN or not TG_CHAT:raise RuntimeError("Secrets TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID ausentes.")
     sent=now(); close=dt(signal["data_hora"]).replace(tzinfo=timezone.utc)+timedelta(minutes=5); delay=(sent-close).total_seconds()
-    command=f"ENTREI {result['entrada']} {code}"
-    text=chr(10).join(["XAUUSD - OURO","Timeframe: M5","",f"Codigo: {code}",f"Direcao: {signal['direcao']}",f"Entrada: {result['entrada']}",f"Stop: {result['stop']}",f"Alvo: {result['alvo']}",f"Nota combinada: {result['nota']}","Gemini: APPROVED","",result["justificativa"],"",f"Fechamento candle UTC: {close.strftime('%Y-%m-%d %H:%M:%S UTC')}",f"Envio UTC: {sent.strftime('%Y-%m-%d %H:%M:%S UTC')}",f"Atraso: {delay:.1f} segundos","",f"Comando acompanhamento: {command}","Sinal informativo. Nenhuma ordem foi executada."])
-    keyboard={"inline_keyboard":[[{"text":"Copiar comando","copy_text":{"text":command}}]]}
-    data=urllib.parse.urlencode({"chat_id":TG_CHAT,"text":text[:4090],"disable_web_page_preview":"true","reply_markup":json.dumps(keyboard)}).encode()
-    req=urllib.request.Request("https://api.telegram.org/bot"+TG_TOKEN+"/sendMessage",data=data,headers={"Content-Type":"application/x-www-form-urlencoded"},method="POST")
+    command=f"ENTREI {result['entrada']:.2f} {code}"
+    direction=result["direcao"]
+    text=chr(10).join([
+        "🥇 XAUUSD · OURO","⏱ Timeframe: M5","",f"🆔 Código: {code}","",
+        "LONG" if direction=="LONG" else "SHORT",
+        f"💰 Entrada: {result['entrada']:.2f}",
+        f"🛑 Stop: {result['stop']:.2f}",
+        f"🎯 Alvo: {result['alvo']:.2f}",
+        f"📊 Pontuação: {result['nota']:.2f}%",
+        "🧠 Gemini: APPROVED","",result["justificativa"],
+        "","━━━━━━━━━━━━━━━━━━",
+        f"🕯️ Fechamento do candle UTC: {close.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        f"📨 Envio UTC: {sent.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        f"⏳ Atraso: {delay:.1f} segundos ({delay/60:.2f} minutos)",
+        "","📲 Comando para acompanhamento:",command,
+        "","⚠️ Sinal informativo. Nenhuma ordem foi executada."
+    ])
+    keyboard={"inline_keyboard":[[{"text":"📋 Copiar comando","copy_text":{"text":command}}]]}
+    data=urllib.parse.urlencode({"chat_id":TG_CHAT,"text":text[:4090],
+        "disable_web_page_preview":"true","reply_markup":json.dumps(keyboard)}).encode()
+    req=urllib.request.Request("https://api.telegram.org/bot"+TG_TOKEN+"/sendMessage",data=data,
+        headers={"Content-Type":"application/x-www-form-urlencoded"},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=30) as response:answer=json.loads(response.read().decode())
     except urllib.error.HTTPError as e:raise RuntimeError(f"Telegram HTTP {e.code}: "+e.read().decode("utf-8","replace")[:700])
     if not answer.get("ok"):raise RuntimeError("Telegram recusou mensagem: "+str(answer)[:700])
     return answer.get("result",{}).get("message_id")
+
 def set_telegram_status(c,code,status,error=None,message_id=None):
     row=c.execute("SELECT resposta_json FROM sinais_validados WHERE codigo=?",(code,)).fetchone()
     if not row:return
@@ -335,35 +472,42 @@ def executar():
         features=latest["features"]
         if len(features)<3:raise RuntimeError("Indicadores validos insuficientes para decisao final.")
         math_result=score(features)
-        value=math_result["score_final"]
-        if abs(value)<1e-12:
-            print("Motor matematico sem direcao. Nenhum sinal emitido.");send_pending(c);retention(c);return
-        direction="LONG" if value>0 else "SHORT"
-        score_tecnico=min(100.0,abs(value)/max(1.0,len(features)*10.0)*100.0)
-        print(json.dumps({"etapa":"motor_matematico","data_hora":latest["timestamp"],"preco_fechamento":latest["price"],"direcao":direction,"score_final":value,"score_tecnico":round(score_tecnico,4),"indicadores":math_result["indicadores"]},ensure_ascii=False,indent=2))
+        print(json.dumps({"etapa":"motor_matematico","data_hora":latest["timestamp"],
+            "preco_fechamento":latest["price"],"long_pontos":math_result["nota_long"],
+            "short_pontos":math_result["nota_short"],"long_percentual":math_result["percentual_long"],
+            "short_percentual":math_result["percentual_short"],"indicadores":math_result["indicadores"]},
+            ensure_ascii=False,indent=2))
         if candle_done(c,latest["timestamp"]):
             print("Candle ja processado; sem duplicar.");send_pending(c);retention(c);return
         if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
-        models=get_models();code=next_code(c);stats=statistical_context(c)
-        signal={"codigo":code,"data_hora":latest["timestamp"],"direcao":direction,"preco_fechamento":latest["price"],"score_final":value,"score_tecnico":score_tecnico,"peso_tecnico":PESO_TECNICO,"peso_gemini":PESO_GEMINI,"limite_aprovacao":LIMITE_APROVACAO,"nota_long":math_result["nota_long"],"nota_short":math_result["nota_short"],"janela_m5":WINDOW,"indicadores_utilizados":math_result["indicadores"],"indicadores_mtf":{tf:(dict(row) if row else None) for tf,row in latest["indicators"].items()},"tabuleiro":board_context(c),"estatisticas_regioes":stats["regioes"],"estatisticas_transicoes":stats["transicoes"]}
-        history=real_history(c); attempts=models[:3]
+        models=get_models();code=next_code(c)
+        stats=statistical_context(c)
+        motor={"long_pontos":math_result["nota_long"],"short_pontos":math_result["nota_short"],
+            "long_percentual":math_result["percentual_long"],"short_percentual":math_result["percentual_short"],
+            "pontos_maximos":math_result["pontos_maximos"],"indicadores":math_result["indicadores"]}
+        signal={"codigo":code,"data_hora":latest["timestamp"],"preco_fechamento":latest["price"],
+            "motor_matematico":motor,"limite_aprovacao":LIMITE_APROVACAO,
+            "peso_motor":PESO_TECNICO,"peso_gemini":PESO_GEMINI,
+            "janela_m5":WINDOW}
+        market=market_context(c)
+        history=real_history(c)
+        attempts=models[:3]
         while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
         result=None;used=None;failures=[]
         for index,model in enumerate(attempts,1):
             try:
-                print(f"Gemini tentativa {index}/3: {model}");result=call_gemini(model,signal,history);used=model;break
+                print(f"Gemini Gestor de Mercado tentativa {index}/3: {model}")
+                result=call_gemini(model,signal,history,market);used=model;break
             except Exception as error:
                 failures.append(model+": "+str(error));print("Falha Gemini:",error)
                 if index<3:time.sleep(4)
         if result is None:raise RuntimeError("Tres tentativas Gemini falharam: "+" | ".join(failures))
-        result["classificacao_gemini"]=result["classificacao"]
-        result["nota_gemini"]=result["nota"]
-        result["score_tecnico"]=score_tecnico
-        result["score_combinado"]=round(score_tecnico*PESO_TECNICO+result["nota_gemini"]*PESO_GEMINI,4)
-        result["nota"]=result["score_combinado"]
-        result["classificacao"]="APPROVED" if result["score_combinado"]>=LIMITE_APROVACAO else "REJECTED"
-        print(json.dumps({"etapa":"decisao_combinada","score_tecnico":score_tecnico,"nota_gemini":result["nota_gemini"],"pesos":{"tecnico":PESO_TECNICO,"gemini":PESO_GEMINI},"score_combinado":result["score_combinado"],"limite":LIMITE_APROVACAO,"classificacao_gemini":result["classificacao_gemini"],"classificacao_final":result["classificacao"]},ensure_ascii=False))
-        persist(c,signal,result,used);print(f"{code}: {result['classificacao']} pelo score combinado.")
+        print(json.dumps({"etapa":"decisao_gestor_mercado","codigo":code,
+            "direcao":result["direcao"],"status":result["classificacao"],
+            "percentuais_gemini":result["avaliacao_gemini"],"medias_50_50":result["medias"],
+            "limite":LIMITE_APROVACAO},ensure_ascii=False))
+        persist(c,signal,result,used)
+        print(f"{code}: {result['classificacao']} pelo Gestor de Mercado.")
         send_pending(c);retention(c)
         check=c.execute("PRAGMA integrity_check").fetchone()[0]
         if check!="ok":raise RuntimeError("Falha de integridade SQLite: "+str(check))
