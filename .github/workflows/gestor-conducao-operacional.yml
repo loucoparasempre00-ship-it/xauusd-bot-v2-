@@ -1,6 +1,11 @@
 name: Condução Operacional XAUUSD
 
 on:
+  push:
+    paths:
+      - "gestor/controle_conducao.py"
+      - "gestor/conduzir_operacao_gemini.py"
+      - ".github/workflows/gestor-conducao-operacional.yml"
   repository_dispatch:
     types:
       - telegram_conducao_operacao
@@ -15,8 +20,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validar:
+    name: Validar sintaxe dos módulos
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compilar os módulos Python
+        run: |
+          set -euo pipefail
+          python -m py_compile gestor/controle_conducao.py gestor/conduzir_operacao_gemini.py gestor/telegram.py
+
   conduzir:
     name: Conduzir operação confirmada
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -76,7 +98,7 @@ jobs:
           python gestor/controle_conducao.py notificar
 
       - name: Persistir estado da condução no GitHub
-        if: success()
+        if: always()
         run: |
           set -euo pipefail
           if [ ! -f data/gestor_conducao_estado.json ]; then
@@ -94,4 +116,5 @@ jobs:
           fi
 
           git commit -m "Gestor XAUUSD: atualiza estado da condução"
+          git pull --rebase origin main
           git push origin HEAD:main
