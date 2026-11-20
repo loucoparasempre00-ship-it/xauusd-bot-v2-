@@ -475,16 +475,32 @@ def main():
             "{comando|preparar|aplicar|notificar}"
         )
     action = sys.argv[1]
-    if action == "comando":
-        handle_command()
-    elif action == "preparar":
-        prepare_context()
-    elif action == "aplicar":
-        apply_decision()
-    elif action == "notificar":
-        notify_decision()
-    else:
-        raise SystemExit("Ação desconhecida: " + action)
+    try:
+        if action == "comando":
+            handle_command()
+        elif action == "preparar":
+            prepare_context()
+        elif action == "aplicar":
+            apply_decision()
+        elif action == "notificar":
+            notify_decision()
+        else:
+            raise SystemExit("Ação desconhecida: " + action)
+    except Exception as error:
+        if action == "comando":
+            chat_id = os.getenv("GESTOR_CHAT_ID", "").strip()
+            message_id = os.getenv("GESTOR_MESSAGE_ID", "").strip() or None
+            if chat_id:
+                try:
+                    send_telegram(
+                        "❌ Não foi possível processar o comando de condução: "
+                        + str(error)[:700]
+                        + "\\nNenhuma ordem foi executada.",
+                        message_id,
+                    )
+                except Exception as notify_error:
+                    print("Falha ao enviar retorno do comando:", notify_error)
+        raise
 
 
 if __name__ == "__main__":
