@@ -59,6 +59,7 @@ jobs:
               data=payload,
               headers={
                   "Content-Type": "application/json",
+                  "User-Agent": "GestorXAU-GitHubActions/1.0",
                   "X-Gestor-Callback-Secret": os.environ["GESTOR_CALLBACK_SECRET"]
               },
               method="POST")
