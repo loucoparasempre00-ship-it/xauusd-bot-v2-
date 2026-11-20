@@ -39,7 +39,7 @@ jobs:
 
       - name: Responder diretamente pelo GitHub Actions
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
           GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
           GESTOR_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
           GESTOR_REPLY_TEXT: "Recebi sua mensagem. O GitHub Actions recebeu a solicitação e está pronto para executar a consulta do Gestor."
