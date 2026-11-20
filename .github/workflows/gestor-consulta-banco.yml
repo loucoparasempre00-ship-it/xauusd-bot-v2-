@@ -15,15 +15,15 @@ concurrency:
 jobs:
   receber:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Checkout do código do Gestor
+      - name: Checkout do banco oficial e dos módulos
         uses: actions/checkout@v4
         with:
           ref: main
           persist-credentials: false
 
-      - name: Validar mensagem recebida
+      - name: Validar mensagem e banco oficial
         env:
           GESTOR_REQUEST_ID: ${{ github.event.client_payload.request_id }}
           GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
@@ -33,16 +33,24 @@ jobs:
           test -n "$GESTOR_REQUEST_ID"
           test -n "$GESTOR_CHAT_ID"
           test -n "$GESTOR_TEXTO"
-          echo "Solicitação recebida pelo GitHub Actions."
-          echo "Identificador: $GESTOR_REQUEST_ID"
-          echo "Mensagem recebida; conteúdo omitido do log por privacidade."
+          test -s data/xauusd.db
+          echo "Solicitação recebida; conteúdo omitido do log."
+          echo "Banco oficial encontrado no checkout."
+
+      - name: Consultar SQLite oficial e Gemini
+        env:
+          GESTOR_TEXTO: ${{ github.event.client_payload.texto }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GESTOR_GEMINI_MODEL: gemini-3.1-flash-lite
+        run: |
+          set -euo pipefail
+          python gestor/consulta_gemini.py
 
       - name: Responder diretamente pelo GitHub Actions
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
           GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
           GESTOR_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
-          GESTOR_REPLY_TEXT: "Recebi sua mensagem. O GitHub Actions recebeu a solicitação e está pronto para executar a consulta do Gestor."
         run: |
           set -euo pipefail
-          python gestor/telegram.py
+          GESTOR_REPLY_TEXT="$(cat gestor_resposta.txt)" python -c "import os; os.environ['GESTOR_REPLY_TEXT']=os.environ.get('GESTOR_REPLY_TEXT',''); import gestor.telegram as t; t.main()"
