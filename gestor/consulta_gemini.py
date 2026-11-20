@@ -129,9 +129,9 @@ def consultar_gemini(pergunta, contexto):
         "não permitir responder, diga exatamente qual dado não está disponível. "
         "O banco é somente leitura: não solicite nem proponha alterar seus registros. "
         "Não execute ordens e não prometa execução automática. Se a pergunta for "
-        "conversa geral, responda normalmente sem forçar uma análise de mercado.\\n\\n"
-        "MENSAGEM DO USUÁRIO:\\n" + pergunta + "\\n\\n"
-        "CONTEXTO EXTRAÍDO DO SQLITE OFICIAL (somente leitura):\\n" + contexto
+        "conversa geral, responda normalmente sem forçar uma análise de mercado.\n\n"
+        "MENSAGEM DO USUÁRIO:\n" + pergunta + "\n\n"
+        "CONTEXTO EXTRAÍDO DO SQLITE OFICIAL (somente leitura):\n" + contexto
     )
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -146,7 +146,7 @@ def consultar_gemini(pergunta, contexto):
             resultado = requisicao_json(API + "/" + modelo + ":generateContent", chave,
                                         metodo="POST", body=body)
             parts = resultado.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-            resposta = "\\n".join(p.get("text", "") for p in parts if p.get("text")).strip()
+            resposta = "\n".join(p.get("text", "") for p in parts if p.get("text")).strip()
             if resposta:
                 print("Modelo Gemini selecionado automaticamente: " + modelo)
                 return resposta
