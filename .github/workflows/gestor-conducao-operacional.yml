@@ -1,0 +1,97 @@
+name: Condução Operacional XAUUSD
+
+on:
+  repository_dispatch:
+    types:
+      - telegram_conducao_operacao
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gestor-conducao-operacional
+  cancel-in-progress: false
+
+jobs:
+  conduzir:
+    name: Conduzir operação confirmada
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositório e bancos oficiais
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Processar comando recebido pelo Telegram
+        id: comando
+        if: github.event_name == 'repository_dispatch'
+        env:
+          GESTOR_TEXTO: ${{ github.event.client_payload.texto }}
+          GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          GESTOR_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          python gestor/controle_conducao.py comando
+
+      - name: Preparar contexto da operação ativa
+        id: contexto
+        if: github.event_name == 'schedule' || steps.comando.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          test -s data/xauusd.db
+          python gestor/controle_conducao.py preparar
+
+      - name: Gemini exclusivo de condução
+        if: steps.contexto.outputs.ativa == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GESTOR_GEMINI_MODEL_CONDUCAO: gemini-3.1-flash-lite
+        run: |
+          set -euo pipefail
+          python gestor/conduzir_operacao_gemini.py
+          test -s gestor_conducao_resultado.json
+
+      - name: Aplicar decisão ao estado da condução
+        if: steps.contexto.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          python gestor/controle_conducao.py aplicar
+
+      - name: Enviar decisão ao Telegram
+        if: steps.contexto.outputs.ativa == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          python gestor/controle_conducao.py notificar
+
+      - name: Persistir estado da condução no GitHub
+        if: success()
+        run: |
+          set -euo pipefail
+          if [ ! -f data/gestor_conducao_estado.json ]; then
+            echo "Nenhum estado novo para persistir."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gestor_conducao_estado.json
+
+          if git diff --cached --quiet; then
+            echo "Estado sem alterações."
+            exit 0
+          fi
+
+          git commit -m "Gestor XAUUSD: atualiza estado da condução"
+          git push origin HEAD:main
