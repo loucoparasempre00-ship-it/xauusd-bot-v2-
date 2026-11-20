@@ -158,7 +158,7 @@ def buscar_operacao(con, codigo):
 
 
 def send_telegram(text, reply_to=None):
-    from gestor.telegram import enviar_mensagem
+    from telegram import enviar_mensagem
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("GESTOR_CHAT_ID", "").strip()
     if not chat_id:
@@ -188,7 +188,10 @@ def handle_command():
                 "Nenhuma ordem foi executada."
             )
         if chat_id:
-            send_telegram(reply, message_id)
+            try:
+                send_telegram(reply, message_id)
+            except Exception as error:
+                print("Aviso: não foi possível confirmar STOP pelo Telegram:", error)
         output_active(False)
         print("Comando STOP processado.")
         return
@@ -271,9 +274,12 @@ def handle_command():
         "A primeira avaliação será iniciada agora e depois repetida a cada 5 minutos.\n"
         "Acompanhamento consultivo; nenhuma ordem será executada automaticamente."
     )
-    if chat_id:
-        send_telegram(reply, message_id)
     output_active(True)
+    if chat_id:
+        try:
+            send_telegram(reply, message_id)
+        except Exception as error:
+            print("Aviso: condução foi salva, mas a confirmação Telegram falhou:", error)
     print("Condução ativada para " + code)
 
 
@@ -416,13 +422,20 @@ def apply_decision():
         raise RuntimeError("Código da decisão não corresponde à operação ativa.")
 
     if action == "AJUSTAR_STOP":
+        if decision.get("status_conducao") != "ATIVA":
+            raise RuntimeError("Status de condução incompatível com AJUSTAR_STOP.")
         operation["stop_atual"] = number(decision.get("novo_stop"))
         if operation["stop_atual"] is None:
             raise RuntimeError("Gemini retornou novo stop inválido.")
     elif action == "ENCERRAR":
+        if decision.get("status_conducao") != "FINALIZADA":
+            raise RuntimeError("Status de condução incompatível com ENCERRAR.")
         operation["status"] = "FINALIZADA"
         state["conducao_ativa"] = False
-    elif action != "MANTER":
+    elif action == "MANTER":
+        if decision.get("status_conducao") != "ATIVA":
+            raise RuntimeError("Status de condução incompatível com MANTER.")
+    else:
         raise RuntimeError("Ação desconhecida no resultado do Gemini.")
 
     state["ultima_decisao"] = decision
