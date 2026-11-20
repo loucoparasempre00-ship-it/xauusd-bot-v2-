@@ -605,7 +605,9 @@ def notify_decision():
     chat_id = str(state.get("chat_id") or "").strip()
     if not chat_id:
         raise RuntimeError("Chat do Gestor não está salvo no estado da condução.")
-    from gestor.telegram import enviar_mensagem
+    # O workflow executa este arquivo diretamente; nesse modo, a pasta
+    # gestor já está no sys.path e o módulo deve ser importado pelo nome local.
+    from telegram import enviar_mensagem
     enviar_mensagem(
         chat_id,
         text,
