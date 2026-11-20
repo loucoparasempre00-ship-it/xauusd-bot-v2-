@@ -283,11 +283,44 @@ def handle_command():
     print("Condução ativada para " + code)
 
 
+def resumo_tendencia(indicador):
+    if not indicador:
+        return {"tendencia": "SEM DADOS", "forca": "INDETERMINADA"}
+    close = number(indicador.get("preco"))
+    ema9 = number(indicador.get("ema9"))
+    ema21 = number(indicador.get("ema21"))
+    rsi = number(indicador.get("rsi"))
+    macd = number(indicador.get("macd"))
+    if None in (close, ema9, ema21):
+        trend = "INDETERMINADA"
+        strength = "INDETERMINADA"
+    elif close > ema9 > ema21:
+        trend = "ALTA"
+        strength = "FORTE" if rsi is not None and rsi >= 58 else "MODERADA"
+    elif close < ema9 < ema21:
+        trend = "BAIXA"
+        strength = "FORTE" if rsi is not None and rsi <= 42 else "MODERADA"
+    else:
+        trend = "LATERAL/TRANSIÇÃO"
+        strength = "FRACA"
+    return {
+        "tendencia": trend,
+        "forca": strength,
+        "preco": close,
+        "ema9": ema9,
+        "ema21": ema21,
+        "rsi": rsi,
+        "macd": macd,
+        "atr": number(indicador.get("atr")),
+    }
+
+
 def closed_market_context(con):
     current = now()
     m5_rows = [
         dict(row) for row in con.execute(
-            "SELECT * FROM m5 ORDER BY data_hora DESC LIMIT 60"
+            """SELECT data_hora, abertura, maxima, minima, fechamento
+               FROM m5 ORDER BY data_hora DESC LIMIT 36"""
         ).fetchall()
     ]
     closed = []
@@ -307,54 +340,167 @@ def closed_market_context(con):
     market = {
         "preco_atual": price,
         "ultima_vela_m5_fechada": latest,
-        "m5": list(reversed(closed[:20])),
+        "m5": list(reversed(closed[:12])),
     }
-    for table in ("m15", "h1"):
+    for table, limit in (("m15", 6), ("h1", 6)):
         market[table] = [
             dict(row) for row in con.execute(
-                f"SELECT * FROM {table} ORDER BY data_hora DESC LIMIT 15"
+                f"""SELECT data_hora, abertura, maxima, minima, fechamento
+                    FROM {table} ORDER BY data_hora DESC LIMIT {limit}"""
             ).fetchall()
         ]
 
     market["indicadores"] = {}
+    latest_indicators = {}
     for timeframe in ("M5", "M15", "H1"):
-        market["indicadores"][timeframe] = [
+        rows = [
             dict(row) for row in con.execute(
-                """SELECT * FROM indicadores WHERE timeframe = ?
-                   ORDER BY data DESC, hora DESC LIMIT 12""",
+                """SELECT timeframe, data, hora, preco, ema9, ema21, rsi, macd, atr
+                   FROM indicadores WHERE timeframe = ?
+                   ORDER BY data DESC, hora DESC LIMIT 3""",
                 (timeframe,),
             ).fetchall()
         ]
+        market["indicadores"][timeframe] = rows
+        latest_indicators[timeframe] = rows[0] if rows else None
 
+    # O resumo é calculado apenas com campos existentes no esquema oficial.
+    resumo_tf = {
+        tf: resumo_tendencia(row)
+        for tf, row in latest_indicators.items()
+    }
+    valid_trends = [
+        item["tendencia"] for item in resumo_tf.values()
+        if item["tendencia"] in ("ALTA", "BAIXA")
+    ]
+    if len(valid_trends) == 3 and len(set(valid_trends)) == 1:
+        direcao = "COMPRADORA" if valid_trends[0] == "ALTA" else "VENDEDORA"
+        alinhamento = "CONCORDÂNCIA M5/M15/H1"
+    elif valid_trends.count("ALTA") > valid_trends.count("BAIXA"):
+        direcao, alinhamento = "COMPRADORA", "DIVERGÊNCIA ENTRE TIMEFRAMES"
+    elif valid_trends.count("BAIXA") > valid_trends.count("ALTA"):
+        direcao, alinhamento = "VENDEDORA", "DIVERGÊNCIA ENTRE TIMEFRAMES"
+    else:
+        direcao, alinhamento = "SEM PREDOMÍNIO", "CENÁRIO MISTO OU INDEFINIDO"
+
+    rsi = number((latest_indicators.get("M5") or {}).get("rsi"))
+    atr = number((latest_indicators.get("M5") or {}).get("atr"))
+    atr_pct = (atr / price * 100) if atr is not None and price else None
+    if atr_pct is None:
+        volatilidade = "SEM DADOS"
+    elif atr_pct < 0.08:
+        volatilidade = "BAIXA"
+    elif atr_pct < 0.20:
+        volatilidade = "NORMAL"
+    else:
+        volatilidade = "ALTA"
+    if rsi is None:
+        momentum = "SEM DADOS"
+    elif rsi >= 65:
+        momentum = "COMPRA FORTE/ESTICADA"
+    elif rsi >= 55:
+        momentum = "MOMENTUM COMPRADOR"
+    elif rsi <= 35:
+        momentum = "VENDA FORTE/ESTICADA"
+    elif rsi <= 45:
+        momentum = "MOMENTUM VENDEDOR"
+    else:
+        momentum = "NEUTRO"
+
+    market["resumo_mercado"] = {
+        "referencia": "Resumo matemático auxiliar; não é ordem nem veto ao Gemini.",
+        "gerado_utc": stamp(),
+        "tendencia_por_timeframe": resumo_tf,
+        "direcao_predominante": direcao,
+        "alinhamento": alinhamento,
+        "volatilidade_m5": volatilidade,
+        "momentum_m5": momentum,
+        "estrutura_recente": (
+            "Máximas/mínimas recentes disponíveis nos candles M5; "
+            "Gemini deve conferir a sequência antes de concluir."
+        ),
+    }
+
+    # Tabuleiro: manter poucos registros e retirar sequências extensas.
     board = [
         dict(row) for row in con.execute(
-            "SELECT * FROM tabuleiro ORDER BY data_hora DESC LIMIT 25"
+            """SELECT data_hora, timeframe, tipo_registro, sequencia_json,
+                      quantidade_candles, ocorrencias_encontradas,
+                      ocorrencias_exatas, distancia_maxima, horizonte,
+                      evento_futuro, ocorrencias, total_amostras,
+                      probabilidade, distancia_media
+               FROM tabuleiro ORDER BY data_hora DESC LIMIT 10"""
         ).fetchall()
     ]
     for row in board:
         raw = row.get("sequencia_json")
         if raw:
             try:
-                row["sequencia_json"] = json.loads(raw)
+                sequence = json.loads(raw)
+                if isinstance(sequence, list):
+                    row["sequencia_json"] = sequence[-8:]
+                elif isinstance(sequence, dict):
+                    row["sequencia_json"] = {
+                        key: value for key, value in list(sequence.items())[-8:]
+                    }
             except Exception:
-                pass
+                row["sequencia_json"] = None
     market["tabuleiro"] = board
-    market["estatisticas"] = {
-        "regioes_m5": [
-            dict(row) for row in con.execute(
-                """SELECT * FROM estatisticas_regioes
-                   WHERE timeframe='M5' ORDER BY regiao LIMIT 40"""
-            ).fetchall()
-        ],
-        "transicoes_m5": [
-            dict(row) for row in con.execute(
-                """SELECT * FROM estatisticas_transicoes
-                   WHERE timeframe='M5' ORDER BY origem, destino LIMIT 40"""
-            ).fetchall()
-        ],
-    }
-    return market
 
+    # Regiões próximas ao preço atual e transições com maior probabilidade.
+    regions = [
+        dict(row) for row in con.execute(
+            """SELECT regiao, limite_inferior, limite_superior, visitas,
+                      rejeicoes, rompimentos, prob_toque, prob_rejeicao,
+                      prob_rompimento, classificacao, amostras
+               FROM estatisticas_regioes
+               WHERE timeframe='M5'
+               ORDER BY ABS((limite_inferior + limite_superior) / 2.0 - ?)
+               LIMIT 8""",
+            (price,),
+        ).fetchall()
+    ]
+    transitions = [
+        dict(row) for row in con.execute(
+            """SELECT origem, destino, transicoes, probabilidade,
+                      visitas_origem, amostra_suficiente
+               FROM estatisticas_transicoes
+               WHERE timeframe='M5'
+               ORDER BY probabilidade DESC, transicoes DESC LIMIT 8"""
+        ).fetchall()
+    ]
+    market["estatisticas"] = {
+        "regioes_m5_proximas": regions,
+        "transicoes_m5_relevantes": transitions,
+    }
+
+    # Últimos sinais/ operações gerados, aprovados e negados, com resultado
+    # associado quando existir. A consulta é somente leitura.
+    market["ultimas_operacoes_produzidas"] = [
+        dict(row) for row in con.execute(
+            """SELECT codigo, data_hora, direcao, entrada, stop_loss,
+                      take_profit, classificacao, pontuacao, justificativa,
+                      status_resultado, resultado_usdt
+               FROM (
+                   SELECT s.codigo, s.data_hora, s.direcao, s.entrada,
+                          s.stop_loss, s.take_profit, s.classificacao,
+                          s.pontuacao, s.justificativa,
+                          r.status_resultado, r.resultado_usdt
+                   FROM sinais_validados s
+                   LEFT JOIN ranking r ON r.codigo = s.codigo
+                   UNION ALL
+                   SELECT n.codigo, n.data_hora, n.direcao,
+                          NULL AS entrada, NULL AS stop_loss,
+                          NULL AS take_profit, n.classificacao,
+                          n.pontuacao, n.justificativa,
+                          'NEGADO' AS status_resultado,
+                          NULL AS resultado_usdt
+                   FROM sinais_negados n
+               )
+               ORDER BY data_hora DESC LIMIT 10"""
+        ).fetchall()
+    ]
+    return market
 
 def prepare_context():
     state = load_state()
