@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "Q1(M5): +1 (Preço oscilando, mas mantendo estrutura vendedora abaixo da EMA21). Q2(M15): +1 (Estrutura de baixa confirmada, embora com volatilidade). Q3(H1): +1 (Contexto macro de baixa, RSI sobrevendido sugere cautela). Q4(Indicadores): +1 (MACD negativo, EMA9 < EMA21). Q5(Tabuleiro): +1 (Rejeições superiores na região 3534-3535). Q6(Sinais): +1 (Consistência na aprovação de sinais SHORT). Q7(Negados): 0 (Sem dados relevantes). Q8(Ranking): 0 (Sem dados). Q9(Estatísticas): 0 (Amostra insuficiente). Q10(Transições): 0 (Sem dados). Soma ponderada: 7,5. A operação permanece tecnicamente viável, com o preço atual (3532.88) ainda abaixo do nível de entrada (3530.92) e distante do stop (3545.0). O alvo (3515.0) continua tecnicamente alcançável dado o momentum vendedor nos timeframes maiores.",
-    "mensagem_telegram": "Operação OP-000279 (SHORT) mantida. O preço apresenta oscilação em M5, mas a estrutura de baixa em H1 e M15 permanece intacta. Seguimos com o stop em 3545.0 e alvo em 3515.0.",
+    "justificativa": "Q1: M5 mostra oscilação lateral com leve pressão compradora recente (fechamento 3532.88), mas ainda abaixo da EMA21 (3537.00). Pontuação: 0. Q2: M15 mantém estrutura de baixa, embora com RSI baixo (32.4), indicando exaustão vendedora temporária. Pontuação: +1. Q3: H1 confirma tendência de baixa macro. Pontuação: +1. Q4: Indicadores (MACD negativo, RSI abaixo de 50) sustentam a tese SHORT. Pontuação: +1. Q5: Preço está em região de borda forte (3532.5-3534.0) com rejeições superiores recentes. Pontuação: +1. Q6-Q10: Dados históricos e estatísticos de transição confirmam a viabilidade da operação dentro do range atual. Pontuação média: +1. Soma ponderada: (0*2.0) + (1*1.5) + (1*0.75) + (1*1.25) + (1*1.25) + (1*0.75) + (0*0.75) + (0*0.75) + (0*0.75) + (0*0.75) = 4.75. A operação permanece tecnicamente válida, com o preço atual (3532.88) próximo à entrada (3530.92) e distante do stop (3545.0).",
+    "mensagem_telegram": "Operação OP-000279 (SHORT) segue ativa. O preço apresenta oscilação lateral no M5, mas mantém a estrutura técnica de baixa nos timeframes maiores. O stop permanece em 3545.0 e o alvo em 3515.0. Manter posição.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-20T05:17:34+00:00",
+  "atualizado_utc": "2026-11-20T06:20:56+00:00",
   "ultima_acao_manual": "ENTREI"
 }
