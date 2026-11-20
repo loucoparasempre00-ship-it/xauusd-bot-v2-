@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 85,
+    "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "A operação foi aberta recentemente e mantém alinhamento com a tendência de baixa confirmada nos timeframes M15 e H1. O preço atual está próximo da entrada e a estrutura de mercado no M5, embora apresente volatilidade, ainda favorece a continuidade do movimento vendedor conforme a confluência técnica.",
-    "mensagem_telegram": "Operação OP-000275 mantida. Tendência de baixa confirmada nos timeframes maiores. Seguimos no aguardo do alvo.",
+    "justificativa": "A operação permanece dentro da estrutura de baixa nos timeframes maiores (H1/M15). Embora o preço tenha oscilado acima da entrada no candle M5 mais recente, ele ainda respeita o stop loss de 3555.0. A volatilidade é alta, mas a tendência predominante continua vendedora.",
+    "mensagem_telegram": "Operação OP-000275 mantida. O preço oscilou, mas a estrutura de baixa nos timeframes maiores (H1/M15) permanece intacta. Seguimos no aguardo do alvo.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-20T04:12:33+00:00",
+  "atualizado_utc": "2026-11-20T04:16:35+00:00",
   "ultima_acao_manual": "ENTREI"
 }
