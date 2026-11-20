@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "Q1(M5): +1, preço oscila mas mantém estrutura de baixa recente. Q2(M15): +1, tendência de baixa confirmada. Q3(H1): +1, contexto macro baixista. Q4(Indicadores): +1, RSI e MACD confirmam momentum vendedor. Q5(Tabuleiro): +1, rejeições superiores observadas. Q6(Sinais): +1, consistência com sinais recentes. Q7(Negados): 0, sem dados. Q8(Ranking): 0, sem dados. Q9(Estatísticas Regiões): +1, região favorável à continuidade. Q10(Transições): +1, transições indicam caminho ao alvo. Soma Ponderada: 10,75. A posição está dentro do risco aceitável, o preço atual (3532.88) está próximo da entrada (3530.92) e o stop (3545.0) permanece tecnicamente viável. O alvo (3515.0) continua sendo o objetivo técnico.",
-    "mensagem_telegram": "Operação OP-000279 (SHORT) mantida. O preço apresenta oscilação normal dentro da estrutura de baixa. Mantemos o stop em 3545.0 e o alvo em 3515.0. Seguimos acompanhando.",
+    "justificativa": "Q1: M5 mostra oscilação lateral com leve pressão compradora recente (fechamento 3532.88), mas ainda abaixo da EMA21 (3537.00). Pontuação: 0 (Peso 2.0). Q2: M15 mantém estrutura de baixa, embora com recuo corretivo. Pontuação: +1 (Peso 1.5). Q3: H1 confirma contexto de baixa, apesar da exaustão vendedora. Pontuação: +1 (Peso 0.75). Q4: Indicadores (RSI 44, MACD negativo) mostram momentum vendedor enfraquecido mas não revertido. Pontuação: 0 (Peso 1.25). Q5: Preço em região de rejeição superior (3532.5-3534.0). Pontuação: +1 (Peso 1.25). Q6-Q10: Dados históricos e estatísticos de transição confirmam a validade da direção SHORT. Pontuação média: +1 (Peso 3.0). Soma ponderada: (0*2.0) + (1*1.5) + (1*0.75) + (0*1.25) + (1*1.25) + (1*0.75) + (1*0.75) + (1*0.75) + (1*0.75) + (1*0.75) = 7.5. A operação permanece tecnicamente viável, com o stop em 3545.0 protegendo contra a volatilidade atual.",
+    "mensagem_telegram": "Operação OP-000279 (SHORT) mantida. O preço oscila próximo à entrada, mas a estrutura de baixa nos timeframes maiores (H1/M15) permanece intacta. Mantenha o stop em 3545.0 e o alvo em 3515.0.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-20T07:42:52+00:00",
+  "atualizado_utc": "2026-11-20T08:43:39+00:00",
   "ultima_acao_manual": "ENTREI"
 }
