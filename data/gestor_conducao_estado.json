@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra oscilação lateral com leve pressão compradora recente (3532.88), mas ainda abaixo da EMA21 (3537.00). Pontuação: 0. Q2: M15 mantém estrutura de baixa, embora com RSI baixo (32.4), indicando exaustão vendedora temporária. Pontuação: +1. Q3: H1 confirma contexto de baixa, apesar da volatilidade. Pontuação: +1. Q4: Indicadores (EMA, MACD) confirmam tendência de baixa, mas o RSI em M5 (44.4) sugere perda de momentum vendedor. Pontuação: +1. Q5: Preço está em região de rejeição superior (3532.5-3534.0), o que favorece a manutenção do SHORT. Pontuação: +1. Q6-Q10: Sinais recentes (OP-000280 a 000285) confirmam a consistência da tese SHORT. Estatísticas de transição e regiões reforçam a probabilidade de continuidade. Pontuação média: +1. Soma Ponderada: (0*2.0) + (1*1.5) + (1*0.75) + (1*1.25) + (1*1.25) + (1*0.75) + (1*0.75) + (1*0.75) + (1*0.75) + (1*0.75) = 9.5. A posição permanece tecnicamente viável, com o stop em 3545.0 protegendo contra reversões de curto prazo.",
-    "mensagem_telegram": "Operação OP-000279 (SHORT) mantida. O preço oscila lateralmente em M5, mas a estrutura de baixa em M15/H1 permanece intacta. Alvo em 3515.0 segue viável.",
+    "justificativa": "Q1(M5): +1, preço oscila mas mantém estrutura vendedora. Q2(M15): +1, tendência de baixa clara. Q3(H1): +1, contexto macro baixista. Q4(Indicadores): +1, RSI e MACD confirmam momentum vendedor. Q5(Tabuleiro): +1, rejeições superiores observadas. Q6-Q10: +0, dados neutros ou amostra insuficiente. Soma ponderada: 1,0*2 + 1,0*1,5 + 1,0*0,75 + 1,0*1,25 + 1,0*1,25 + 0*0,75 + 0*0,75 + 0*0,75 + 0*0,75 + 0*0,75 = 6,75. A operação permanece tecnicamente viável, com o preço atual próximo à entrada e distante do stop, mantendo o alvo original como objetivo técnico.",
+    "mensagem_telegram": "Operação OP-000279 (SHORT) mantida. Estrutura de baixa nos timeframes maiores (H1/M15) sustenta a posição. Mantenha o stop e o alvo originais.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-20T10:35:37+00:00",
+  "atualizado_utc": "2026-11-20T11:29:01+00:00",
   "ultima_acao_manual": "ENTREI"
 }
