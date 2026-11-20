@@ -43,7 +43,7 @@ jobs:
           test -n "$GESTOR_CALLBACK_SECRET"
           test -n "$GESTOR_REQUEST_ID"
           python - <<'PY'
-          import json, os, urllib.request
+          import json, os, urllib.request, urllib.error
           sucesso = os.environ.get("CONSULTA_SUCESSO") == "true"
           contexto = None
           if sucesso:
@@ -62,8 +62,18 @@ jobs:
                   "X-Gestor-Callback-Secret": os.environ["GESTOR_CALLBACK_SECRET"]
               },
               method="POST")
-          with urllib.request.urlopen(req, timeout=30) as response:
-              if not 200 <= response.status < 300:
-                  raise RuntimeError("Callback recusado: HTTP " + str(response.status))
+          try:
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  print("Callback HTTP:", response.status)
+                  print("Callback resposta:", response.read().decode("utf-8", "replace")[:3000])
+          except urllib.error.HTTPError as erro:
+              corpo = erro.read().decode("utf-8", "replace")
+              print("CALLBACK_HTTP_STATUS:", erro.code)
+              print("CALLBACK_RESPONSE_BODY:", corpo[:3000])
+              for nome in ("Content-Type", "Server", "CF-Ray", "CF-Mitigated", "Location", "Via"):
+                  valor = erro.headers.get(nome)
+                  if valor:
+                      print("CALLBACK_HEADER_" + nome.upper().replace("-", "_") + ":", valor)
+              raise RuntimeError("Callback recusado; detalhes da resposta acima.") from erro
           print("Retorno enviado ao Worker; consulta_sucesso =", sucesso)
           PY
