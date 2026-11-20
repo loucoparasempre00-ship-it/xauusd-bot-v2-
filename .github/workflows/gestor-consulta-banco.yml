@@ -53,4 +53,4 @@ jobs:
           GESTOR_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
         run: |
           set -euo pipefail
-          GESTOR_REPLY_TEXT="$(cat gestor_resposta.txt)" python -c "import os; os.environ['GESTOR_REPLY_TEXT']=os.environ.get('GESTOR_REPLY_TEXT',''); import gestor.telegram as t; t.main()"
+          GESTOR_REPLY_TEXT="$(cat gestor_resposta.txt)" python gestor/telegram.py
