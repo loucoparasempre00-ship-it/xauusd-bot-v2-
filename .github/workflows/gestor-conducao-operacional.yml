@@ -10,6 +10,7 @@ on:
     types:
       - telegram_conducao_operacao
       - supabase_conducao_tick
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -66,7 +67,7 @@ jobs:
 
       - name: Preparar contexto da operação ativa
         id: contexto
-        if: github.event.action == 'supabase_conducao_tick' || steps.comando.outputs.ativa == 'true'
+        if: github.event.action == 'supabase_conducao_tick' || github.event_name == 'workflow_dispatch' || steps.comando.outputs.ativa == 'true'
         run: |
           set -euo pipefail
           test -s data/xauusd.db
