@@ -8,9 +8,9 @@
     "preco_sinal": 3532.87818,
     "stop_atual": 3545.0,
     "alvo": 3515.0,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
-    "confirmada_utc": "2026-11-21T04:28:02+00:00",
+    "confirmada_utc": "2026-11-21T05:27:48+00:00",
     "data_sinal": "2026-11-21 04:00:00",
     "classificacao": "APPROVED",
     "pontuacao": 46.6798,
@@ -19,21 +19,21 @@
     "status_resultado": "PENDENTE"
   },
   "chat_id": "7132112274",
-  "message_id": "1626",
+  "message_id": "1631",
   "ultima_decisao": {
     "codigo_operacao": "OP-000287",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
-    "confianca": 65,
-    "risco": "MODERADO",
-    "justificativa": "Q1 (M5): Preço oscila lateralmente com leve viés de alta recente, mas sem romper a estrutura de baixa macro (0). Q2 (M15): Estrutura neutra, mantendo-se próxima à entrada (-1). Q3 (H1): Contexto macro fortemente baixista, alinhado à operação (+2). Q4 (Indicadores): EMA9/21 no M5 cruzadas para cima, indicando momentum de curto prazo contra a operação (-1). Q5 (Tabuleiro): Preço em região de borda frágil, sem definição clara de rompimento (0). Q6-Q10: Sinais recentes negados confirmam a falta de convicção no curto prazo, mas a tese macro permanece válida (0). Soma ponderada: 0. A operação está em um momento de lateralidade (ruído) dentro de uma tendência macro de baixa. O stop está preservado e o alvo é tecnicamente viável.",
-    "mensagem_telegram": "Operação OP-000287 (SHORT) mantida. O mercado apresenta lateralidade no curto prazo (M5), mas a tendência macro (H1) permanece favorável à nossa posição. Seguimos com o stop e alvo originais.",
+    "status_conducao": "FINALIZADA",
+    "confianca": 85,
+    "risco": "ALTO",
+    "justificativa": "Q1: -2 (Preço M5 em 3532.88, acima da entrada 3532.88, sem momentum de baixa). Q2: -1 (M15 lateral, sem suporte à tendência SHORT). Q3: 0 (H1 baixista, mas sem força no curto prazo). Q4: -2 (EMA9/21 cruzadas para alta no M5, RSI 53.9, MACD positivo). Q5: -1 (Preço em zona de indecisão/borda frágil). Q6: 0 (Sinais recentes negados indicam falta de convicção). Q7: 0 (Sem dados). Q8: 0 (Sem dados). Q9: 0 (Sem dados). Q10: 0 (Sem dados). Soma Ponderada: -8.5. A operação SHORT perdeu o suporte técnico no M5, com indicadores virando para alta e ausência de pressão vendedora, tornando o alvo de 3515 tecnicamente improvável no curto prazo.",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000287: A operação SHORT perdeu o suporte técnico no M5. Indicadores apontam reversão de momentum para alta. Recomendado ENCERRAR para evitar exposição desnecessária. Fechamento manual; nenhuma ordem foi executada.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemini-3.1-flash-lite-preview"
+    "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-21T05:27:16+00:00",
-  "ultima_acao_manual": "STOP"
+  "atualizado_utc": "2026-11-21T05:27:58+00:00",
+  "ultima_acao_manual": "ENTREI"
 }
