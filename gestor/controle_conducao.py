@@ -315,6 +315,51 @@ def resumo_tendencia(indicador):
     }
 
 
+def analisar_pavio_candle(candle):
+    """Calcula corpo e pavios sem alterar os valores OHLC originais."""
+    abertura = number(candle.get("abertura"))
+    maxima = number(candle.get("maxima"))
+    minima = number(candle.get("minima"))
+    fechamento = number(candle.get("fechamento"))
+    valores = (abertura, maxima, minima, fechamento)
+    if any(value is None for value in valores):
+        return {"status": "SEM_DADOS", "motivo": "OHLC incompleto"}
+    if (maxima < minima or maxima < max(abertura, fechamento)
+            or minima > min(abertura, fechamento)):
+        return {"status": "OHLC_INVALIDO", "motivo": "Valores OHLC inconsistentes"}
+    amplitude = maxima - minima
+    corpo = abs(fechamento - abertura)
+    pavio_superior = maxima - max(abertura, fechamento)
+    pavio_inferior = min(abertura, fechamento) - minima
+    def percentual(valor):
+        return round(valor / amplitude * 100, 2) if amplitude > 0 else None
+    def razao(valor):
+        return round(valor / corpo, 4) if corpo > 0 else None
+    if amplitude == 0:
+        dominante = "SEM_AMPLITUDE"
+    elif pavio_superior > pavio_inferior:
+        dominante = "SUPERIOR"
+    elif pavio_inferior > pavio_superior:
+        dominante = "INFERIOR"
+    else:
+        dominante = "EQUILIBRADO"
+    return {
+        "status": "OK",
+        "corpo": round(corpo, 5),
+        "pavio_superior": round(pavio_superior, 5),
+        "pavio_inferior": round(pavio_inferior, 5),
+        "amplitude_total": round(amplitude, 5),
+        "corpo_pct_amplitude": percentual(corpo),
+        "pavio_superior_pct_amplitude": percentual(pavio_superior),
+        "pavio_inferior_pct_amplitude": percentual(pavio_inferior),
+        "razao_pavio_superior_corpo": razao(pavio_superior),
+        "razao_pavio_inferior_corpo": razao(pavio_inferior),
+        "pavio_dominante": dominante,
+        "direcao_corpo": ("ALTA" if fechamento > abertura
+                          else "BAIXA" if fechamento < abertura else "NEUTRO"),
+    }
+
+
 def closed_market_context(con):
     current = now()
     m5_rows = [
@@ -337,10 +382,24 @@ def closed_market_context(con):
     if price is None or price <= 0:
         raise RuntimeError("Último fechamento M5 inválido.")
 
+    m5_cronologico = list(reversed(closed[:12]))
     market = {
         "preco_atual": price,
         "ultima_vela_m5_fechada": latest,
-        "m5": list(reversed(closed[:12])),
+        "m5": m5_cronologico,
+        "analise_pavios_m5": [
+            {
+                "data_hora": candle.get("data_hora"),
+                "ohlc": {
+                    "abertura": candle.get("abertura"),
+                    "maxima": candle.get("maxima"),
+                    "minima": candle.get("minima"),
+                    "fechamento": candle.get("fechamento"),
+                },
+                **analisar_pavio_candle(candle),
+            }
+            for candle in m5_cronologico
+        ],
     }
     for table, limit in (("m15", 6), ("h1", 6)):
         market[table] = [
