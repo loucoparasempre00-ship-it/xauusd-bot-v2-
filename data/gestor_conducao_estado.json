@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 65,
-    "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra candle de baixa recente (3570.18), testando suporte, pontuação -1. Q2: M15 mantém estrutura de alta, pontuação +1. Q3: H1 em tendência de alta, contexto favorável, pontuação +1. Q4: Indicadores M5 (EMA9 > EMA21, RSI 55) ainda sugerem resiliência, pontuação +1. Q5: Preço em região de suporte (3570.0), pontuação +1. Q6-Q10: Dados históricos e transições neutros/sem dados suficientes, pontuação 0. Soma ponderada: (-1*2.0) + (1*1.5) + (1*0.75) + (1*1.25) + (1*1.25) = 1.75. A operação está no preço de entrada, o stop está preservado e a estrutura de suporte M5/M15 ainda sustenta a tese inicial apesar da pressão vendedora de curto prazo.",
-    "mensagem_telegram": "Operação OP-000536 em ponto de entrada. Estrutura de suporte M5/M15 ainda válida. Mantendo posição com stop original.",
+    "confianca": 85,
+    "risco": "BAIXO",
+    "justificativa": "Q1(M5): +2, preço recuperou após teste de mínima e fechou em 3575.20, acima da entrada. Q2(M15): +1, estrutura compradora mantida com EMA9 acima da EMA21. Q3(H1): +1, contexto de alta consolidado. Q4(Indicadores): +2, RSI em 59.7 e MACD positivo confirmam momentum. Q5(Tabuleiro): +1, preço superou a zona de entrada e busca novos níveis. Q6-Q10: +0.5 (média), sem dados históricos críticos que contradigam a tendência atual. Soma Ponderada: 7.5/10. A operação está saudável, o preço atual (3575.20) está acima da entrada (3570.18) e o alvo (3578.18) permanece tecnicamente viável e próximo.",
+    "mensagem_telegram": "Operação OP-000536 segue ativa e saudável. Preço atual (3575.20) acima da entrada (3570.18). Mantemos o plano original com alvo em 3578.18.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-23T00:45:00+00:00",
+  "atualizado_utc": "2026-11-23T00:49:59+00:00",
   "ultima_acao_manual": "ENTREI"
 }
