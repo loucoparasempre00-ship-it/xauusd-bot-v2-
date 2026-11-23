@@ -170,7 +170,17 @@ altista ou baixista.
 
 Q1 — TABELA m5: O que o preço está fazendo agora nos candles M5 fechados?
 Está avançando a favor da operação, perdendo força, reagindo contra ela ou
-ameaçando o stop? Considere a sequência recente e não uma vela isolada.
+ameaçando o stop? Considere a sequência recente e não uma vela isolada. Examine
+também analise_pavios_m5 junto dos OHLC originais: compare corpo, pavio superior,
+pavio inferior, amplitude e proporções de cada candle. Em LONG, pavios superiores
+longos podem indicar rejeição de preços mais altos; em SHORT, pavios inferiores
+longos podem indicar rejeição de preços mais baixos. Inverta a interpretação para
+identificar rejeições contrárias à posição. Observe sequência, repetição e localização
+dos pavios, tamanho do corpo e fechamento dentro da amplitude. Um pavio isolado
+não confirma reversão: procure confirmação nos candles seguintes, no fechamento
+e na evolução do preço. Diferencie rejeição confirmada, tentativa sem continuidade
+e ruído. Confira se os cálculos são coerentes com OHLC; se houver divergência,
+priorize OHLC e sinalize a inconsistência.
 Peso 2,0.
 
 Q2 — TABELA m15: Qual é a estrutura intermediária? Ela sustenta a operação,
@@ -183,11 +193,24 @@ Peso 0,75.
 
 Q4 — TABELA indicadores: O que EMA, RSI, MACD e ATR disponíveis mostram sobre
 direção, momentum, força e volatilidade? Os indicadores confirmam ou contradizem
-o comportamento observado no preço?
+o comportamento observado no preço? Relacione esses dados aos pavios M5: verifique
+se pavios repetidos contra a operação coincidem com perda de momentum, enfraquecimento
+do MACD, mudança na posição relativa às EMAs ou volatilidade crescente. Avalie também
+se um pavio contrário foi absorvido e o momentum permaneceu favorável. Não conclua
+reversão apenas por coincidência entre um indicador e um pavio; considere a sequência
+e os fechamentos.
 Peso 1,25.
 
 Q5 — TABELA tabuleiro: Em que região o preço está, quais limites e movimentos
 recentes importam e há sinais de rejeição, rompimento ou mudança de comportamento?
+Cruze os pavios M5 com os limites inferior e superior das regiões: identifique
+tentativas de atravessar um limite que foram rejeitadas, retornos para dentro da
+região, testes repetidos e rompimentos com fechamento além do limite. Verifique
+se a rejeição ocorreu exatamente na região ou se o pavio surgiu longe dela. Use
+visitas, rejeições, rompimentos e probabilidades históricas como contexto, respeitando
+o tamanho da amostra. Um toque ou pavio não equivale automaticamente a rejeição
+confirmada nem a rompimento; procure continuidade ou confirmação nos candles
+fechados seguintes.
 Peso 1,25.
 
 Q6 — TABELA sinais_validados: O que os sinais aprovados recentes ensinam sobre
