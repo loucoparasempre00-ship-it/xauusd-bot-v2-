@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 85,
-    "risco": "BAIXO",
-    "justificativa": "Q1(M5): +2, preço em forte recuperação após teste de mínima. Q2(M15): +1, estrutura compradora consolidada. Q3(H1): +1, contexto de alta mantido. Q4(Indicadores): +2, EMA9 acima de EMA21, RSI em 61 e MACD positivo confirmam momentum. Q5(Tabuleiro): +1, preço superou zonas de resistência imediata. Q6-Q10: +1 em média, sem sinais de reversão. Soma ponderada: 12.5. A operação está lucrativa, o preço atual (3576.82) está próximo ao alvo (3578.18) e a estrutura de alta no M5/M15 permanece intacta.",
-    "mensagem_telegram": "Operação OP-000536 segue ativa e com bom desempenho. Preço atual (3576.82) próximo ao alvo (3578.18). Mantendo a posição conforme análise técnica.",
+    "confianca": 75,
+    "risco": "MODERADO",
+    "justificativa": "Q1(M5): +1, preço acima da entrada e EMA9, mas com volatilidade. Q2(M15): +1, estrutura compradora mantida. Q3(H1): +1, contexto de alta. Q4(Indicadores): +1, RSI e MACD favoráveis. Q5(Tabuleiro): 0, região de borda frágil. Q6(Sinais Aprovados): +1, consistência em operações recentes. Q7(Sinais Negados): 0, sem dados. Q8(Ranking): 0, sem dados. Q9(Estatísticas Regiões): 0, alta probabilidade de rompimento. Q10(Estatísticas Transições): 0, amostra insuficiente. Soma ponderada: 4,5. A operação mantém viabilidade técnica, o preço está acima da entrada e o alvo permanece alcançável dentro da estrutura de alta vigente.",
+    "mensagem_telegram": "Operação OP-000536 segue ativa. Preço acima da entrada com estrutura compradora mantida no M5 e M15. Mantemos o plano original.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-23T00:54:58+00:00",
+  "atualizado_utc": "2026-11-23T00:59:56+00:00",
   "ultima_acao_manual": "ENTREI"
 }
