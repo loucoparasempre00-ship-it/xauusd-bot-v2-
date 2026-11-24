@@ -26,14 +26,14 @@
     "novo_stop": null,
     "status_conducao": "ATIVA",
     "confianca": 85,
-    "risco": "MODERADO",
-    "justificativa": "Q1: +1 (vela M5 recente apresenta pavio superior expressivo, indicando rejeição de preços mais altos a favor do SHORT); Q2: +2 (estrutura intermediária em M15 alinhada na venda, com médias e MACD baixistas); Q3: +0,75 (H1 confirma contexto geral de baixa); Q4: +1,25 (indicadores mantêm momentum e direção alinhados com a operação); Q5: +1,25 (preço em região de borda com histórico favorável à rejeição vendedora); Q6: +0,75 (sinais validados recentes mantêm coerência direcional); Q7: +0,75 (sinais negados sem impacto adverso direto); Q8: +0,75 (ranking histórico consistente com o padrão operacional); Q9: +0,75 (estatísticas da região atual com probabilidade adequada de continuidade); Q10: +0,75 (transições apontam favoravelmente para o alvo). Soma ponderada: 10,0. A posição segue perfeitamente estruturada e o preço atual na entrada real mantém margem confortável até o stop atual (3572.0) e o alvo (3550.0).",
-    "mensagem_telegram": "OP-000554 (SHORT): Operação mantida. Estrutura de baixa preservada nos timeframes M5/M15/H1 e indicadores favoráveis. Seguimos firmes rumo ao alvo!",
+    "risco": "BAIXO",
+    "justificativa": "Q1 (M5, peso 2.0): +1 — Sequência recente no M5 com topo descendente e pavio superior expressivo no candle das 18:05 demonstrando rejeição compradora em 3566.73, embora o candle das 18:10 tenha fechado com leve alta técnica dentro do ruído normal (ATR 5.06). Q2 (M15, peso 1.5): +2 — Estrutura intermediária nitidamente baixista com máximas descendentes sustentadas. Q3 (H1, peso 0.75): +2 — Tendência macro de forte queda em H1. Q4 (Indicadores, peso 1.25): +2 — EMAs (9 < 21 em M5/M15/H1), RSI e MACD totalmente alinhados na ponta vendedora. Q5 (Tabuleiro, peso 1.25): +1 — Preço consolidado próximo a suporte local em 3562.5 com resistência clara em 3566.5. Q6 (Sinais validados, peso 0.75): +1 — Sequência de aprovações com alta pontuação estatística para SHORT. Q7 (Sinais negados, peso 0.75): 0 — Sem dados relevantes. Q8 (Ranking, peso 0.75): 0 — Sem dados suficientes. Q9 (Est. Regiões, peso 0.75): 0 — Probabilidades mistas. Q10 (Est. Transições, peso 0.75): 0 — Amostras insuficientes. Soma ponderada: +11.0. A oscilação atual (3564.22 vs entrada 3563.76) é ruído irrelevante diante da volatilidade e da estrutura alinhada. A operação segue tecnicamente viável e saudável.",
+    "mensagem_telegram": "Operação OP-000554 (SHORT) mantida. A estrutura nos timeframes M5, M15 e H1 permanece totalmente alinhada à tendência vendedora, sem ameaça ao stop atual em 3572.0.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemini-flash-lite-latest"
+    "modelo_utilizado": "models/gemini-3.5-flash"
   },
-  "atualizado_utc": "2026-11-24T18:15:08+00:00",
+  "atualizado_utc": "2026-11-24T18:20:57+00:00",
   "ultima_acao_manual": "ENTREI"
 }
