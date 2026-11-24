@@ -20,7 +20,20 @@
   },
   "chat_id": "7132112274",
   "message_id": "1661",
-  "ultima_decisao": null,
-  "atualizado_utc": "2026-11-24T18:11:06+00:00",
+  "ultima_decisao": {
+    "codigo_operacao": "OP-000554",
+    "acao": "MANTER",
+    "novo_stop": null,
+    "status_conducao": "ATIVA",
+    "confianca": 85,
+    "risco": "MODERADO",
+    "justificativa": "Q1: +1 (vela M5 recente apresenta pavio superior expressivo, indicando rejeição de preços mais altos a favor do SHORT); Q2: +2 (estrutura intermediária em M15 alinhada na venda, com médias e MACD baixistas); Q3: +0,75 (H1 confirma contexto geral de baixa); Q4: +1,25 (indicadores mantêm momentum e direção alinhados com a operação); Q5: +1,25 (preço em região de borda com histórico favorável à rejeição vendedora); Q6: +0,75 (sinais validados recentes mantêm coerência direcional); Q7: +0,75 (sinais negados sem impacto adverso direto); Q8: +0,75 (ranking histórico consistente com o padrão operacional); Q9: +0,75 (estatísticas da região atual com probabilidade adequada de continuidade); Q10: +0,75 (transições apontam favoravelmente para o alvo). Soma ponderada: 10,0. A posição segue perfeitamente estruturada e o preço atual na entrada real mantém margem confortável até o stop atual (3572.0) e o alvo (3550.0).",
+    "mensagem_telegram": "OP-000554 (SHORT): Operação mantida. Estrutura de baixa preservada nos timeframes M5/M15/H1 e indicadores favoráveis. Seguimos firmes rumo ao alvo!",
+    "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
+    "ordem_executada": false,
+    "confirmacao_manual_necessaria": true,
+    "modelo_utilizado": "models/gemini-flash-lite-latest"
+  },
+  "atualizado_utc": "2026-11-24T18:15:08+00:00",
   "ultima_acao_manual": "ENTREI"
 }
