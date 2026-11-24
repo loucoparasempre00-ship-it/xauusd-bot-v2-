@@ -6,7 +6,7 @@
     "direcao": "SHORT",
     "preco_entrada": 3563.76,
     "preco_sinal": 3563.75622,
-    "stop_atual": 3572.0,
+    "stop_atual": 3566.0,
     "alvo": 3550.0,
     "status": "ABERTA",
     "confirmacao_usuario": true,
@@ -22,18 +22,18 @@
   "message_id": "1661",
   "ultima_decisao": {
     "codigo_operacao": "OP-000554",
-    "acao": "MANTER",
-    "novo_stop": null,
+    "acao": "AJUSTAR_STOP",
+    "novo_stop": 3566.0,
     "status_conducao": "ATIVA",
     "confianca": 85,
     "risco": "BAIXO",
-    "justificativa": "Avaliação das 10 perguntas: Q1 (+1, peso 2.0) M5 mostra oscilação lateral próxima à entrada com pavios superiores recentes indicando pressão vendedora, apesar de leve reação em 18:10; Q2 (+1, peso 1.5) M15 mantém topo descendente e viés de baixa; Q3 (+2, peso 0.75) H1 fortemente alinhado na venda; Q4 (+2, peso 1.25) Indicadores M5/M15/H1 (EMAs, MACD negativo, RSI fraco) confirmam momentum vendedor robusto; Q5 (0, peso 1.25) Preço consolida entre limites 3562.5 e 3564.0; Q6 (+1, peso 0.75) Sequência de sinais aprovados SHORT reforça cenário; Q7-Q10 (0 cada, peso 0.75 cada) Sem dados conclusivos ou amostras suficientes. Soma ponderada: +8.25. Preço atual (3564.22) está muito próximo da entrada (3563.76) e distante do stop (3572.0), sem degradação técnica que justifique alteração ou fechamento.",
-    "mensagem_telegram": "Operação OP-000554 (SHORT) mantida. Preço oscila perto da entrada (3564.22 vs 3563.76) com alinhamento vendedor forte em M5, M15 e H1.",
+    "justificativa": "Q1 (M5: +2, peso 2.0): Velas M5 fechadas em queda consistente (18:20 fechou em 3561.19 com pavio superior de rejeição em 3563.25). Q2 (M15: +2, peso 1.5): Estrutura intermediária de baixa bem definida. Q3 (H1: +2, peso 0.75): Tendência macro fortemente vendedora. Q4 (Indicadores: +2, peso 1.25): EMAs alinhadas para queda, RSI M5 em 37.99 e MACD negativo confirmando momentum vendedor. Q5 (Tabuleiro: +1, peso 1.25): Preço rompendo a região de suporte 3561.0 com rejeição na borda superior. Q6 (Sinais Validados: +1, peso 0.75): Histórico recente de sinais APPROVED em SHORT alinhados. Q7 (Sinais Negados: 0, peso 0.75): Sem dados. Q8 (Ranking: 0, peso 0.75): Sem dados. Q9 (Estatísticas Regiões: +1, peso 0.75): Favorece rompimento de suporte rumo a 3559.5. Q10 (Estatísticas Transições: 0, peso 0.75): Amostra insuficiente. Soma ponderada: +13.75. Como o preço avançou a favor da operação (3561.19 vs entrada 3563.76) e a estrutura M5 criou nova máxima em 3564.30/3566.73, recomenda-se mover o stop de 3572.0 para 3566.0 (superior a 1 ATR de distância), reduzindo drasticamente o risco sem sufocar o trade.",
+    "mensagem_telegram": "📉 OP-000554 (SHORT): Operação evoluindo a favor do alvo. M5 e indicadores confirmam força vendedora. Stop ajustado de 3572.00 para 3566.00 para proteger a posição.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.5-flash"
   },
-  "atualizado_utc": "2026-11-24T18:25:33+00:00",
+  "atualizado_utc": "2026-11-24T18:31:19+00:00",
   "ultima_acao_manual": "ENTREI"
 }
