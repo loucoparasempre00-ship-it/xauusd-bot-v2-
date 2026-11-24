@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conducao_ativa": true,
+  "conducao_ativa": false,
   "operacao": {
     "codigo": "OP-000562",
     "direcao": "SHORT",
@@ -8,7 +8,7 @@
     "preco_sinal": 3555.77209,
     "stop_atual": 3562.0,
     "alvo": 3545.0,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
     "confirmada_utc": "2026-11-24T19:03:16+00:00",
     "data_sinal": "2026-11-24 18:55:00",
@@ -22,18 +22,18 @@
   "message_id": "1669",
   "ultima_decisao": {
     "codigo_operacao": "OP-000562",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
-    "confianca": 75,
-    "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra volatilidade com pavio inferior dominante na última vela, indicando tentativa de suporte, mas sem reversão clara. Q2: M15 mantém estrutura de baixa, embora com recuo recente. Q3: H1 confirma tendência de baixa. Q4: Indicadores (RSI 40.7, MACD negativo) sustentam o viés vendedor, apesar da EMA9 estar sendo testada. Q5: Preço oscila em região de borda frágil (3558.0-3559.5), com histórico de rompimentos. Q6-Q10: Sinais recentes mantêm viés SHORT consistente. Soma ponderada: Q1(0*2=0), Q2(1*1.5=1.5), Q3(1*0.75=0.75), Q4(1*1.25=1.25), Q5(0*1.25=0), Q6(1*0.75=0.75), Q7(1*0.75=0.75), Q8(1*0.75=0.75), Q9(0*0.75=0), Q10(0*0.75=0). Soma total: 5.75. A operação permanece dentro do risco aceitável, com alvo tecnicamente viável apesar da pressão compradora de curto prazo.",
-    "mensagem_telegram": "Operação OP-000562 (SHORT) mantida. O preço testa regiões de suporte, mas a estrutura de baixa nos timeframes maiores permanece intacta. Aguardando continuidade do movimento vendedor.",
+    "status_conducao": "FINALIZADA",
+    "confianca": 85,
+    "risco": "ALTO",
+    "justificativa": "Q1: -2 (Preço atual 3562.79 acima do stop 3562.0, candle M5 fechou com forte alta). Q2: -1 (M15 mostra reversão de curto prazo). Q3: -1 (H1 em tendência de baixa, mas preço atual rompeu estrutura imediata). Q4: -2 (RSI e MACD M5 indicam perda de momentum vendedor e cruzamento altista). Q5: -2 (Preço rompeu a borda superior da região de resistência). Q6-Q10: 0 (Dados neutros ou sem impacto direto na reversão atual). Soma ponderada: -8.5. A operação foi invalidada pelo rompimento do stop loss e pela mudança de comportamento no M5, tornando a manutenção tecnicamente inviável.",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000562: Operação atingiu o stop loss (3562.0). Preço atual 3562.79. Recomendado encerrar a posição manualmente. Fechamento manual; nenhuma ordem foi executada.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-24T19:20:10+00:00",
+  "atualizado_utc": "2026-11-24T19:25:01+00:00",
   "ultima_acao_manual": "ENTREI"
 }
