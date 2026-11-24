@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 45,
+    "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "Análise Q1 (-1): o último candle M5 fechado (19:05:00) apresentou um forte corpo de alta de 4.83 e fechamento em 3560.94, aproximando-se do stop atual (3562.0). Q2 (+1): M15 ainda exibe tendência de baixa, mas com correções recentes. Q3 (+0): H1 aponta baixa, servindo como contexto macro. Q4 (0): indicadores mistos (RSI em 44, EMA9 cruzando abaixo mas preço acima no M5). Q5 (-1): preço testando a região superior e rompendo limites locais de M5. Q6 (0): sem impacto direto. Q7 (0): sem dados relevantes. Q8 (0): amostra neutra. Q9 (0): sem dados suficientes. Q10 (0): sem transições críticas. Soma ponderada indicando oscilação de curto prazo, porém o stop atual em 3562.0 ainda está preservado e o preço de entrada foi 3555.77. Como a oscilação é forte mas ainda não rompeu o stop técnico, opta-se por MANTER.",
-    "mensagem_telegram": "OP-000562 (SHORT): O preço sofreu uma forte alta no M5 recente testando a região dos 3560.94, mas o stop técnico em 3562.0 permanece respeitado. Mantemos a operação ativa enquanto a estrutura maior de M15/H1 ainda favorece a venda.",
+    "justificativa": "Q1: M5 mostra volatilidade com pavio inferior dominante na última vela, indicando tentativa de suporte, mas sem reversão clara. Q2: M15 mantém estrutura de baixa, embora com recuo recente. Q3: H1 confirma tendência de baixa. Q4: Indicadores (RSI 40.7, MACD negativo) sustentam o viés vendedor, apesar da EMA9 estar sendo testada. Q5: Preço oscila em região de borda frágil (3558.0-3559.5), com histórico de rompimentos. Q6-Q10: Sinais recentes mantêm viés SHORT consistente. Soma ponderada: Q1(0*2=0), Q2(1*1.5=1.5), Q3(1*0.75=0.75), Q4(1*1.25=1.25), Q5(0*1.25=0), Q6(1*0.75=0.75), Q7(1*0.75=0.75), Q8(1*0.75=0.75), Q9(0*0.75=0), Q10(0*0.75=0). Soma total: 5.75. A operação permanece dentro do risco aceitável, com alvo tecnicamente viável apesar da pressão compradora de curto prazo.",
+    "mensagem_telegram": "Operação OP-000562 (SHORT) mantida. O preço testa regiões de suporte, mas a estrutura de baixa nos timeframes maiores permanece intacta. Aguardando continuidade do movimento vendedor.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemini-flash-lite-latest"
+    "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-24T19:15:04+00:00",
+  "atualizado_utc": "2026-11-24T19:20:10+00:00",
   "ultima_acao_manual": "ENTREI"
 }
