@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 90,
+    "confianca": 85,
     "risco": "BAIXO",
-    "justificativa": "Q1(+2, peso 2.0): Candles M5 mostram sequência de baixas com rejeição de pavios superiores no último candle. Q2(+2, peso 1.5): Estrutura M15 sustenta a queda com fechamentos progressivamente menores. Q3(+2, peso 0.75): Contexto H1 é fortemente vendedor, confirmando a tendência macro. Q4(+2, peso 1.25): RSI, MACD e EMAs em todos os timeframes confirmam momentum vendedor e perda de força compradora. Q5(+1, peso 1.25): Preço rompeu a borda de 3564.0 conforme indicado no tabuleiro. Q6(+1, peso 0.75): Sinais aprovados recentes seguem a mesma direção. Q7-Q10: Sem dados suficientes ou neutros. Soma ponderada: 13.0. A operação está perfeitamente alinhada com o movimento de curto e médio prazo.",
-    "mensagem_telegram": "🚀 Operação SHORT em curso. Estrutura M5, M15 e H1 totalmente alinhadas com a queda. Preço rompeu níveis de resistência e mantém momentum vendedor. Manter posição.",
+    "justificativa": "Q1(M5): +2, preço em tendência de baixa com fechamento na mínima. Q2(M15): +2, estrutura alinhada na venda. Q3(H1): +1, contexto macro baixista. Q4(Indicadores): +2, RSI e MACD confirmam momentum vendedor. Q5(Tabuleiro): +1, preço testando região de suporte com rompimento recente. Q6-Q10: +1, histórico e estatísticas corroboram a direção. Soma ponderada: 15.25. A operação foi aberta no fechamento da última vela M5, mantendo-se perfeitamente alinhada com a estrutura técnica e o momentum atual. O alvo de 3550.0 permanece viável e o stop de 3572.0 oferece proteção adequada contra ruídos.",
+    "mensagem_telegram": "Operação OP-000546 (SHORT) mantida. Estrutura técnica e indicadores confirmam momentum vendedor. Alvo 3550.0 segue viável.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemma-4-26b-a4b-it"
+    "modelo_utilizado": "models/gemini-3.1-flash-lite-preview"
   },
-  "atualizado_utc": "2026-11-24T17:33:26+00:00",
+  "atualizado_utc": "2026-11-24T17:35:07+00:00",
   "ultima_acao_manual": "ENTREI"
 }
