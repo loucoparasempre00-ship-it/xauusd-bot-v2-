@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 85,
     "risco": "BAIXO",
-    "justificativa": "Q1(M5): +2, preço em tendência de baixa com fechamento na mínima. Q2(M15): +2, estrutura alinhada na venda. Q3(H1): +1, contexto macro baixista. Q4(Indicadores): +2, RSI e MACD confirmam momentum vendedor. Q5(Tabuleiro): +1, preço testando região de suporte com rompimento recente. Q6-Q10: +1, histórico e estatísticas corroboram a direção. Soma ponderada: 15.25. A operação foi aberta no fechamento da última vela M5, mantendo-se perfeitamente alinhada com a estrutura técnica e o momentum atual. O alvo de 3550.0 permanece viável e o stop de 3572.0 oferece proteção adequada contra ruídos.",
-    "mensagem_telegram": "Operação OP-000546 (SHORT) mantida. Estrutura técnica e indicadores confirmam momentum vendedor. Alvo 3550.0 segue viável.",
+    "justificativa": "Q1: +2 (Preço fechou em 3563.01, mantendo pressão vendedora após rejeição superior). Q2: +1 (M15 mostra tendência de baixa clara). Q3: +1 (H1 confirma contexto baixista). Q4: +1 (Indicadores M5/M15 alinhados em baixa, RSI abaixo de 40). Q5: +1 (Preço abaixo de 3564.0, rompimento de suporte confirmado). Q6: +1 (Sinais recentes validados mantêm viés SHORT). Q7: 0 (Sem dados de sinais negados relevantes). Q8: 0 (Sem dados de ranking). Q9: +1 (Estatísticas de região favorecem continuidade). Q10: +1 (Transições indicam fluxo vendedor). Soma ponderada: 12.5. A operação está próxima da entrada, com stop técnico preservado e alvo viável. O mercado mantém momentum vendedor sem sinais de reversão imediata.",
+    "mensagem_telegram": "Operação OP-000546 (SHORT) mantida. Estrutura de baixa confirmada nos timeframes M5/M15. Preço segue pressionando suportes. Mantemos o plano original.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemini-3.1-flash-lite-preview"
+    "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-24T17:35:07+00:00",
+  "atualizado_utc": "2026-11-24T17:45:07+00:00",
   "ultima_acao_manual": "ENTREI"
 }
