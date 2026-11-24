@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 90,
+    "confianca": 88,
     "risco": "BAIXO",
-    "justificativa": "Q1(+2, peso 2.0): Preço em tendência de baixa no M5, com o último candle fechando próximo à mínima e pavio superior indicando rejeição de altas. Q2(+2, peso 1.5): Estrutura M15 claramente vendedora e alinhada. Q3(+2, peso 0.75): Contexto H1 confirma a tendência de baixa macro. Q4(+2, peso 1.25): Indicadores (RSI, MACD e EMAs) em M5, M15 e H1 confirmam forte momentum de venda. Q5(+1, peso 1.25): Preço operando em região de borda (3555.0-3556.5) com histórico de rompimentos. Q6(+1, peso 0.75): Sinais recentes aprovados reforçam o cenário SHORT. Q7(0), Q8(0), Q10(0): Sem dados suficientes. Q9(+1, peso 0.75): Comportamento da região atual permite continuidade do movimento. Soma ponderada: 13.75. A operação está no preço de entrada com confluência técnica robusta em todos os timeframes analisados.",
-    "mensagem_telegram": "🚀 Operação SHORT (OP-000562) em andamento. Tendência de baixa confirmada em M5, M15 e H1 com momentum forte. Manter posição conforme o plano original.",
+    "justificativa": "Q1 (+2.0): M5 em tendência descendente; candle de 18:55 fecha próximo à mínima com pavio superior dominante (2.11) rejeitando 3558.91. Q2 (+1.5): M15 com estrutura de topos e fundos descendentes claros. Q3 (+0.75): H1 fortemente vendedor como contexto. Q4 (+1.25): Preço abaixo das EMAs 9/21 em todos os timeframes, RSI e MACD em zona vendedora. Q5 (+1.25): Tabuleiro indica rejeição superior em 3558.0 e rompimento da borda 3556.5. Q6 (+0.75): Sequência de sinais SHORT aprovados confirma fluxo vendedor. Q7 (0): Sem dados de sinais recusados. Q8 (0): Sem dados de ranking. Q9 (+0.75): Região 3555.0-3556.5 sob pressão de rompimento vendedor. Q10 (0): Transições sem amostra estatística suficiente. Soma ponderada: +13.75 (pesos: Q1=2.0, Q2=1.5, Q3=0.75, Q4=1.25, Q5=1.25, Q6=0.75, Q7=0.75, Q8=0.75, Q9=0.75, Q10=0.75). Operação recém-iniciada no preço de entrada (3555.77) com estrutura totalmente favorável.",
+    "mensagem_telegram": "Mantida operação SHORT em OP-000562 (XAUUSD). Estrutura vendedora alinhada em M5/M15/H1 com rejeição superior em 3558.91. Stop mantido em 3562.0 e alvo em 3545.0.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemma-4-26b-a4b-it"
+    "modelo_utilizado": "models/gemini-3.6-flash"
   },
-  "atualizado_utc": "2026-11-24T19:06:51+00:00",
+  "atualizado_utc": "2026-11-24T19:10:26+00:00",
   "ultima_acao_manual": "ENTREI"
 }
