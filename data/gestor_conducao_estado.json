@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 85,
-    "risco": "MODERADO",
-    "justificativa": "Q1 (Peso 2.0): +2 - Vela M5 fechada avança a favor da operação SHORT com forte momento de baixa e pavio superior dominante. Q2 (Peso 1.5): +2 - Estrutura M15 confirma tendência clara de baixa. Q3 (Peso 0.75): +1 - Contexto H1 baixista alinhado à posição. Q4 (Peso 1.25): +2 - Indicadores (EMAs decrescentes, MACD negativo, RSI em zona de sobrevenda sem cruzar para reversão) respaldam a venda. Q5 (Peso 1.25): +1 - Preço respeita limites da região atual com viés de rompimento de baixa. Q6 (Peso 0.75): +1 - Sinais validados recentes reforçam a coerência da direção SHORT. Q7 (Peso 0.75): 0 - Sem interferência relevante de sinais negados. Q8 (Peso 0.75): +1 - Histórico recente favorável. Q9 (Peso 0.75): +1 - Estatísticas da região apontam probabilidade aceitável de continuidade. Q10 (Peso 0.75): +1 - Transições apontam para o alvo. Soma ponderada positiva confirmando a manutenção da operação.",
-    "mensagem_telegram": "Operação OP-000562 (SHORT) mantida. Estrutura de baixa em M5/M15/H1 e indicadores continuam favoráveis ao alvo.",
+    "confianca": 90,
+    "risco": "BAIXO",
+    "justificativa": "Q1(+2, peso 2.0): Preço em tendência de baixa no M5, com o último candle fechando próximo à mínima e pavio superior indicando rejeição de altas. Q2(+2, peso 1.5): Estrutura M15 claramente vendedora e alinhada. Q3(+2, peso 0.75): Contexto H1 confirma a tendência de baixa macro. Q4(+2, peso 1.25): Indicadores (RSI, MACD e EMAs) em M5, M15 e H1 confirmam forte momentum de venda. Q5(+1, peso 1.25): Preço operando em região de borda (3555.0-3556.5) com histórico de rompimentos. Q6(+1, peso 0.75): Sinais recentes aprovados reforçam o cenário SHORT. Q7(0), Q8(0), Q10(0): Sem dados suficientes. Q9(+1, peso 0.75): Comportamento da região atual permite continuidade do movimento. Soma ponderada: 13.75. A operação está no preço de entrada com confluência técnica robusta em todos os timeframes analisados.",
+    "mensagem_telegram": "🚀 Operação SHORT (OP-000562) em andamento. Tendência de baixa confirmada em M5, M15 e H1 com momentum forte. Manter posição conforme o plano original.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
-    "modelo_utilizado": "models/gemini-3.5-flash-lite"
+    "modelo_utilizado": "models/gemma-4-26b-a4b-it"
   },
-  "atualizado_utc": "2026-11-24T19:03:20+00:00",
+  "atualizado_utc": "2026-11-24T19:06:51+00:00",
   "ultima_acao_manual": "ENTREI"
 }
