@@ -40,6 +40,7 @@ jobs:
           import os
           import sys
           import json
+          import re
           import time
           import urllib.request
           import urllib.error
@@ -141,7 +142,7 @@ jobs:
               inicio = time.monotonic()
 
               try:
-                  with urllib.request.urlopen(req, timeout=25) as resp:
+                  with urllib.request.urlopen(req, timeout=60) as resp:
                       conteudo = json.loads(
                           resp.read().decode("utf-8")
                       )
@@ -351,14 +352,22 @@ jobs:
 
           def prioridade_nome(nome):
               n = nome.lower()
+              versao = re.search(r"gemini-(\\d+)\\.(\\d+)-", n)
+              major = int(versao.group(1)) if versao else 0
+              minor = int(versao.group(2)) if versao else 0
+              categoria = 0 if "flash-lite" in n else 1
+              return (categoria, -major, -minor, n)
 
-              if "flash-lite" in n:
-                  return (0, n)
-
-              if "flash" in n:
-                  return (1, n)
-
-              return (2, n)
+          # A listagem pode exibir modelos que a chave nao pode mais usar.
+          # Exclui legados 2.5 e variantes preview/experimentais; a elegibilidade
+          # final continua sendo confirmada pelo teste real generateContent.
+          elegiveis = [
+              nome for nome in elegiveis
+              if "gemini-2.5-" not in nome.lower()
+              and "preview" not in nome.lower()
+              and "experimental" not in nome.lower()
+              and "exp-" not in nome.lower()
+          ]
 
           elegiveis = sorted(
               set(elegiveis),
@@ -389,10 +398,45 @@ jobs:
                   }
               }
 
-              resposta, segundos, falha = requisicao(
-                  BASE + "/" + nome + ":generateContent",
-                  corpo
-              )
+              resposta = None
+              falha = None
+              segundos = 0.0
+
+              for tentativa in range(3):
+                  resposta_teste, tempo_teste, erro_teste = requisicao(
+                      BASE + "/" + nome + ":generateContent",
+                      corpo
+                  )
+                  segundos += tempo_teste
+                  resposta = resposta_teste
+                  falha = erro_teste
+
+                  codigo_teste = erro_teste["code"] if erro_teste else 200
+                  detalhe_teste = (
+                      str(erro_teste.get("detail", {}).get("message", ""))
+                      if erro_teste else ""
+                  )
+                  temporario = (
+                      codigo_teste == 503
+                      or (
+                          codigo_teste == 0
+                          and "timed out" in detalhe_teste.lower()
+                      )
+                  )
+
+                  if not temporario or tentativa == 2:
+                      break
+
+                  espera = 8 * (2 ** tentativa)
+                  print(
+                      nome,
+                      "=> falha temporaria",
+                      codigo_teste,
+                      "| nova tentativa em",
+                      espera,
+                      "segundos"
+                  )
+                  time.sleep(espera)
 
               codigo = falha["code"] if falha else 200
               texto = ""
