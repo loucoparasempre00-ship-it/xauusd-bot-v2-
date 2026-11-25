@@ -117,6 +117,11 @@ jobs:
           print("Modelos aprovados nesta execucao:", ", ".join(aprovados))
           PY
 
+      - name: "04 - Gerar conclusao matematica compacta"
+        run: |
+          set -e
+          python redator_conclusao_matematica.py
+
       - name: "04 - Executar motor integrado de sinais"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
