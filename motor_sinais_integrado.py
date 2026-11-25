@@ -227,87 +227,67 @@ def compact_json(value):
     return json.dumps(value,ensure_ascii=False,separators=(",",":"),default=str)
 
 def gemini_prompt(signal,history,market):
-    compact_market_data=compact_market(market)
-    compact_history_data=compact_history(history)
-    raw_market=json.dumps(market,ensure_ascii=False,default=str)
-    raw_history=json.dumps(history,ensure_ascii=False,default=str)
-    market_json=compact_json(compact_market_data)
-    history_json=compact_json(compact_history_data)
-    before=len(raw_market.encode("utf-8"))+len(raw_history.encode("utf-8"))
-    after=len(market_json.encode("utf-8"))+len(history_json.encode("utf-8"))
-    reduction=(1-after/before)*100 if before else 0
-    print(f"Contexto Gemini compactado sem perda de campos: {before} -> {after} bytes ({reduction:.1f}% menor).")
+    report_path=ROOT/"data"/"conclusao_matematica.json"
+    if not report_path.is_file():
+        raise RuntimeError("Conclusao matematica compacta ausente. Central deve executar redator_conclusao_matematica.py antes do Gemini.")
+    with open(report_path,encoding="utf-8") as f:
+        report=json.load(f)
+    if report.get("tipo")!="CONCLUSAO_MATEMATICA_XAUUSD":
+        raise RuntimeError("Arquivo de conclusao matematica possui formato inesperado.")
+    if str(report.get("referencia_m5"))!=str(signal.get("data_hora")):
+        raise RuntimeError("Conclusao matematica nao corresponde ao candle M5 processado pelo motor.")
+    report_json=compact_json(report)
+    print("Conclusao matematica enviada ao Gemini:",len(report_json.encode("utf-8")),"bytes; banco completo preservado no GitHub.")
     return f"""
-Voce e o GESTOR DE MERCADO XAUUSD. Sua funcao e analisar o mercado, combinar
-sua avaliacao independente com o motor matematico, consultar o historico e
-decidir se existe uma oportunidade valida. Voce nao executa ordens.
+Voce e o GESTOR DE MERCADO XAUUSD. Interprete a conclusao matematica
+organizada a partir do banco oficial e combine sua avaliacao independente
+com o motor matematico. Voce nao executa ordens.
 
-FORMATO COMPACTO DOS DADOS
-Para reduzir tokens sem descartar informacao, as tabelas sao transmitidas
-como objetos com "c" (lista de nomes das colunas) e "r" (lista de linhas).
-Cada linha e uma lista de valores na mesma ordem de "c". Reconstrua a linha
-associando cada coluna ao valor da mesma posicao. Todos os registros, campos
-e valores originais foram preservados; nao interprete a compactacao como
-amostragem, resumo ou ausencia de dados. Objetos de estatisticas resumidas
-continuam com suas chaves normais. Valores nulos continuam nulos.
+O relatorio somente consulta dados ja existentes nas dez tabelas oficiais.
+Nao altera candles, indicadores, probabilidades, algoritmos ou historico.
+Nao invente valores ausentes. Probabilidades do Tabuleiro sao frequencias
+historicas, nao garantias. Estatisticas consolidadas de regioes existem em
+M5; M15 e H1 devem ser interpretados pelos candles e indicadores existentes.
 
-ANALISE DO MERCADO
-Analise todos os dados recebidos das dez tabelas oficiais: M5, M15, H1,
-indicadores, tabuleiro, sinais_validados, sinais_negados, ranking,
-estatisticas_regioes e estatisticas_transicoes. Nao ignore informacoes
-relevantes. Os dados de operacoes anteriores estao no bloco HISTORICO.
-Nao exija alinhamento perfeito entre timeframes, nao use uma lista fixa de
-padroes e nao aplique penalidades automaticas por divergencia. Interprete
-livremente o contexto, identifique comportamentos e padroes sustentados
-pelos dados e explique incertezas. Pode discordar do motor matematico.
+CONCLUSAO MATEMATICA DO BANCO
+Contem trajetoria, ponto A/B, suportes e resistencias M5, EMA9/EMA21,
+RSI14, momentum MACD, projecoes dos horizontes 1, 2 e 3 candles e historico
+operacional agregado. Interprete convergencias, divergencias, incertezas
+e o sentido provavel das proximas tres velas M5. Nao trate frequencias
+historicas como certeza.
+{report_json}
 
 MOTOR MATEMATICO
-Os pontos e percentuais LONG e SHORT abaixo foram calculados pelo motor.
-Trate-os como uma fonte independente, nao como uma direcao preselecionada:
+Pontos e percentuais LONG e SHORT calculados pelo motor existente.
+Nao recalcule nem altere algoritmo, pesos ou medias:
 {compact_json(signal["motor_matematico"])}
 
 SUA AVALIACAO INDEPENDENTE
-Depois de analisar o mercado, atribua seu proprio percentual de forca LONG
-e seu proprio percentual de forca SHORT, cada um de 0 a 100. Nao copie os
-valores do motor. Avalie cada direcao separadamente; os dois percentuais
-nao precisam somar 100.
+Atribua seu proprio percentual de forca LONG e SHORT, cada um de 0 a 100.
+Nao copie os valores do motor. Os dois percentuais nao precisam somar 100.
 
 FORMULA OBRIGATORIA — PESO IGUAL
-Calcule voce mesmo, nesta mesma resposta, as duas medias:
 MEDIA LONG = (percentual matematico LONG + percentual Gemini LONG) / 2
 MEDIA SHORT = (percentual matematico SHORT + percentual Gemini SHORT) / 2
-O peso e exatamente 50% para cada fonte. Mostre os valores e o resultado
-numerico. Nao faca uma segunda chamada.
-
-HISTORICO E APRENDIZADO
-Consulte integralmente os registros recebidos de sinais_validados,
-sinais_negados e ranking. Diferencie operacoes encerradas de pendentes.
-Considere resultados positivos e negativos, LONG e SHORT separadamente,
-quando houver dados suficientes. Use o historico para avaliar a qualidade
-da oportunidade, sem inventar resultados, sem tratar pendencias como
-encerradas e sem transformar coincidencias em regras absolutas.
+Peso exatamente 50% para cada fonte. Mostre os valores e o resultado.
 
 DECISAO
-O limite minimo de aprovacao e {signal["limite_aprovacao"]} por cento.
-A decisao e determinada pela media 50/50, sem veto discricionario:
+Limite minimo de aprovacao: {signal["limite_aprovacao"]} por cento.
 - Se somente LONG atingir o limite, aprove LONG.
 - Se somente SHORT atingir o limite, aprove SHORT.
 - Se ambas atingirem, aprove a direcao com a maior media.
 - Se nenhuma atingir, rejeite com NONE.
-Riscos e historico devem explicar a qualidade e as ressalvas, mas nunca
-vetar uma direcao cuja media atingiu o limite. Nao altere as medias.
+A decisao e determinada pela media 50/50, sem veto discricionario.
 
 DOIS CENARIOS
-Apresente um setup LONG e um setup SHORT. Para ambos, a entrada deve ser
-exatamente o ultimo fechamento M5: {signal["preco_fechamento"]}.
-Defina stop_loss e take_profit coerentes com a estrutura observada.
+Apresente setup LONG e SHORT. Entrada de ambos exatamente no ultimo
+fechamento M5: {signal["preco_fechamento"]}.
 LONG: stop_loss < entrada < take_profit.
 SHORT: take_profit < entrada < stop_loss.
-Nao invente precos nem use multiplicadores obrigatorios de ATR ou RR.
-Explique a justificativa e os riscos de cada cenario.
+Use niveis sustentados pelo relatorio. Nao invente precos.
 
 FORMATO DE RESPOSTA
-Retorne somente JSON valido, sem markdown, com esta estrutura:
+Retorne somente JSON valido, sem markdown:
 {{
  "status":"APPROVED ou REJECTED",
  "direcao":"LONG, SHORT ou NONE",
@@ -321,22 +301,12 @@ Retorne somente JSON valido, sem markdown, com esta estrutura:
  "analise_historica":"",
  "relatorio_mercado":""
 }}
-Informe status e direcao conforme a regra deterministica da media.
-A decisao final sera validada e definida pelo codigo Python, nao por um veto
-do Gemini. Os dois cenarios devem conter precos numericos validos. Se os
-dados forem insuficientes para construir um cenario, nao invente: use
-valores nulos; o codigo impedira a aprovacao se os precos forem invalidos.
+Os dois cenarios devem conter precos numericos validos; se nao houver base
+para algum preco, use null. O codigo validara precos e media final.
 
-SINAL E MOTOR:
+SINAL:
 {compact_json(signal)}
-
-DADOS DE MERCADO DAS TABELAS OFICIAIS (colunas "c", linhas "r"):
-{market_json}
-
-HISTORICO DAS TRES TABELAS DE RESULTADOS (colunas "c", linhas "r"):
-{history_json}
 """
-
 class GeminiHTTPError(RuntimeError):
     def __init__(self,code,detail,retry_seconds=None):
         self.code=code
@@ -570,8 +540,6 @@ def executar():
             "motor_matematico":motor,"limite_aprovacao":LIMITE_APROVACAO,
             "peso_motor":PESO_TECNICO,"peso_gemini":PESO_GEMINI,
             "janela_m5":WINDOW}
-        market=market_context(c)
-        history=real_history(c)
         attempts=models[:3]
         result=None;used=None;failures=[]
         for index,model in enumerate(attempts,1):
@@ -579,7 +547,7 @@ def executar():
             while True:
                 try:
                     print(f"Gemini Gestor de Mercado tentativa {index}/{len(attempts)}: {model}")
-                    result=call_gemini(model,signal,history,market);used=model
+                    result=call_gemini(model,signal,{},{});used=model
                     break
                 except GeminiHTTPError as error:
                     failures.append(model+": "+str(error));print("Falha Gemini:",error)
