@@ -67,6 +67,7 @@ jobs:
               "status": "iniciado",
               "modelo_escolhido": None,
               "modelos_rankeados": [],
+              "modelos_aprovados_execucao": [],
               "modelos_testados": [],
               "criterio": "Menor numero de falhas; empate decidido pelo menor tempo medio.",
               "motivo": "",
@@ -520,20 +521,31 @@ jobs:
           resultado["ranking"] = ranking
           resultado["modelos_rankeados"] = ranking
 
-          if ranking:
-              resultado["modelo_escolhido"] = ranking[0]["modelo"]
+          aprovados = [
+              item["modelo"]
+              for item in resultado["modelos_testados"]
+              if item.get("resultado") == "sucesso"
+          ]
+          resultado["modelos_aprovados_execucao"] = aprovados
 
+          if aprovados:
+              ordem = {item["modelo"]: pos for pos, item in enumerate(ranking)}
+              escolhido = min(aprovados, key=lambda nome: ordem.get(nome, 999999))
+              resultado["modelo_escolhido"] = escolhido
               if resultado["status"] == "iniciado":
                   resultado["status"] = "pronto"
                   resultado["motivo"] = (
-                      "Ranking por menor numero de falhas; "
-                      "desempate pelo menor tempo medio de resposta."
+                      "Selecao limitada aos modelos aprovados nesta execucao; "
+                      "ranking historico usado somente para ordenar os aprovados atuais."
                   )
           else:
-              resultado["status"] = "sem_historico"
-              resultado["motivo"] = (
-                  "Ainda nao existem resultados individuais suficientes."
-              )
+              resultado["modelo_escolhido"] = None
+              if resultado["status"] == "iniciado":
+                  resultado["status"] = "sem_modelo_aprovado_atual"
+                  resultado["motivo"] = (
+                      "Nenhum modelo passou no teste desta execucao. "
+                      "Ranking historico preservado, mas nao autoriza selecao."
+                  )
 
           salvar_json()
 
@@ -548,7 +560,7 @@ jobs:
               indent=2
           ))
 
-          if not ranking:
+          if not aprovados:
               sys.exit(1)
 
           if resultado["status"] not in (
