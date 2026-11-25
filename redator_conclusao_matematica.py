@@ -50,10 +50,19 @@ def rows(connection, query, params=()):
 def candles_context(connection):
     result = {}
     for tf, (table, minutes) in TIMEFRAMES.items():
-        data = rows(connection, f"SELECT data_hora,abertura,maxima,minima,fechamento FROM {table} ORDER BY data_hora DESC LIMIT 12")
+        raw = rows(connection, f"SELECT data_hora,abertura,maxima,minima,fechamento FROM {table} ORDER BY data_hora DESC LIMIT 30")
+        now_utc = datetime.now(timezone.utc)
+        data = []
+        for candle in raw:
+            try:
+                opened = datetime.strptime(candle["data_hora"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                continue
+            if opened + timedelta(minutes=minutes) <= now_utc:
+                data.append(candle)
         data.reverse()
         if not data:
-            raise RuntimeError(f"Sem candles em {table}.")
+            raise RuntimeError(f"Sem candles fechados em {table}.")
         latest = data[-1]
         result[tf] = {
             "referencia": latest["data_hora"],
