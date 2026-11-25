@@ -132,6 +132,7 @@ def board_context(connection):
             SELECT sequencia_json,quantidade_candles,ocorrencias_encontradas,ocorrencias_exatas,distancia_maxima,versao
             FROM tabuleiro WHERE timeframe=? AND data_hora=? AND tipo_registro='ESTADO'
               AND sequencia_json IS NOT NULL
+              AND substr(sequencia_json,1,1)='['
             ORDER BY id DESC LIMIT 1
         """, (tf, latest)).fetchone()
         probabilities = rows(connection, """
@@ -170,6 +171,12 @@ def border_context(connection, price):
         return {"regioes_proximas": [], "transicoes_da_regiao_atual": []}
     current_region = math.floor(price / REGION_WIDTH)
     nearby = sorted(regions, key=lambda x: min(abs(price-number(x["limite_inferior"])), abs(price-number(x["limite_superior"]))))[:8]
+    for region in nearby:
+        lower = number(region["limite_inferior"])
+        upper = number(region["limite_superior"])
+        midpoint = (lower + upper) / 2 if lower is not None and upper is not None else None
+        region["papel_em_relacao_ao_preco"] = "RESISTENCIA" if midpoint is not None and midpoint > price else "SUPORTE" if midpoint is not None and midpoint < price else "REGIAO_ATUAL"
+        region["distancia_ate_regiao"] = round(lower - price, 5) if lower is not None and price < lower else round(price - upper, 5) if upper is not None and price > upper else 0.0
     transitions = rows(connection, """
         SELECT origem,destino,transicoes,saidas_origem,probabilidade,visitas_origem,amostra_suficiente
         FROM estatisticas_transicoes WHERE timeframe='M5' AND origem=?
