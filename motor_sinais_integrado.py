@@ -192,11 +192,64 @@ def get_models():
     if not models:raise RuntimeError("Lista de modelos aprovados nesta execucao invalida.")
     return models
 
+def compact_rows(rows):
+    """Codifica linhas sem repetir nomes de colunas; preserva todos os campos e valores."""
+    if not rows:return {"c":[],"r":[]}
+    columns=[]
+    for row in rows:
+        for key in row:
+            if key not in columns:columns.append(key)
+    return {"c":columns,"r":[[row.get(key) for key in columns] for row in rows]}
+
+def compact_market(market):
+    out={}
+    for key,value in market.items():
+        if key=="indicadores":
+            out[key]={tf:compact_rows(rows) for tf,rows in value.items()}
+        elif key=="estatisticas":
+            out[key]={name:compact_rows(rows) for name,rows in value.items()}
+        elif isinstance(value,list):
+            out[key]=compact_rows(value)
+        else:
+            out[key]=value
+    return out
+
+def compact_history(history):
+    out={}
+    for key,value in history.items():
+        if key in ("sinais_validados","sinais_negados","ranking") and isinstance(value,list):
+            out[key]=compact_rows(value)
+        else:
+            out[key]=value
+    return out
+
+def compact_json(value):
+    return json.dumps(value,ensure_ascii=False,separators=(",",":"),default=str)
+
 def gemini_prompt(signal,history,market):
+    compact_market_data=compact_market(market)
+    compact_history_data=compact_history(history)
+    raw_market=json.dumps(market,ensure_ascii=False,default=str)
+    raw_history=json.dumps(history,ensure_ascii=False,default=str)
+    market_json=compact_json(compact_market_data)
+    history_json=compact_json(compact_history_data)
+    before=len(raw_market.encode("utf-8"))+len(raw_history.encode("utf-8"))
+    after=len(market_json.encode("utf-8"))+len(history_json.encode("utf-8"))
+    reduction=(1-after/before)*100 if before else 0
+    print(f"Contexto Gemini compactado sem perda de campos: {before} -> {after} bytes ({reduction:.1f}% menor).")
     return f"""
 Voce e o GESTOR DE MERCADO XAUUSD. Sua funcao e analisar o mercado, combinar
 sua avaliacao independente com o motor matematico, consultar o historico e
 decidir se existe uma oportunidade valida. Voce nao executa ordens.
+
+FORMATO COMPACTO DOS DADOS
+Para reduzir tokens sem descartar informacao, as tabelas sao transmitidas
+como objetos com "c" (lista de nomes das colunas) e "r" (lista de linhas).
+Cada linha e uma lista de valores na mesma ordem de "c". Reconstrua a linha
+associando cada coluna ao valor da mesma posicao. Todos os registros, campos
+e valores originais foram preservados; nao interprete a compactacao como
+amostragem, resumo ou ausencia de dados. Objetos de estatisticas resumidas
+continuam com suas chaves normais. Valores nulos continuam nulos.
 
 ANALISE DO MERCADO
 Analise todos os dados recebidos das dez tabelas oficiais: M5, M15, H1,
@@ -211,7 +264,7 @@ pelos dados e explique incertezas. Pode discordar do motor matematico.
 MOTOR MATEMATICO
 Os pontos e percentuais LONG e SHORT abaixo foram calculados pelo motor.
 Trate-os como uma fonte independente, nao como uma direcao preselecionada:
-{json.dumps(signal["motor_matematico"],ensure_ascii=False)}
+{compact_json(signal["motor_matematico"])}
 
 SUA AVALIACAO INDEPENDENTE
 Depois de analisar o mercado, atribua seu proprio percentual de forca LONG
@@ -275,13 +328,13 @@ dados forem insuficientes para construir um cenario, nao invente: use
 valores nulos; o codigo impedira a aprovacao se os precos forem invalidos.
 
 SINAL E MOTOR:
-{json.dumps(signal,ensure_ascii=False,default=str)}
+{compact_json(signal)}
 
-DADOS DE MERCADO DAS TABELAS OFICIAIS:
-{json.dumps(market,ensure_ascii=False,default=str)}
+DADOS DE MERCADO DAS TABELAS OFICIAIS (colunas "c", linhas "r"):
+{market_json}
 
-HISTORICO DAS TRES TABELAS DE RESULTADOS:
-{json.dumps(history,ensure_ascii=False,default=str)}
+HISTORICO DAS TRES TABELAS DE RESULTADOS (colunas "c", linhas "r"):
+{history_json}
 """
 
 class GeminiHTTPError(RuntimeError):
