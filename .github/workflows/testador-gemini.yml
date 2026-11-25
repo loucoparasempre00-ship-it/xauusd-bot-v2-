@@ -352,7 +352,7 @@ jobs:
 
           def prioridade_nome(nome):
               n = nome.lower()
-              versao = re.search(r"gemini-(\\d+)\\.(\\d+)-", n)
+              versao = re.search(r"gemini-(\d+)\.(\d+)-", n)
               major = int(versao.group(1)) if versao else 0
               minor = int(versao.group(2)) if versao else 0
               categoria = 0 if "flash-lite" in n else 1
