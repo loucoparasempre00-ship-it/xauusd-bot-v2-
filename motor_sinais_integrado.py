@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Pipeline integrado de sinais XAUUSD. Usa somente as dez tabelas oficiais."""
-import bisect, json, math, os, sqlite3, time, urllib.error, urllib.parse, urllib.request
+import bisect, json, math, os, re, sqlite3, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -178,13 +178,18 @@ def market_context(c):
 def get_models():
     if not MODEL.is_file():raise RuntimeError("Artifact data/modelo_gemini.json do Testador nao encontrado.")
     with open(MODEL,encoding="utf-8") as f:data=json.load(f)
-    if str(data.get("status","")).lower() not in ("pronto","pronto_com_aviso_api"):raise RuntimeError("Testador Gemini nao esta pronto: "+str(data.get("status")))
+    if str(data.get("status","")).lower() not in ("pronto","pronto_com_aviso_api"):
+        raise RuntimeError("Testador Gemini nao esta pronto nesta execucao: "+str(data.get("status")))
+    approved=data.get("modelos_aprovados_execucao")
+    if not isinstance(approved,list) or not approved:
+        raise RuntimeError("Nenhum modelo aprovado nesta execucao; ranking historico nao sera usado como substituto.")
+    models=[]
+    for item in approved:
+        name=str(item or "").strip()
+        if name.startswith("models/gemini-") and name not in models:models.append(name)
     chosen=str(data.get("modelo_escolhido") or "").strip()
-    if not chosen:raise RuntimeError("Testador nao informou modelo_escolhido.")
-    models=[chosen]
-    for item in data.get("modelos_rankeados",[]):
-        name=str(item.get("modelo") or "").strip()
-        if name.startswith("models/gemini-") and int(item.get("sucessos") or 0)>0 and name not in models:models.append(name)
+    if chosen in models:models.remove(chosen);models.insert(0,chosen)
+    if not models:raise RuntimeError("Lista de modelos aprovados nesta execucao invalida.")
     return models
 
 def gemini_prompt(signal,history,market):
@@ -279,6 +284,12 @@ HISTORICO DAS TRES TABELAS DE RESULTADOS:
 {json.dumps(history,ensure_ascii=False,default=str)}
 """
 
+class GeminiHTTPError(RuntimeError):
+    def __init__(self,code,detail,retry_seconds=None):
+        self.code=code
+        self.retry_seconds=retry_seconds
+        super().__init__(f"Gemini HTTP {code}: {json.dumps(detail,ensure_ascii=False)[:800]}")
+
 def call_gemini(model,signal,history,market):
     if not GEMINI:raise RuntimeError("Secret GEMINI_API_KEY ausente.")
     body={"contents":[{"parts":[{"text":gemini_prompt(signal,history,market)}]}],
@@ -287,7 +298,21 @@ def call_gemini(model,signal,history,market):
         headers={"Content-Type":"application/json","x-goog-api-key":GEMINI},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=60) as response:raw=json.loads(response.read().decode())
-    except urllib.error.HTTPError as e:raise RuntimeError(f"Gemini HTTP {e.code}: "+e.read().decode("utf-8","replace")[:800])
+    except urllib.error.HTTPError as e:
+        raw_error=e.read().decode("utf-8","replace")
+        try:detail=json.loads(raw_error)
+        except Exception:detail={"message":raw_error[:700]}
+        retry=None
+        header=e.headers.get("Retry-After") if e.headers else None
+        if header:
+            try:retry=max(1,int(float(header)+0.999))
+            except (TypeError,ValueError):pass
+        if retry is None and isinstance(detail,dict):
+            for item in detail.get("error",{}).get("details",[]):
+                if item.get("@type","").endswith("RetryInfo"):
+                    match=re.search(r"(\d+(?:\.\d+)?)s",str(item.get("retryDelay","")))
+                    if match:retry=max(1,int(float(match.group(1))+0.999))
+        raise GeminiHTTPError(e.code,detail,retry)
     parts=raw.get("candidates",[{}])[0].get("content",{}).get("parts",[])
     text="".join(p.get("text","") for p in parts).strip()
     if text.startswith("```"):text=text.replace("```json","",1).replace("```","").strip()
@@ -495,16 +520,32 @@ def executar():
         market=market_context(c)
         history=real_history(c)
         attempts=models[:3]
-        while len(attempts)<3:attempts.append(models[len(attempts)%len(models)])
         result=None;used=None;failures=[]
         for index,model in enumerate(attempts,1):
-            try:
-                print(f"Gemini Gestor de Mercado tentativa {index}/3: {model}")
-                result=call_gemini(model,signal,history,market);used=model;break
-            except Exception as error:
-                failures.append(model+": "+str(error));print("Falha Gemini:",error)
-                if index<3:time.sleep(4)
-        if result is None:raise RuntimeError("Tres tentativas Gemini falharam: "+" | ".join(failures))
+            transient=0
+            while True:
+                try:
+                    print(f"Gemini Gestor de Mercado tentativa {index}/{len(attempts)}: {model}")
+                    result=call_gemini(model,signal,history,market);used=model
+                    break
+                except GeminiHTTPError as error:
+                    failures.append(model+": "+str(error));print("Falha Gemini:",error)
+                    if error.code==429:
+                        if transient>=2:
+                            raise RuntimeError("Cota Gemini permaneceu esgotada apos duas esperas; interrompido sem sinal. "+str(error))
+                        wait=min(120,max(1,error.retry_seconds or 45))
+                        transient+=1
+                        print(f"HTTP 429: aguardando {wait}s antes de repetir o mesmo modelo.")
+                        time.sleep(wait)
+                        continue
+                    if error.code in (400,401,403):
+                        raise RuntimeError("Erro global/autenticacao Gemini; interrompido sem tentar outros modelos. "+str(error))
+                    break
+                except Exception as error:
+                    failures.append(model+": "+str(error));print("Falha Gemini:",error)
+                    break
+            if result is not None:break
+        if result is None:raise RuntimeError("Nenhum modelo aprovado concluiu a analise Gemini: "+" | ".join(failures))
         print(json.dumps({"etapa":"decisao_gestor_mercado","codigo":code,
             "direcao":result["direcao"],"status":result["classificacao"],
             "percentuais_gemini":result["avaliacao_gemini"],"medias_50_50":result["medias"],
