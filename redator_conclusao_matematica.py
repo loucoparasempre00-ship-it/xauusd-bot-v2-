@@ -68,6 +68,8 @@ def candles_context(connection):
             "referencia": latest["data_hora"],
             "ultimo_fechamento": number(latest["fechamento"]),
             "velas": data[-6:],
+            "topo_recente_das_velas": max(number(x["maxima"]) for x in data[-6:]),
+            "fundo_recente_das_velas": min(number(x["minima"]) for x in data[-6:]),
             "ponto_a": number(data[0]["fechamento"]),
             "ponto_b": number(latest["fechamento"]),
             "deslocamento": round(number(latest["fechamento"]) - number(data[0]["fechamento"]), 5),
