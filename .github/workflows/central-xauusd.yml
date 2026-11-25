@@ -81,24 +81,41 @@ jobs:
 
           RUN_ID=$(gh run list \
             --workflow testador-gemini.yml \
-            --status success \
             --json databaseId \
             --limit 1 \
             --jq '.[0].databaseId // empty')
 
           if [ -z "$RUN_ID" ]; then
-            echo "Nenhuma execucao bem-sucedida do Testador Gemini encontrada."
+            echo "Nenhuma execucao recente do Testador Gemini encontrada."
+            exit 1
+          fi
+
+          CONCLUSION=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "A execucao mais recente do Testador nao terminou com sucesso: $CONCLUSION"
+            echo "A Central nao reutilizara uma selecao antiga."
             exit 1
           fi
 
           mkdir -p data
-
           gh run download "$RUN_ID" \
             --name selecao-modelo-gemini \
             --dir data
 
           test -s data/modelo_gemini.json
-          echo "Modelo selecionado recuperado."
+          python - <<'PY'
+          import json
+          with open("data/modelo_gemini.json", encoding="utf-8") as f:
+              selecao = json.load(f)
+          aprovados = selecao.get("modelos_aprovados_execucao")
+          if selecao.get("status") not in ("pronto", "pronto_com_aviso_api"):
+              raise SystemExit("Testador sem status pronto nesta execucao.")
+          if not isinstance(aprovados, list) or not aprovados:
+              raise SystemExit("Nenhum modelo aprovado na execucao atual do Testador.")
+          if selecao.get("modelo_escolhido") not in aprovados:
+              raise SystemExit("Modelo escolhido nao pertence aos aprovados atuais.")
+          print("Modelos aprovados nesta execucao:", ", ".join(aprovados))
+          PY
 
       - name: "04 - Executar motor integrado de sinais"
         env:
