@@ -591,6 +591,15 @@ def executar():
                         print(f"HTTP 429: aguardando {wait}s antes de repetir o mesmo modelo.")
                         time.sleep(wait)
                         continue
+                    if error.code==503:
+                        if transient>=2:
+                            print("HTTP 503 persistente apos duas novas tentativas; tentando proximo modelo aprovado, se houver.")
+                            break
+                        wait=min(120,max(1,error.retry_seconds or (30*(2**transient))))
+                        transient+=1
+                        print(f"HTTP 503 por alta demanda: aguardando {wait}s antes de repetir o mesmo modelo.")
+                        time.sleep(wait)
+                        continue
                     if error.code in (400,401,403):
                         raise RuntimeError("Erro global/autenticacao Gemini; interrompido sem tentar outros modelos. "+str(error))
                     break
