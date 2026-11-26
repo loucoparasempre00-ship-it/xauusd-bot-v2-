@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conducao_ativa": true,
+  "conducao_ativa": false,
   "operacao": {
     "codigo": "OP-000597",
     "direcao": "LONG",
@@ -8,7 +8,7 @@
     "preco_sinal": 3572.52248,
     "stop_atual": 3568.5,
     "alvo": 3577.5,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
     "confirmada_utc": "2026-11-26T12:47:49+00:00",
     "data_sinal": "2026-11-26 12:35:00",
@@ -22,18 +22,18 @@
   "message_id": "1679",
   "ultima_decisao": {
     "codigo_operacao": "OP-000597",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
+    "status_conducao": "FINALIZADA",
     "confianca": 85,
-    "risco": "BAIXO",
-    "justificativa": "Q1: +1.5 (Preço acima da EMA9/21, pavio inferior longo na última vela M5 indica forte rejeição compradora). Q2: +1.0 (Estrutura M15 em transição, mantendo suporte). Q3: +0.5 (H1 neutro, sem conflito direto). Q4: +1.5 (RSI 59.6 e MACD positivo confirmam momentum). Q5: +1.0 (Preço acima de regiões de suporte testadas). Q6-Q10: +0.5 (Sinais recentes aprovados e estatísticas favoráveis). Soma ponderada: 6.5/10. A operação está saudável, o stop de 3568.5 está protegido pelo pavio da última vela e a tendência de curto prazo permanece compradora.",
-    "mensagem_telegram": "Operação OP-000597 segue ativa. Preço mantém suporte acima da EMA9/21 no M5 com forte rejeição compradora recente. Mantemos a posição com alvo em 3577.5.",
+    "risco": "ALTO",
+    "justificativa": "Q1: -2 (Preço atual 3568.39 abaixo do stop 3568.5, vela M5 fechou com forte pressão vendedora). Q2: -1 (M15 mostra falha em manter níveis superiores). Q3: 0 (H1 neutro/indefinido). Q4: -1 (RSI e MACD em M5 apontam perda de momentum). Q5: -2 (Preço rompeu a borda de suporte 3568.5). Q6-Q10: 0 (Dados neutros ou insuficientes). Soma ponderada: -7.75. A operação foi invalidada pelo preço ter atingido o nível do stop loss (3568.39 < 3568.5).",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000597: O preço atingiu o nível do stop loss (3568.39). A estrutura de alta foi invalidada pelo rompimento da borda de suporte em M5. Recomendado encerrar a operação. Fechamento manual; nenhuma ordem foi executada.",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-26T12:50:03+00:00",
+  "atualizado_utc": "2026-11-26T12:55:02+00:00",
   "ultima_acao_manual": "ENTREI"
 }
