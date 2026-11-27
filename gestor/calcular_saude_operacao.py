@@ -152,7 +152,8 @@ def main():
     if operation.get("codigo") != active_operation.get("codigo"):
         raise RuntimeError("O contexto e o estado não correspondem à mesma operação.")
 
-    result, reason = calculate(operation, report)
+    # Usa o stop atualizado pelo Gemini nesta rodada, sem alterar a decisão.
+    result, reason = calculate(active_operation, report)
     if result is None:
         message = "🩺 Saúde operacional: SEM DADOS — " + reason
         print(message)
