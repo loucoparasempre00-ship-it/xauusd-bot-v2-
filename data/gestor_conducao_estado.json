@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conducao_ativa": true,
+  "conducao_ativa": false,
   "operacao": {
     "codigo": "OP-000651",
     "direcao": "LONG",
@@ -8,7 +8,7 @@
     "preco_sinal": 3637.09248,
     "stop_atual": 3632.70278,
     "alvo": 3643.5,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
     "confirmada_utc": "2026-11-27T17:41:27+00:00",
     "data_sinal": "2026-11-27 17:35:00",
@@ -22,18 +22,18 @@
   "message_id": "1712",
   "ultima_decisao": {
     "codigo_operacao": "OP-000651",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
-    "confianca": 75,
-    "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra candle com pavio superior longo (rejeição), mas preço mantém-se acima da EMA9/21 (+1). Q2: M15 em transição, sem sinal claro de reversão (-0.5). Q3: H1 contexto lateral, neutro (0). Q4: Indicadores M5 (RSI 57, MACD positivo) confirmam momentum comprador (+1.5). Q5: Preço próximo a borda 3637.5, rejeição observada, mas ainda dentro da zona de suporte (+0.5). Q6-Q10: Dados históricos e estatísticos de regiões confirmam volatilidade e suporte próximo (+0.5). Soma ponderada: (1*2) + (-0.5*1.5) + (0*0.75) + (1.5*1.25) + (0.5*1.25) + (0.5*0.75) = 2 - 0.75 + 0 + 1.875 + 0.625 + 0.375 = 4.125. A operação mantém viabilidade técnica, o stop está posicionado abaixo da EMA21 M5.",
-    "mensagem_telegram": "Operação OP-000651 em curso. Preço mantém suporte acima das EMAs no M5. Mantemos a posição com o stop original. Monitorando a resistência em 3639.\n\n🩺 Saúde operacional: 85/100 — SAUDÁVEL\n████████░░\nStop: 100/100 | Progresso: 50/100 | Momentum M5: 100/100\nPreço de referência M5: 3637.09248 | 2026-11-27 17:35:00",
+    "status_conducao": "FINALIZADA",
+    "confianca": 85,
+    "risco": "ALTO",
+    "justificativa": "Q1: O candle M5 mais recente (17:40) fechou em 3634.05, abaixo da entrada (3637.09) e muito próximo ao stop (3632.70), com forte pressão vendedora. Q2: M15 mostra estrutura lateral com viés de baixa, com preço abaixo da EMA21. Q3: H1 apresenta contexto misto, mas a volatilidade atual no M5 está comprimindo o preço contra o stop. Q4: Indicadores M5 mostram RSI em 51.9 (neutro) e MACD perdendo força, confirmando a fraqueza do movimento de alta. Q5: O preço rompeu a borda inferior da região 3634.5, invalidando a tese de suporte. Q6-Q10: Sem evidências históricas ou estatísticas que justifiquem a manutenção diante da falha técnica imediata. Soma ponderada negativa devido à perda da estrutura de suporte e proximidade crítica do stop. A operação perdeu o fundamento técnico de entrada.",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000651: O preço falhou em sustentar o suporte e rompeu a estrutura de alta no M5. Risco elevado de atingir o stop. Recomendado ENCERRAR a operação manualmente. Fechamento manual; nenhuma ordem foi executada.\n\n🩺 Saúde operacional: 45/100 — FRÁGIL\n████░░░░░░\nStop: 31/100 | Progresso: 26/100 | Momentum M5: 83/100\nPreço de referência M5: 3634.05184 | 2026-11-27 17:40:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T17:41:30+00:00",
+  "atualizado_utc": "2026-11-27T17:45:24+00:00",
   "ultima_acao_manual": "ENTREI"
 }
