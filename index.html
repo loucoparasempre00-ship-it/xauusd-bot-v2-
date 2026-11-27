@@ -21,7 +21,8 @@ p{margin:0;color:var(--muted)}.sub{font-size:13px}.status{font-size:12px;color:v
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.stat{background:var(--panel2);padding:9px;border-radius:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600}
 .table-wrap{overflow-x:auto}.tf-title{display:flex;justify-content:space-between;align-items:center;gap:8px}.pill{font-size:11px;color:var(--blue);border:1px solid var(--line);padding:3px 7px;border-radius:20px}
-.empty{color:var(--muted);font-size:13px;padding:8px 0}.foot{margin-top:20px;font-size:11px;color:var(--muted);text-align:center}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}.chart-card{padding:12px}.chart-wrap{position:relative;width:100%;height:360px}.chart-wrap canvas{display:block;width:100%;height:100%}.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin:8px 2px 2px;font-size:12px;color:var(--muted)}.legend-item{display:flex;align-items:center;gap:6px}.legend-line{display:inline-block;width:18px;height:3px;border-radius:3px;background:var(--gold)}.legend-line.ema21{background:var(--blue)}.legend-box{width:12px;height:10px;border-radius:2px;background:rgba(67,197,138,.25);border:1px solid var(--green)}.legend-box.resistance{background:rgba(239,119,119,.2);border-color:var(--red)}
+.foot{margin-top:20px;font-size:11px;color:var(--muted);text-align:center}
 @media(max-width:760px){.grid,.board-grid{grid-template-columns:1fr}.metric{font-size:23px}header{display:block}.status{text-align:left;margin-top:10px}.stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -36,6 +37,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <article class="card"><div class="label">Pacote matemático gerado</div><div id="generated" class="metric" style="font-size:18px">—</div><div class="small">Horário UTC informado pela Central</div></article>
 <article class="card"><div class="label">Última consulta desta tela</div><div id="checked" class="metric" style="font-size:18px">—</div><div class="small">Atualização automática a cada 60 segundos</div></article>
 </section>
+<section class="section"><div class="tf-title"><h2>Gráfico M5 · últimos candles</h2><span id="chart-count" class="pill">Aguardando dados</span></div><article class="card chart-card"><div class="chart-wrap"><canvas id="m5-chart" aria-label="Gráfico de candles M5 com EMA 9, EMA 21, suportes e resistências"></canvas></div><div class="chart-legend"><span class="legend-item"><i class="legend-line"></i> EMA 9</span><span class="legend-item"><i class="legend-line ema21"></i> EMA 21</span><span class="legend-item"><i class="legend-box"></i> Suporte</span><span class="legend-item"><i class="legend-box resistance"></i> Resistência</span><span class="legend-item">Verde: alta · Vermelho: baixa</span></div><p class="small" style="margin:8px 2px 2px">Candles fechados. As faixas mostram regiões históricas próximas ao preço; não representam garantia de reação.</p></article></section>
 <section class="section"><h2>Tabuleiro probabilístico</h2><div id="boards" class="board-grid"><article class="card empty">Carregando M5, M15 e H1…</article></div></section>
 <section class="section"><h2>Indicadores técnicos</h2><div id="indicators" class="board-grid"></div></section>
 <section class="section"><h2>Suportes e resistências M5</h2><div class="card table-wrap" id="regions"><div class="empty">Aguardando dados…</div></div></section>
@@ -51,6 +53,33 @@ const pct=value=>Number.isFinite(Number(value))?(Number(value)*100).toLocaleStri
 const eventClass=code=>String(code).includes("+")?"up":String(code).includes("-")?"down":"";
 const fmtDate=value=>{if(!value)return"—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("pt-BR",{timeZone:"UTC"})+" UTC";};
 
+
+function drawM5Chart(data){
+const canvas=$("m5-chart");if(!canvas)return;
+const candles=Array.isArray(data?.trajetoria_dos_precos?.M5?.velas)?data.trajetoria_dos_precos.M5.velas:[];
+const regions=Array.isArray(data?.suportes_resistencias_e_transicoes_m5?.regioes_proximas)?data.suportes_resistencias_e_transicoes_m5.regioes_proximas:[];
+const width=Math.max(320,canvas.clientWidth||320),height=Math.max(260,canvas.clientHeight||360),dpr=window.devicePixelRatio||1;
+canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+if(!candles.length){ctx.fillStyle="#9aabba";ctx.font="14px system-ui";ctx.fillText("Sem candles M5 disponíveis no pacote.",16,30);$("chart-count").textContent="Sem candles";return;}
+const valid=candles.filter(c=>[c.abertura,c.maxima,c.minima,c.fechamento].every(v=>Number.isFinite(Number(v))));
+if(!valid.length){$("chart-count").textContent="Dados inválidos";return;}
+const zoneValues=regions.flatMap(r=>[Number(r.limite_inferior),Number(r.limite_superior)]).filter(Number.isFinite);
+let min=Math.min(...valid.map(c=>Number(c.minima)),...zoneValues),max=Math.max(...valid.map(c=>Number(c.maxima)),...zoneValues);
+if(!Number.isFinite(min)||!Number.isFinite(max)){min=Math.min(...valid.map(c=>Number(c.minima)));max=Math.max(...valid.map(c=>Number(c.maxima)));}
+const pad=(max-min)*.09||1;min-=pad;max+=pad;
+const left=58,right=12,top=14,bottom=34,plotW=width-left-right,plotH=height-top-bottom;
+const y=v=>top+(max-Number(v))/(max-min)*plotH;
+ctx.font="11px system-ui";ctx.textAlign="right";ctx.textBaseline="middle";ctx.strokeStyle="rgba(154,171,186,.16)";ctx.fillStyle="#9aabba";
+for(let i=0;i<=4;i++){const value=max-(max-min)*i/4,py=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(width-right,py);ctx.stroke();ctx.fillText(value.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}),left-7,py);}
+regions.forEach(r=>{const lo=Number(r.limite_inferior),hi=Number(r.limite_superior);if(!Number.isFinite(lo)||!Number.isFinite(hi)||hi<min||lo>max)return;const y1=y(Math.min(hi,max)),y2=y(Math.max(lo,min));const support=r.papel_em_relacao_ao_preco==="SUPORTE";ctx.fillStyle=support?"rgba(67,197,138,.13)":"rgba(239,119,119,.12)";ctx.fillRect(left,y1,plotW,Math.max(2,y2-y1));ctx.strokeStyle=support?"rgba(67,197,138,.55)":"rgba(239,119,119,.5)";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,y1);ctx.lineTo(width-right,y1);ctx.moveTo(left,y2);ctx.lineTo(width-right,y2);ctx.stroke();ctx.setLineDash([]);});
+const step=plotW/valid.length,candleW=Math.max(2,Math.min(9,step*.62));
+valid.forEach((c,i)=>{const x=left+step*(i+.5),o=y(c.abertura),cl=y(c.fechamento),hi=y(c.maxima),lo=y(c.minima),up=Number(c.fechamento)>=Number(c.abertura);ctx.strokeStyle=up?"#43c58a":"#ef7777";ctx.fillStyle=up?"#43c58a":"#ef7777";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,hi);ctx.lineTo(x,lo);ctx.stroke();const bodyTop=Math.min(o,cl),bodyH=Math.max(1,Math.abs(cl-o));ctx.fillRect(x-candleW/2,bodyTop,candleW,bodyH);});
+const drawEma=(key,color)=>{ctx.beginPath();let started=false;valid.forEach((c,i)=>{const value=Number(c[key]);if(!Number.isFinite(value)){started=false;return;}const x=left+step*(i+.5),py=y(value);if(!started){ctx.moveTo(x,py);started=true;}else ctx.lineTo(x,py);});ctx.strokeStyle=color;ctx.lineWidth=1.8;ctx.stroke();};
+drawEma("ema9","#e4b95f");drawEma("ema21","#77b9ed");
+ctx.fillStyle="#9aabba";ctx.textAlign="center";ctx.textBaseline="top";const labelCount=Math.min(5,valid.length);for(let i=0;i<labelCount;i++){const idx=Math.round(i*(valid.length-1)/Math.max(1,labelCount-1)),c=valid[idx],x=left+step*(idx+.5);ctx.fillText(String(c.data_hora||"").slice(11,16),x,height-bottom+9);}
+$("chart-count").textContent=valid.length+" candles M5";
+}
 function boardCard(tf,data){
 const seq=Array.isArray(data.estado_sequencia)?data.estado_sequencia:[];
 const probs=Array.isArray(data.probabilidades_horizontes_1_2_3)?data.probabilidades_horizontes_1_2_3:[];
@@ -81,6 +110,7 @@ $("dot").className="dot";$("status").textContent="Dados recebidos";
 $("price").textContent=num(data.preco_referencia,2);$("reference").textContent="M5: "+(data.referencia_m5||"—");
 $("generated").textContent=fmtDate(data.gerado_em_utc);$("checked").textContent=new Date().toLocaleTimeString("pt-BR");
 $("updated").textContent="Pacote: "+fmtDate(data.gerado_em_utc);
+window.__lastM5Data=data;drawM5Chart(data);
 const boards=data.projecoes_tabuleiro||{};
 $("boards").innerHTML=["M5","M15","H1"].map(tf=>boardCard(tf,boards[tf]||{})).join("");
 const indicators=data.medias_rsi_macd_atr||{};
@@ -92,6 +122,7 @@ $("dot").className="dot off";$("status").textContent="Sem conexão com os dados"
 $("updated").textContent=error.message;$("checked").textContent=new Date().toLocaleTimeString("pt-BR");
 }
 }
+window.addEventListener("resize",()=>{if(window.__lastM5Data)drawM5Chart(window.__lastM5Data);});
 load();setInterval(load,60000);
 </script>
 </body>
