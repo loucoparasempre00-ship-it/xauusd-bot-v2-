@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conducao_ativa": true,
+  "conducao_ativa": false,
   "operacao": {
     "codigo": "OP-000612",
     "direcao": "LONG",
@@ -8,7 +8,7 @@
     "preco_sinal": 3569.57922,
     "stop_atual": 3565.5,
     "alvo": 3573.0,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
     "confirmada_utc": "2026-11-27T00:30:55+00:00",
     "data_sinal": "2026-11-27 00:25:00",
@@ -22,18 +22,18 @@
   "message_id": "1684",
   "ultima_decisao": {
     "codigo_operacao": "OP-000612",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
-    "confianca": 75,
-    "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra candle recente com pavio inferior longo (75.84% da amplitude), indicando forte rejeição de preços baixos (+1.5). Q2: M15 em transição, mantendo-se acima das EMAs (+1.0). Q3: H1 neutro, sem conflito direto (+0.5). Q4: Indicadores M5 (RSI 53.9, MACD positivo) confirmam momentum de alta (+1.0). Q5: Preço testou região de suporte (3567-3568.5) e rejeitou, validando a zona (+1.0). Q6-Q10: Dados históricos e transições neutros/sem amostra suficiente (0). Soma ponderada: (1.5*2) + (1.0*1.5) + (0.5*0.75) + (1.0*1.25) + (1.0*1.25) = 3.0 + 1.5 + 0.375 + 1.25 + 1.25 = 7.375. A operação está próxima da entrada, o stop de 3565.5 permanece tecnicamente viável e o alvo de 3573.0 é atingível dado o momentum de rejeição observado no M5.",
-    "mensagem_telegram": "Operação OP-000612 em curso. Preço testou suporte e mostrou rejeição clara no M5. Mantendo posição com stop em 3565.5 e alvo em 3573.0.\n\n🩺 Saúde operacional: 80/100 — SAUDÁVEL\n████████░░\nStop: 100/100 | Progresso: 50/100 | Momentum M5: 83/100\nPreço de referência M5: 3569.57922 | 2026-11-27 00:25:00",
+    "status_conducao": "FINALIZADA",
+    "confianca": 85,
+    "risco": "ALTO",
+    "justificativa": "Q1: -2 (Vela M5 fechou com forte pressão vendedora, corpo de 3.46, quase sem pavio inferior, rompendo suporte). Q2: -1 (M15 mostra perda de momentum). Q3: 0 (H1 neutro). Q4: -1 (RSI em 45.9, abaixo de 50, MACD perdendo força). Q5: -2 (Preço rompeu suporte de 3567.0 e está testando 3566.6, próximo ao stop de 3565.5). Q6-Q10: 0 (Dados neutros ou insuficientes). Soma ponderada: -8.5. A operação perdeu a estrutura de suporte inicial, o preço atual (3566.61) está perigosamente próximo ao stop (3565.5) e a última vela M5 indica forte continuidade de baixa, invalidando a tese de alta imediata.",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000612: A operação perdeu suporte técnico e apresenta forte pressão vendedora no M5. Risco de stop iminente. Recomendado ENCERRAR manualmente para preservar capital. Fechamento manual; nenhuma ordem foi executada.\n\n🩺 Saúde operacional: 38/100 — CRÍTICA\n████░░░░░░\nStop: 27/100 | Progresso: 7/100 | Momentum M5: 83/100\nPreço de referência M5: 3566.61158 | 2026-11-27 00:30:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T00:35:02+00:00",
+  "atualizado_utc": "2026-11-27T00:39:56+00:00",
   "ultima_acao_manual": "ENTREI"
 }
