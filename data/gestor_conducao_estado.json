@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 65,
     "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra recuperação no último candle (12:10) com fechamento em 3672.46, superando a abertura e mostrando pavio inferior relevante (rejeição de queda). Q2: M15 em transição, mantendo-se acima da EMA21. Q3: H1 mantém tendência de alta forte. Q4: Indicadores M5 (RSI 47, MACD -0.84) mostram momentum neutro, mas com melhora. Q5: Preço testou região 3670.5 e reagiu, mantendo-se acima do stop. Q6-Q10: Dados históricos e estatísticas de região confirmam volatilidade, mas sem sinal de reversão estrutural. Soma ponderada: Q1(1.5*2=3.0) + Q2(1*1.5=1.5) + Q3(1*0.75=0.75) + Q4(0*1.25=0) + Q5(1*1.25=1.25) + Q6-Q10(0.5*3.75=1.875) = 8.375. A operação está próxima da entrada, o risco permanece controlado e o alvo é viável.",
-    "mensagem_telegram": "Operação OP-000634 segue ATIVA. Preço reagiu bem na região de 3670.5 e mostra sinais de recuperação no M5. Mantemos o plano original.\n\n🩺 Saúde operacional: 62/100 — ATENÇÃO\n██████░░░░\nStop: 100/100 | Progresso: 56/100 | Momentum M5: 17/100\nPreço de referência M5: 3672.46245 | 2026-11-27 12:10:00",
+    "justificativa": "Q1: M5 mostra rejeição superior (pavio longo) no candle 12:15, indicando pressão vendedora de curto prazo (-1). Q2: M15 mostra estrutura lateral com EMA9 abaixo da EMA21, sugerindo fraqueza (0). Q3: H1 mantém tendência de alta, servindo como suporte macro (1). Q4: Indicadores M5 (RSI 44, MACD negativo) confirmam momentum vendedor recente (-1). Q5: Preço oscila em região de borda frágil (3670.5-3672.0), sem rompimento claro (-1). Q6-Q10: Dados históricos e transições não oferecem evidência forte para reversão imediata (0). Soma ponderada: -0.75. Embora o M5 apresente pressão vendedora, o preço ainda está acima do stop (3667.43) e o contexto H1 permanece altista. A operação ainda é viável dentro do risco aceitável.",
+    "mensagem_telegram": "OP-000634: Operação em curso. M5 apresenta pressão vendedora de curto prazo, mas o preço mantém-se acima do stop. Mantendo a posição com cautela.\n\n🩺 Saúde operacional: 47/100 — FRÁGIL\n█████░░░░░\nStop: 83/100 | Progresso: 45/100 | Momentum M5: 0/100\nPreço de referência M5: 3670.93112 | 2026-11-27 12:15:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T12:15:29+00:00",
+  "atualizado_utc": "2026-11-27T12:21:02+00:00",
   "ultima_acao_manual": "ENTREI"
 }
