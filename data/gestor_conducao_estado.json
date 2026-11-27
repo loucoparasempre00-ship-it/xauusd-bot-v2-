@@ -27,13 +27,13 @@
     "status_conducao": "ATIVA",
     "confianca": 65,
     "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra candle recente com pavio superior longo (rejeição), mas fechamento estável. Q2: M15 em transição, mantendo suporte. Q3: H1 em tendência de alta, contexto favorável. Q4: Indicadores (RSI/MACD) neutros, sem sinal de reversão imediata. Q5: Preço próximo a bordas frágeis, mas sem rompimento confirmado. Q6-Q10: Dados históricos e estatísticos sugerem cautela, mas não encerramento. Pontuação ponderada: Q1(0), Q2(1), Q3(1), Q4(0), Q5(0), Q6(0), Q7(0), Q8(0), Q9(0), Q10(0). Soma ponderada: 2.25. A operação está em fase inicial (pendente), o preço está praticamente no ponto de entrada, mantendo a viabilidade técnica do alvo.",
-    "mensagem_telegram": "Operação OP-000634 em acompanhamento. Preço estável próximo à entrada. Estrutura M5 apresenta rejeição superior, mas sem força vendedora confirmada. Mantemos a posição com o stop original.\n\n🩺 Saúde operacional: 55/100 — FRÁGIL\n██████░░░░\nStop: 100/100 | Progresso: 50/100 | Momentum M5: 0/100\nPreço de referência M5: 3671.64892 | 2026-11-27 12:00:00",
+    "justificativa": "Q1: M5 mostra candle de baixa com pavio inferior longo, indicando rejeição vendedora (-1). Q2: M15 em transição, mantendo estrutura acima da EMA21 (+1). Q3: H1 em tendência de alta, contexto favorável (+1). Q4: Indicadores M5 (RSI 42, MACD negativo) mostram enfraquecimento, mas sem reversão total (-1). Q5: Preço próximo ao suporte 3669.0, região de alta probabilidade de rejeição (+1). Q6-Q10: Dados históricos e estatísticos de transição confirmam que a região atual é de suporte crítico (+1). Soma ponderada: (-1*2) + (1*1.5) + (1*0.75) + (-1*1.25) + (1*1.25) + (0*0.75) + (0*0.75) + (0*0.75) + (1*0.75) + (1*0.75) = 0.5. A operação está próxima ao stop, mas a estrutura de suporte H1/M15 ainda sustenta a tese inicial.",
+    "mensagem_telegram": "Operação OP-000634 em zona de suporte. M5 mostra rejeição vendedora recente. Mantemos a posição, pois a estrutura H1/M15 ainda favorece o cenário de alta.\n\n🩺 Saúde operacional: 37/100 — CRÍTICA\n████░░░░░░\nStop: 64/100 | Progresso: 38/100 | Momentum M5: 0/100\nPreço de referência M5: 3670.11686 | 2026-11-27 12:05:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T12:06:07+00:00",
+  "atualizado_utc": "2026-11-27T12:10:19+00:00",
   "ultima_acao_manual": "ENTREI"
 }
