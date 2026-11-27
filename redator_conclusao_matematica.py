@@ -50,7 +50,19 @@ def rows(connection, query, params=()):
 def candles_context(connection):
     result = {}
     for tf, (table, minutes) in TIMEFRAMES.items():
-        raw = rows(connection, f"SELECT data_hora,abertura,maxima,minima,fechamento FROM {table} ORDER BY data_hora DESC LIMIT 30")
+        if tf == "M5":
+            raw = rows(connection, """
+                SELECT c.data_hora,c.abertura,c.maxima,c.minima,c.fechamento,
+                       i.ema9,i.ema21
+                FROM m5 c
+                LEFT JOIN indicadores i
+                  ON i.timeframe='M5'
+                 AND i.data=substr(c.data_hora,1,10)
+                 AND i.hora=substr(c.data_hora,12)
+                ORDER BY c.data_hora DESC LIMIT 120
+            """)
+        else:
+            raw = rows(connection, f"SELECT data_hora,abertura,maxima,minima,fechamento FROM {table} ORDER BY data_hora DESC LIMIT 30")
         now_utc = datetime.now(timezone.utc)
         data = []
         for candle in raw:
@@ -67,14 +79,21 @@ def candles_context(connection):
         result[tf] = {
             "referencia": latest["data_hora"],
             "ultimo_fechamento": number(latest["fechamento"]),
-            "velas": data[-6:],
+            "velas": [
+                {
+                    **candle,
+                    "ema9": number(candle.get("ema9")),
+                    "ema21": number(candle.get("ema21")),
+                }
+                for candle in (data[-100:] if tf == "M5" else data[-6:])
+            ],
             "topo_recente_das_velas": max(number(x["maxima"]) for x in data[-6:]),
             "fundo_recente_das_velas": min(number(x["minima"]) for x in data[-6:]),
             "ponto_a": number(data[0]["fechamento"]),
             "ponto_b": number(latest["fechamento"]),
             "deslocamento": round(number(latest["fechamento"]) - number(data[0]["fechamento"]), 5),
             "direcao_deslocamento": "ALTA" if number(latest["fechamento"]) > number(data[0]["fechamento"]) else "BAIXA" if number(latest["fechamento"]) < number(data[0]["fechamento"]) else "LATERAL",
-            "quantidade_velas_contexto": len(data[-6:]),
+            "quantidade_velas_contexto": len(data[-100:] if tf == "M5" else data[-6:]),
         }
     return result
 
