@@ -7,11 +7,6 @@ on:
       - "gestor/conduzir_operacao_gemini.py"
       - "gestor/calcular_saude_operacao.py"
       - ".github/workflows/gestor-conducao-operacional.yml"
-  repository_dispatch:
-    types:
-      - telegram_conducao_operacao
-      - supabase_conducao_tick
-  workflow_dispatch:
 
 permissions:
   contents: write
