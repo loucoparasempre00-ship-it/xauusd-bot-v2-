@@ -197,17 +197,21 @@ def handle_command():
         return
 
     match = re.fullmatch(
-        r"ENTREI\s+([0-9]+(?:[.,][0-9]+)?)\s+(OP-[0-9]{6,})",
+        r"ENTREI\s+(?:"
+        r"(?P<preco1>[0-9]+(?:[.,][0-9]+)?)\s+(?P<codigo1>OP-[0-9]{6,})"
+        r"|(?P<codigo2>OP-[0-9]{6,})\s+(?P<preco2>[0-9]+(?:[.,][0-9]+)?)"
+        r")",
         text,
         flags=re.IGNORECASE,
     )
     if not match:
         raise RuntimeError(
-            "Comando inválido. Use: ENTREI 3591.22 OP-000266 ou STOP."
+            "Comando inválido. Use: ENTREI 3591.22 OP-000266 "
+            "ou ENTREI OP-000266 3591.22 ou STOP."
         )
 
-    price = number(match.group(1))
-    code = match.group(2).upper()
+    price = number(match.group("preco1") or match.group("preco2"))
+    code = (match.group("codigo1") or match.group("codigo2")).upper()
     if price is None or price <= 0:
         raise RuntimeError("Preço de entrada informado é inválido.")
 
