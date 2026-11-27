@@ -25,15 +25,15 @@
     "acao": "MANTER",
     "novo_stop": null,
     "status_conducao": "ATIVA",
-    "confianca": 65,
+    "confianca": 75,
     "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra candle de indecisão (corpo mínimo) com pavio inferior longo (75.8% da amplitude), indicando rejeição de preços mais baixos (+1). Q2: M15 mostra estrutura lateral com leve viés de recuperação (+1). Q3: H1 neutro, sem impacto direto (+0). Q4: Indicadores M5 (EMA9 > EMA21, RSI 53.9, MACD positivo) confirmam momentum comprador (+1). Q5: Preço testou região de suporte (3567-3568.5) e rejeitou, mantendo-se acima do stop (+1). Q6-Q10: Dados históricos e transições neutros/sem amostra suficiente (+0). Soma ponderada: (1*2.0) + (1*1.5) + (0*0.75) + (1*1.25) + (1*1.25) + 0 = 6.0. A operação está em fase inicial, o stop está preservado e a rejeição no M5 favorece a manutenção.",
-    "mensagem_telegram": "Operação OP-000612 em curso. Preço testou suporte e mostrou rejeição no M5. Mantemos a posição com stop em 3565.5 e alvo em 3573.0.\n\n🩺 Saúde operacional: 80/100 — SAUDÁVEL\n████████░░\nStop: 100/100 | Progresso: 50/100 | Momentum M5: 83/100\nPreço de referência M5: 3569.57922 | 2026-11-27 00:25:00",
+    "justificativa": "Q1: M5 mostra candle recente com pavio inferior longo (75.84% da amplitude), indicando forte rejeição de preços baixos (+1.5). Q2: M15 em transição, mantendo-se acima das EMAs (+1.0). Q3: H1 neutro, sem conflito direto (+0.5). Q4: Indicadores M5 (RSI 53.9, MACD positivo) confirmam momentum de alta (+1.0). Q5: Preço testou região de suporte (3567-3568.5) e rejeitou, validando a zona (+1.0). Q6-Q10: Dados históricos e transições neutros/sem amostra suficiente (0). Soma ponderada: (1.5*2) + (1.0*1.5) + (0.5*0.75) + (1.0*1.25) + (1.0*1.25) = 3.0 + 1.5 + 0.375 + 1.25 + 1.25 = 7.375. A operação está próxima da entrada, o stop de 3565.5 permanece tecnicamente viável e o alvo de 3573.0 é atingível dado o momentum de rejeição observado no M5.",
+    "mensagem_telegram": "Operação OP-000612 em curso. Preço testou suporte e mostrou rejeição clara no M5. Mantendo posição com stop em 3565.5 e alvo em 3573.0.\n\n🩺 Saúde operacional: 80/100 — SAUDÁVEL\n████████░░\nStop: 100/100 | Progresso: 50/100 | Momentum M5: 83/100\nPreço de referência M5: 3569.57922 | 2026-11-27 00:25:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T00:30:57+00:00",
+  "atualizado_utc": "2026-11-27T00:35:02+00:00",
   "ultima_acao_manual": "ENTREI"
 }
