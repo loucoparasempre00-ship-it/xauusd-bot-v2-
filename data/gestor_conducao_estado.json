@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conducao_ativa": true,
+  "conducao_ativa": false,
   "operacao": {
     "codigo": "OP-000634",
     "direcao": "LONG",
@@ -8,7 +8,7 @@
     "preco_sinal": 3671.64892,
     "stop_atual": 3667.43683,
     "alvo": 3678.24,
-    "status": "ABERTA",
+    "status": "FINALIZADA",
     "confirmacao_usuario": true,
     "confirmada_utc": "2026-11-27T12:06:05+00:00",
     "data_sinal": "2026-11-27 12:00:00",
@@ -22,18 +22,18 @@
   "message_id": "1703",
   "ultima_decisao": {
     "codigo_operacao": "OP-000634",
-    "acao": "MANTER",
+    "acao": "ENCERRAR",
     "novo_stop": null,
-    "status_conducao": "ATIVA",
-    "confianca": 65,
-    "risco": "MODERADO",
-    "justificativa": "Q1: M5 mostra rejeição superior (pavio longo) no candle 12:15, indicando pressão vendedora de curto prazo (-1). Q2: M15 mostra estrutura lateral com EMA9 abaixo da EMA21, sugerindo fraqueza (0). Q3: H1 mantém tendência de alta, servindo como suporte macro (1). Q4: Indicadores M5 (RSI 44, MACD negativo) confirmam momentum vendedor recente (-1). Q5: Preço oscila em região de borda frágil (3670.5-3672.0), sem rompimento claro (-1). Q6-Q10: Dados históricos e transições não oferecem evidência forte para reversão imediata (0). Soma ponderada: -0.75. Embora o M5 apresente pressão vendedora, o preço ainda está acima do stop (3667.43) e o contexto H1 permanece altista. A operação ainda é viável dentro do risco aceitável.",
-    "mensagem_telegram": "OP-000634: Operação em curso. M5 apresenta pressão vendedora de curto prazo, mas o preço mantém-se acima do stop. Mantendo a posição com cautela.\n\n🩺 Saúde operacional: 47/100 — FRÁGIL\n█████░░░░░\nStop: 83/100 | Progresso: 45/100 | Momentum M5: 0/100\nPreço de referência M5: 3670.93112 | 2026-11-27 12:15:00",
+    "status_conducao": "FINALIZADA",
+    "confianca": 85,
+    "risco": "ALTO",
+    "justificativa": "Q1: M5 mostra forte pressão vendedora com pavio superior dominante e fechamento próximo à mínima (-2). Q2: M15 mostra perda de momentum e aproximação do stop (-1). Q3: H1 ainda altista, mas sem suporte imediato para o M5 (-1). Q4: Indicadores M5 (RSI 40, MACD negativo, abaixo das EMAs) confirmam deterioração (-2). Q5: Preço rompeu suporte de 3670.5 e testa 3669.0, região classificada como 'Borda Frágil' (-1). Q6-Q10: Dados históricos e transições indicam alta probabilidade de continuidade do movimento de baixa na região atual (-1). Soma ponderada: -10.75. A operação perdeu a sustentação técnica inicial, o preço está perigosamente próximo ao stop (3667.43) e a estrutura de curto prazo reverteu para baixa.",
+    "mensagem_telegram": "RECOMENDAÇÃO DE ENCERRAMENTO — OP-000634: Estrutura M5 deteriorou, preço rompeu suportes e indicadores confirmam pressão vendedora. Risco de stop iminente. Recomendado ENCERRAR a operação. Fechamento manual; nenhuma ordem foi executada.\n\n🩺 Saúde operacional: 21/100 — CRÍTICA\n██░░░░░░░░\nStop: 31/100 | Progresso: 28/100 | Momentum M5: 0/100\nPreço de referência M5: 3668.72201 | 2026-11-27 12:20:00",
     "tipo_resultado": "DECISAO_GEMINI_CONDUCAO",
     "ordem_executada": false,
     "confirmacao_manual_necessaria": true,
     "modelo_utilizado": "models/gemini-3.1-flash-lite"
   },
-  "atualizado_utc": "2026-11-27T12:21:02+00:00",
+  "atualizado_utc": "2026-11-27T12:25:23+00:00",
   "ultima_acao_manual": "ENTREI"
 }
