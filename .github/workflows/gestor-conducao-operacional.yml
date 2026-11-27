@@ -5,6 +5,7 @@ on:
     paths:
       - "gestor/controle_conducao.py"
       - "gestor/conduzir_operacao_gemini.py"
+      - "gestor/calcular_saude_operacao.py"
       - ".github/workflows/gestor-conducao-operacional.yml"
   repository_dispatch:
     types:
@@ -34,7 +35,7 @@ jobs:
       - name: Compilar os módulos Python
         run: |
           set -euo pipefail
-          python -m py_compile gestor/controle_conducao.py gestor/conduzir_operacao_gemini.py gestor/telegram.py
+          python -m py_compile gestor/controle_conducao.py gestor/conduzir_operacao_gemini.py gestor/calcular_saude_operacao.py gestor/telegram.py redator_conclusao_matematica.py
 
   conduzir:
     name: Conduzir operação confirmada
@@ -73,6 +74,13 @@ jobs:
           test -s data/xauusd.db
           python gestor/controle_conducao.py preparar
 
+      - name: Gerar conclusão matemática compacta
+        if: steps.contexto.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          python redator_conclusao_matematica.py
+          test -s data/conclusao_matematica.json
+
       - name: Gemini exclusivo de condução
         if: steps.contexto.outputs.ativa == 'true'
         env:
@@ -88,6 +96,12 @@ jobs:
         run: |
           set -euo pipefail
           python gestor/controle_conducao.py aplicar
+
+      - name: Calcular saúde auxiliar da operação
+        if: steps.contexto.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          python gestor/calcular_saude_operacao.py
 
       - name: Enviar decisão ao Telegram
         if: steps.contexto.outputs.ativa == 'true'
