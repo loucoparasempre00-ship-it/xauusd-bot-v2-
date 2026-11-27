@@ -1,56 +1,11 @@
-name: Consulta sob demanda do banco oficial para o Gestor
+name: Rota antiga do Gestor (migrada para Central 2.0)
 
 on:
-  repository_dispatch:
-    types:
-      - telegram_mensagem_gemini
-
-permissions:
-  contents: read
-
-concurrency:
-  group: gestor-consulta-${{ github.event.client_payload.request_id || github.run_id }}
-  cancel-in-progress: false
+  workflow_dispatch:
 
 jobs:
-  receber:
+  rota_migrada:
+    if: false
     runs-on: ubuntu-latest
-    timeout-minutes: 8
     steps:
-      - name: Checkout do banco oficial e dos módulos
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          persist-credentials: false
-
-      - name: Validar mensagem e banco oficial
-        env:
-          GESTOR_REQUEST_ID: ${{ github.event.client_payload.request_id }}
-          GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          GESTOR_TEXTO: ${{ github.event.client_payload.texto }}
-        run: |
-          set -euo pipefail
-          test -n "$GESTOR_REQUEST_ID"
-          test -n "$GESTOR_CHAT_ID"
-          test -n "$GESTOR_TEXTO"
-          test -s data/xauusd.db
-          echo "Solicitação recebida; conteúdo omitido do log."
-          echo "Banco oficial encontrado no checkout."
-
-      - name: Consultar SQLite oficial e Gemini
-        env:
-          GESTOR_TEXTO: ${{ github.event.client_payload.texto }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GESTOR_GEMINI_MODEL: gemini-3.1-flash-lite
-        run: |
-          set -euo pipefail
-          python gestor/consulta_gemini.py
-
-      - name: Responder diretamente pelo GitHub Actions
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
-          GESTOR_CHAT_ID: ${{ github.event.client_payload.chat_id }}
-          GESTOR_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
-        run: |
-          set -euo pipefail
-          GESTOR_REPLY_TEXT="$(cat gestor_resposta.txt)" python gestor/telegram.py
+      - run: echo "A consulta conversacional agora é executada pela Central 2.0."
