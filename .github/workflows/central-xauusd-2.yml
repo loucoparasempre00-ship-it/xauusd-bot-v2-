@@ -2,9 +2,6 @@ name: Central Inteligente XAUUSD 2.0
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types:
-      - central_inteligente_2_0
 
 permissions:
   contents: write
@@ -31,7 +28,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      # MODULO 01 - COLETA DE VELAS
       - name: "01 - Coletar velas M5 M15 H1"
         env:
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
@@ -40,13 +36,11 @@ jobs:
           test -n "$TWELVE_DATA_API_KEY"
           python coletor_validador_velas.py
 
-      # MODULO 02 - INDICADORES TECNICOS
       - name: "02 - Calcular indicadores tecnicos"
         run: |
           set -euo pipefail
           python indicadores_tecnicos.py
 
-      # MODULO 03 - TABULEIRO E ESTATISTICAS
       - name: "03 - Atualizar tabuleiro"
         run: |
           set -euo pipefail
@@ -62,7 +56,6 @@ jobs:
           set -euo pipefail
           python processador_estatistico_m5.py
 
-      # MODULO 04 - MOTOR INTEGRADO DE SINAIS
       - name: "04 - Recuperar modelo selecionado pelo Testador"
         env:
           GH_TOKEN: ${{ github.token }}
@@ -123,9 +116,7 @@ jobs:
           test -n "$GEMINI_API_KEY"
           python motor_sinais_integrado.py
 
-      # MODULO 05 - CONDUCAO POR DEMANDA
-      # A decisão é feita consultando o estado versionado.
-      # Sem operação ativa, nenhum Gemini Condutor é chamado.
+      # CONDUCAO POR DEMANDA: sem operação ativa, não chama o Gemini Condutor.
       - name: "05 - Verificar operação ativa e preparar contexto"
         id: contexto
         run: |
@@ -163,7 +154,6 @@ jobs:
           set -euo pipefail
           python gestor/controle_conducao.py notificar
 
-      # PERSISTENCIA - BANCO OFICIAL E ESTADO DA CONDUCAO
       - name: Salvar banco e estado atualizados
         if: success()
         run: |
