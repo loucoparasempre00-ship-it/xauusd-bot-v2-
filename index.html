@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101722">
+<title>XAUUSD | Painel Central 2.0</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1119;--panel:#131e2b;--panel2:#182637;--line:#26384b;--text:#edf3f8;--muted:#9aabba;--gold:#e4b95f;--green:#43c58a;--red:#ef7777;--blue:#77b9ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1100px;margin:auto;padding:22px 16px 42px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+h1{font-size:23px;line-height:1.2;margin:0 0 5px}h2{font-size:17px;margin:0 0 14px}h3{font-size:15px;margin:0 0 10px;color:var(--gold)}
+p{margin:0;color:var(--muted)}.sub{font-size:13px}.status{font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px}.dot.off{background:var(--red)}
+.grid,.board-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:15px;min-width:0}
+.metric{font-size:25px;font-weight:700;letter-spacing:.2px}.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.section{margin-top:22px}.sequence{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 13px}
+.event{font-size:12px;font-weight:700;padding:4px 7px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
+.event.up{color:var(--green)}.event.down{color:var(--red)}.small{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.stat{background:var(--panel2);padding:9px;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600}
+.table-wrap{overflow-x:auto}.tf-title{display:flex;justify-content:space-between;align-items:center;gap:8px}.pill{font-size:11px;color:var(--blue);border:1px solid var(--line);padding:3px 7px;border-radius:20px}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}.foot{margin-top:20px;font-size:11px;color:var(--muted);text-align:center}
+@media(max-width:760px){.grid,.board-grid{grid-template-columns:1fr}.metric{font-size:23px}header{display:block}.status{text-align:left;margin-top:10px}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div><h1>🥇 XAUUSD · Central 2.0</h1><p class="sub">Painel de acompanhamento — somente visualização</p></div>
+<div class="status"><span id="dot" class="dot off"></span><span id="status">Conectando ao Worker…</span><br><span id="updated">Aguardando pacote</span></div>
+</header>
+<section class="grid">
+<article class="card"><div class="label">Preço de referência M5</div><div id="price" class="metric">—</div><div id="reference" class="small">Sem referência</div></article>
+<article class="card"><div class="label">Pacote matemático gerado</div><div id="generated" class="metric" style="font-size:18px">—</div><div class="small">Horário UTC informado pela Central</div></article>
+<article class="card"><div class="label">Última consulta desta tela</div><div id="checked" class="metric" style="font-size:18px">—</div><div class="small">Atualização automática a cada 60 segundos</div></article>
+</section>
+<section class="section"><h2>Tabuleiro probabilístico</h2><div id="boards" class="board-grid"><article class="card empty">Carregando M5, M15 e H1…</article></div></section>
+<section class="section"><h2>Indicadores técnicos</h2><div id="indicators" class="board-grid"></div></section>
+<section class="section"><h2>Suportes e resistências M5</h2><div class="card table-wrap" id="regions"><div class="empty">Aguardando dados…</div></div></section>
+<section class="section"><h2>Histórico operacional resumido</h2><div class="grid" id="history"></div></section>
+<p class="foot">Fonte: data/conclusao_matematica.json · Central2 → GitHub → Cloudflare Worker · As probabilidades do Tabuleiro são frequências históricas, não garantias.</p>
+</main>
+<script>
+const API="https://gestor-xauusd.loucoparasempre00.workers.dev/painel/dados";
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"—").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=(value,digits=2)=>Number.isFinite(Number(value))?Number(value).toLocaleString("pt-BR",{minimumFractionDigits:digits,maximumFractionDigits:digits}):"—";
+const pct=value=>Number.isFinite(Number(value))?(Number(value)*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%":"—";
+const eventClass=code=>String(code).includes("+")?"up":String(code).includes("-")?"down":"";
+const fmtDate=value=>{if(!value)return"—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("pt-BR",{timeZone:"UTC"})+" UTC";};
+
+function boardCard(tf,data){
+const seq=Array.isArray(data.estado_sequencia)?data.estado_sequencia:[];
+const probs=Array.isArray(data.probabilidades_horizontes_1_2_3)?data.probabilidades_horizontes_1_2_3:[];
+const sequence=seq.length?seq.map(code=>'<span class="event '+eventClass(code)+'">'+esc(code)+'</span>').join(""):'<span class="empty">Sequência indisponível</span>';
+const rows=probs.length?probs.map(p=>'<tr><td>'+esc(p.horizonte)+' vela(s)</td><td><strong>'+esc(p.evento_futuro)+'</strong></td><td>'+pct(p.probabilidade)+'</td><td>'+esc(p.ocorrencias)+' / '+esc(p.total_amostras)+'</td></tr>').join(""):'<tr><td colspan="4" class="empty">Sem correspondências históricas para projetar.</td></tr>';
+return '<article class="card"><div class="tf-title"><h3>'+tf+'</h3><span class="pill">12 eventos</span></div><div class="small">Referência: '+esc(data.referencia)+'</div><div class="sequence">'+sequence+'</div><div class="stats"><div class="stat"><div class="label">Correspondências</div><strong>'+esc(data.correspondencias_historicas??"—")+'</strong></div><div class="stat"><div class="label">Exatas</div><strong>'+esc(data.correspondencias_exatas??"—")+'</strong></div></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Horizonte</th><th>Evento</th><th>Freq.</th><th>Amostras</th></tr></thead><tbody>'+rows+'</tbody></table></div></article>';
+}
+function indicatorCard(tf,data){
+if(!data||data.disponibilidade)return'<article class="card"><h3>'+tf+'</h3><div class="empty">Indicadores indisponíveis</div></article>';
+return'<article class="card"><h3>'+tf+'</h3><div class="stats"><div class="stat"><div class="label">EMA 9</div><strong>'+num(data.ema9,3)+'</strong></div><div class="stat"><div class="label">EMA 21</div><strong>'+num(data.ema21,3)+'</strong></div><div class="stat"><div class="label">RSI 14</div><strong>'+num(data.rsi14,2)+'</strong></div><div class="stat"><div class="label">MACD</div><strong>'+num(data.macd,4)+'</strong></div><div class="stat"><div class="label">ATR</div><strong>'+num(data.atr,4)+'</strong></div><div class="stat"><div class="label">Cruzamento EMA</div><strong>'+esc(data.cruzamento_entre_ultimos_registros)+'</strong></div></div><div class="small" style="margin-top:9px">'+esc(data.relacao_ema)+' · RSI '+esc(data.direcao_rsi)+' · '+esc(data.momentum_macd)+'</div></article>';
+}
+function renderRegions(data){
+const rows=Array.isArray(data?.regioes_proximas)?data.regioes_proximas:[];
+if(!rows.length)return'<div class="empty">Regiões não disponíveis.</div>';
+return'<table><thead><tr><th>Região</th><th>Faixa</th><th>Papel</th><th>Toques</th><th>Rejeições</th><th>Rompimentos</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+esc(r.regiao)+'</td><td>'+num(r.limite_inferior,2)+' – '+num(r.limite_superior,2)+'</td><td>'+esc(r.papel_em_relacao_ao_preco)+'</td><td>'+esc(r.toques)+'</td><td>'+esc(r.rejeicoes)+'</td><td>'+esc(r.rompimentos)+'</td></tr>').join("")+'</tbody></table>';
+}
+function renderHistory(data){
+const total=data?.ranking||{};
+return'<article class="card"><div class="label">Sinais validados</div><div class="metric">'+esc(data?.sinais_validados?.registros??"—")+'</div></article><article class="card"><div class="label">Sinais negados</div><div class="metric">'+esc(data?.sinais_negados?.registros??"—")+'</div></article><article class="card"><div class="label">Resultado líquido histórico</div><div class="metric">'+num(total.resultado_liquido_usdt,2)+' USDT</div><div class="small">Encerradas: '+esc(total.encerradas??"—")+' · Pendentes: '+esc(total.pendentes??"—")+'</div></article>';
+}
+async function load(){
+try{
+const response=await fetch(API,{cache:"no-store"});
+if(!response.ok)throw new Error("Worker respondeu HTTP "+response.status);
+const data=await response.json();
+if(data.tipo!=="CONCLUSAO_MATEMATICA_XAUUSD")throw new Error("Pacote recebido não é a conclusão matemática esperada.");
+$("dot").className="dot";$("status").textContent="Dados recebidos";
+$("price").textContent=num(data.preco_referencia,2);$("reference").textContent="M5: "+(data.referencia_m5||"—");
+$("generated").textContent=fmtDate(data.gerado_em_utc);$("checked").textContent=new Date().toLocaleTimeString("pt-BR");
+$("updated").textContent="Pacote: "+fmtDate(data.gerado_em_utc);
+const boards=data.projecoes_tabuleiro||{};
+$("boards").innerHTML=["M5","M15","H1"].map(tf=>boardCard(tf,boards[tf]||{})).join("");
+const indicators=data.medias_rsi_macd_atr||{};
+$("indicators").innerHTML=["M5","M15","H1"].map(tf=>indicatorCard(tf,indicators[tf])).join("");
+$("regions").innerHTML=renderRegions(data.suportes_resistencias_e_transicoes_m5);
+$("history").innerHTML=renderHistory(data.historico_operacional_resumido||{});
+}catch(error){
+$("dot").className="dot off";$("status").textContent="Sem conexão com os dados";
+$("updated").textContent=error.message;$("checked").textContent=new Date().toLocaleTimeString("pt-BR");
+}
+}
+load();setInterval(load,60000);
+</script>
+</body>
+</html>
