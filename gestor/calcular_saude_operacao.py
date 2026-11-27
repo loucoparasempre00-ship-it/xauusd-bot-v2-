@@ -97,7 +97,7 @@ def calculate(operation, report):
     if momentum is None:
         return None, "Sem indicadores M5 suficientes para calcular a saúde."
 
-    health = round(0.60 * safety + 0.20 * progress_score + 0.20 * momentum)
+    health = round(0.40 * safety + 0.30 * progress_score + 0.30 * momentum)
     health = int(clamp(health))
     return {
         "pontuacao": health,
