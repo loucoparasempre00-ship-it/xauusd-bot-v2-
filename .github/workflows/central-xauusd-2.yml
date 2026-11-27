@@ -1,0 +1,200 @@
+name: Central Inteligente XAUUSD 2.0
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - central_inteligente_2_0
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: central-inteligente-xauusd
+  cancel-in-progress: false
+
+jobs:
+  central:
+    name: Central 2.0 - banco unico, sinais e condução por demanda
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 00 - Baixar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # MODULO 01 - COLETA DE VELAS
+      - name: "01 - Coletar velas M5 M15 H1"
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$TWELVE_DATA_API_KEY"
+          python coletor_validador_velas.py
+
+      # MODULO 02 - INDICADORES TECNICOS
+      - name: "02 - Calcular indicadores tecnicos"
+        run: |
+          set -euo pipefail
+          python indicadores_tecnicos.py
+
+      # MODULO 03 - TABULEIRO E ESTATISTICAS
+      - name: "03 - Atualizar tabuleiro"
+        run: |
+          set -euo pipefail
+          python tabuleiro.py
+
+      - name: "03 - Detectar bordas M5"
+        run: |
+          set -euo pipefail
+          python detector_bordas_m5.py
+
+      - name: "03 - Processar estatisticas M5"
+        run: |
+          set -euo pipefail
+          python processador_estatistico_m5.py
+
+      # MODULO 04 - MOTOR INTEGRADO DE SINAIS
+      - name: "04 - Recuperar modelo selecionado pelo Testador"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          RUN_ID=$(gh run list \
+            --workflow testador-gemini.yml \
+            --json databaseId \
+            --limit 1 \
+            --jq '.[0].databaseId // empty')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Nenhuma execucao recente do Testador Gemini encontrada."
+            exit 1
+          fi
+
+          CONCLUSION=$(gh run view "$RUN_ID" --json conclusion --jq '.conclusion')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "A execucao mais recente do Testador nao terminou com sucesso: $CONCLUSION"
+            echo "A Central 2.0 nao reutilizara uma selecao antiga."
+            exit 1
+          fi
+
+          mkdir -p data
+          gh run download "$RUN_ID" \
+            --name selecao-modelo-gemini \
+            --dir data
+
+          test -s data/modelo_gemini.json
+          python - <<'PY'
+          import json
+          with open("data/modelo_gemini.json", encoding="utf-8") as f:
+              selecao = json.load(f)
+          aprovados = selecao.get("modelos_aprovados_execucao")
+          if selecao.get("status") not in ("pronto", "pronto_com_aviso_api"):
+              raise SystemExit("Testador sem status pronto nesta execucao.")
+          if not isinstance(aprovados, list) or not aprovados:
+              raise SystemExit("Nenhum modelo aprovado na execucao atual do Testador.")
+          if selecao.get("modelo_escolhido") not in aprovados:
+              raise SystemExit("Modelo escolhido nao pertence aos aprovados atuais.")
+          print("Modelos aprovados nesta execucao:", ", ".join(aprovados))
+          PY
+
+      - name: "04 - Gerar conclusao matematica compacta"
+        run: |
+          set -euo pipefail
+          python redator_conclusao_matematica.py
+          test -s data/conclusao_matematica.json
+
+      - name: "04 - Executar motor integrado de sinais"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$GEMINI_API_KEY"
+          python motor_sinais_integrado.py
+
+      # MODULO 05 - CONDUCAO POR DEMANDA
+      # A decisão é feita consultando o estado versionado.
+      # Sem operação ativa, nenhum Gemini Condutor é chamado.
+      - name: "05 - Verificar operação ativa e preparar contexto"
+        id: contexto
+        run: |
+          set -euo pipefail
+          test -s data/xauusd.db
+          python gestor/controle_conducao.py preparar
+
+      - name: "05 - Gemini Condutor"
+        if: steps.contexto.outputs.ativa == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GESTOR_GEMINI_MODEL_CONDUCAO: gemini-3.1-flash-lite
+        run: |
+          set -euo pipefail
+          python gestor/conduzir_operacao_gemini.py
+          test -s gestor_conducao_resultado.json
+
+      - name: "05 - Aplicar decisão da condução"
+        if: steps.contexto.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          python gestor/controle_conducao.py aplicar
+
+      - name: "05 - Calcular saúde auxiliar da operação"
+        if: steps.contexto.outputs.ativa == 'true'
+        run: |
+          set -euo pipefail
+          python gestor/calcular_saude_operacao.py
+
+      - name: "05 - Notificar decisão no Telegram"
+        if: steps.contexto.outputs.ativa == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.GESTOR_TELEGRAM_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          python gestor/controle_conducao.py notificar
+
+      # PERSISTENCIA - BANCO OFICIAL E ESTADO DA CONDUCAO
+      - name: Salvar banco e estado atualizados
+        if: success()
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/xauusd.db
+          if [ -f data/gestor_conducao_estado.json ]; then
+            git add data/gestor_conducao_estado.json
+          fi
+
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteracao para persistir."
+            exit 0
+          fi
+
+          git commit -m "Central 2.0: atualiza banco e condução"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Resumo da Central 2.0
+        if: always()
+        run: |
+          echo "===================================="
+          echo "CENTRAL INTELIGENTE XAUUSD 2.0"
+          echo "===================================="
+          echo "01 - Coleta de velas"
+          echo "02 - Indicadores tecnicos"
+          echo "03 - Tabuleiro, bordas e estatisticas M5"
+          echo "04 - Motor integrado de sinais"
+          echo "05 - Conducao Gemini somente se houver operacao ativa"
+          echo "===================================="
